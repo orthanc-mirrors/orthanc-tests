@@ -1,17 +1,37 @@
 #!/usr/bin/python
 
-# sudo docker run --rm -v `pwd`/Toolbox.py:/tmp/Toolbox.py:ro --entrypoint python jodogne/orthanc-tests /tmp/Toolbox.py
+# Orthanc - A Lightweight, RESTful DICOM Store
+# Copyright (C) 2012-2015 Sebastien Jodogne, Medical Physics
+# Department, University Hospital of Liege, Belgium
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
+
+from PIL import Image
+from urllib import urlencode
 import hashlib
 import httplib2
 import json
 import os.path
-from PIL import Image
-import zipfile
+import re
+import subprocess
 import time
-from urllib import urlencode
+import zipfile
 
+
+HERE = os.path.dirname(__file__)
 
 
 # http://stackoverflow.com/a/1313868/881731
@@ -21,19 +41,33 @@ except:
     from StringIO import StringIO
 
 
-
-def CreateOrthanc(url = 'http://localhost:8042',
+def DefineOrthanc(url = 'http://localhost:8042',
                   username = None,
-                  password = None):
+                  password = None,
+                  aet = 'ORTHANC',
+                  dicomPort = 4242):
+    m = re.match(r'(http|https)://([^:]+):([^@]+)@([^@]+)', url)
+    if m != None:
+        url = m.groups()[0] + '://' + m.groups()[3]
+        username = m.groups()[1]
+        password = m.groups()[2]
+
     if not url.endswith('/'):
         url += '/'
 
-    return [ url, username, password ]
+    return {
+        'Url' : url, 
+        'Username' : username,
+        'Password' : password,
+        'DicomAet' : aet,
+        'DicomPort' : dicomPort
+        }
 
 
 def _SetupCredentials(orthanc, http):
-    if orthanc[1] != None and orthanc[2] != None:
-        http.add_credentials(orthanc[1], orthanc[2])
+    if (orthanc['Username'] != None and 
+        orthanc['Password'] != None):
+        http.add_credentials(orthanc['Username'], orthanc['Password'])
 
 
 def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
@@ -44,7 +78,7 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
     http = httplib2.Http()
     _SetupCredentials(orthanc, http)
 
-    resp, content = http.request(orthanc[0] + uri + d, 'GET', body = body,
+    resp, content = http.request(orthanc['Url'] + uri + d, 'GET', body = body,
                                  headers = headers)
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status)
@@ -68,7 +102,7 @@ def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     
     headers['expect'] = ''
 
-    resp, content = http.request(orthanc[0] + uri, method,
+    resp, content = http.request(orthanc['Url'] + uri, method,
                                  body = body,
                                  headers = headers)
     if not (resp.status in [ 200, 302 ]):
@@ -83,7 +117,7 @@ def DoDelete(orthanc, uri):
     http = httplib2.Http()
     _SetupCredentials(orthanc, http)
 
-    resp, content = http.request(orthanc[0] + uri, 'DELETE')
+    resp, content = http.request(orthanc['Url'] + uri, 'DELETE')
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status)
     else:
@@ -99,19 +133,21 @@ def DoPost(orthanc, uri, data = {}, contentType = '', headers = {}):
     return _DoPutOrPost(orthanc, uri, 'POST', data, contentType, headers)
 
 def UploadInstance(orthanc, filename):
-    p = os.path.join(HERE, DICOM_DB, filename)
+    global HERE
+    p = os.path.join(HERE, 'Database', filename)
     f = open(p, 'rb')
     d = f.read()
     f.close()
     return DoPost(orthanc, '/instances', d, 'application/dicom')
 
 def UploadFolder(orthanc, path):
-     p = os.path.join(HERE, DICOM_DB, path)
-     for i in os.listdir(p):
-       try:
-         UploadInstance(orthanc, os.path.join(path, i))
-       except:
-         pass
+    global HERE
+    p = os.path.join(HERE, 'Database', path)
+    for i in os.listdir(p):
+        try:
+            UploadInstance(orthanc, os.path.join(path, i))
+        except:
+            pass
 
 def DropOrthanc(orthanc):
     # Reset the Lua callbacks
@@ -137,15 +173,20 @@ def GetArchive(orthanc, uri):
     s = DoGet(orthanc, uri)
     return zipfile.ZipFile(StringIO(s), "r")
 
-def IsDefinedInLua(name):
+def IsDefinedInLua(orthanc, name):
     s = DoPost(orthanc, '/tools/execute-script', 'print(type(%s))' % name, 'application/lua')
     return (s.strip() != 'nil')
 
-def WaitEmpty():
+def WaitEmpty(orthanc):
     while True:
-        if len(orthanc, DoGet('/instances')) == 0:
+        if len(DoGet(orthanc, '/instances')) == 0:
             return
         time.sleep(0.1)
 
-
-print DoGet(CreateOrthanc('http://192.168.215.82:8042'), '/system')
+def GetDockerHostAddress():
+    route = subprocess.check_output([ '/sbin/ip', 'route' ])
+    m = re.search(r'default via ([0-9.]+)', route)
+    if m == None:
+        return 'localhost'
+    else:
+        return m.groups()[0]
