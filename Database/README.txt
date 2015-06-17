@@ -40,7 +40,7 @@ Content
 Here is the source of each set of sample images:
 
 - Brainix/* : From OsiriX, "BRAINIX".
-- DummyCT.dcm : From Osirix, "KNEE" with PixelData removed.
+- DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
 - Phenix/* : From OsiriX, "PHENIX".
 - Knee/* : From OsiriX, "KNEE".
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"

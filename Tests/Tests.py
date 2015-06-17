@@ -228,3 +228,136 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/aaa/preview' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/76/preview' % i))
 
+
+    def test_changes(self):
+        # Check emptiness
+        c = DoGet(_REMOTE, '/changes')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertEqual(0, c['Last'])
+        self.assertTrue(c['Done'])
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertEqual(0, c['Last'])
+        self.assertTrue(c['Done'])
+
+        # Add 1 instance
+        i = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        c = DoGet(_REMOTE, '/changes')
+        begin = c['Last']
+        self.assertEqual(4, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(c['Changes'][-1]['Seq'], c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(1, len(c['Changes']))
+        self.assertEqual(begin, c['Last'])
+        self.assertTrue(c['Done'])
+        c = DoGet(_REMOTE, '/changes?limit=1&since=' + str(begin - 1))
+        self.assertEqual(1, len(c['Changes']))
+        self.assertEqual(begin, c['Last'])
+        self.assertTrue(c['Done'])
+        c = DoGet(_REMOTE, '/changes?limit=1&since=' + str(begin - 2))
+        self.assertEqual(1, len(c['Changes']))
+        self.assertEqual(begin - 1, c['Last'])
+        self.assertFalse(c['Done'])
+        c = DoGet(_REMOTE, '/changes?limit=1&since=' + str(begin - 3))
+        self.assertEqual(1, len(c['Changes']))
+        self.assertEqual(begin - 2, c['Last'])
+        self.assertFalse(c['Done'])
+
+        UploadFolder(_REMOTE, 'Knee/T1')
+        UploadFolder(_REMOTE, 'Knee/T2')
+        since = begin
+        countPatients = 0
+        countStudies = 0
+        countSeries = 0
+        countInstances = 0
+        completed = 0
+        while True:
+            c = DoGet(_REMOTE, '/changes', { 'since' : since, 'limit' : 3 })
+            since = c['Last']
+            for i in c['Changes']:
+                if i['ResourceType'] == 'Instance':
+                    countInstances += 1
+                if i['ResourceType'] == 'Patient':
+                    countPatients += 1
+                if i['ResourceType'] == 'Study':
+                    countStudies += 1
+                if i['ResourceType'] == 'Series':
+                    countSeries += 1
+                if i['ChangeType'] == 'NewInstance':
+                    countInstances += 1
+                if i['ChangeType'] == 'NewPatient':
+                    countPatients += 1
+                if i['ChangeType'] == 'NewStudy':
+                    countStudies += 1
+                if i['ChangeType'] == 'NewSeries':
+                    countSeries += 1
+                if i['ChangeType'] == 'CompletedSeries':
+                    completed += 1
+                self.assertTrue('ID' in i)
+                self.assertTrue('Path' in i)
+                self.assertTrue('Seq' in i)
+            if c['Done']:
+                break
+
+        self.assertEqual(2 * 50, countInstances)
+        self.assertEqual(2 * 1, countPatients)
+        self.assertEqual(2 * 1, countStudies)
+        self.assertEqual(2 * 2, countSeries)
+        self.assertEqual(0, completed)
+
+
+    def test_archive(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % DoGet(_REMOTE, '/patients')[0])
+        self.assertEqual(2, len(z.namelist()))
+
+        z = GetArchive(_REMOTE, '/studies/%s/archive' % DoGet(_REMOTE, '/studies')[0])
+        self.assertEqual(2, len(z.namelist()))
+
+        z = GetArchive(_REMOTE, '/series/%s/archive' % DoGet(_REMOTE, '/series')[0])
+        self.assertEqual(1, len(z.namelist()))
+
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % DoGet(_REMOTE, '/patients')[0])
+        self.assertEqual(2, len(z.namelist()))
+        
+
+    def test_media_archive(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        z = GetArchive(_REMOTE, '/patients/%s/media' % DoGet(_REMOTE, '/patients')[0])
+        self.assertEqual(3, len(z.namelist()))
+        self.assertTrue('IMAGES/IM0' in z.namelist())
+        self.assertTrue('IMAGES/IM1' in z.namelist())
+        self.assertTrue('DICOMDIR' in z.namelist())
+
+        try:
+            os.remove('/tmp/DICOMDIR')
+        except:
+            # The file does not exist
+            pass
+
+        z.extract('DICOMDIR', '/tmp')
+        a = subprocess.check_output([ 'dciodvfy', '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+        self.assertEqual(3, len(a))
+        self.assertTrue(a[0].startswith('Warning'))
+        self.assertEqual('BasicDirectory', a[1])
+        self.assertEqual('', a[2])
+
+        a = subprocess.check_output([ 'dcentvfy', '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+        self.assertEqual(1, len(a))
+        self.assertEqual('', a[0])
+
+        a = subprocess.check_output([ 'dcm2xml', '/tmp/DICOMDIR' ])
+        self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081908590448738', a) != None)
+        self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081909113806560', a) != None)
+
+        os.remove('/tmp/DICOMDIR')

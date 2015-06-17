@@ -35,7 +35,7 @@ from Toolbox import DoGet
 
 parser = argparse.ArgumentParser(description = 'Run the integration tests on some instance of Orthanc.')
 parser.add_argument('--server', 
-                    default = GetDockerHostAddress(),
+                    default = 'localhost',
                     help = 'Address of the Orthanc server to test')
 parser.add_argument('--aet',
                     default = 'ORTHANC',
@@ -55,6 +55,8 @@ parser.add_argument('--password',
                     default = 'orthanctest',
                     help = 'Password to the REST API')
 parser.add_argument('--force', help = 'Do not warn the user',
+                    action = 'store_true')
+parser.add_argument('--docker', help = 'These tests are run from Docker',
                     action = 'store_true')
 parser.add_argument('options', metavar = 'N', nargs = '*',
                     help='Arguments to Python unittest')
@@ -79,27 +81,40 @@ Are you sure ["yes" to go on]?""" % args.server)
 ## Orthanc
 ##
 
+if args.docker:
+    args.server = GetDockerHostAddress()
+
 CONFIG = '/tmp/Configuration.json'
 subprocess.check_call([ 'Orthanc', '--config=%s' % CONFIG ])
 
-with open(CONFIG, 'r') as f:
+with open(CONFIG, 'rt') as f:
     config = f.read()
 
 config = re.sub(r'("StorageDirectory"\s*:)\s*".*?"', r'\1 "/tmp/OrthancStorage"', config)
 config = re.sub(r'("IndexDirectory"\s*:)\s*".*?"', r'\1 "/tmp/OrthancStorage"', config)
 config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANCTEST"', config)
+config = re.sub(r'("DicomPort"\s*:)\s*.*?,', r'\1 5001,', config)
+config = re.sub(r'("HttpPort"\s*:)\s*.*?,', r'\1 5000,', config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
-config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : [ "orthanctest" ]', config)
+config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : "orthanctest"', config)
 config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", "%s" ]' % 
                 (args.aet, args.server, args.dicom), config)
+
+with open(CONFIG, 'wt') as f:
+    f.write(config)
 
 localOrthanc = ExternalCommandThread([ 
         'Orthanc', CONFIG, #'--verbose'
         ])
 
 
-LOCAL = DefineOrthanc(aet = 'ORTHANCTEST')
+LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',
+                      url = 'http://localhost:5000',
+                      dicomPort = 5001,
+                      username = 'alice',
+                      password = 'orthanctest')
+
 REMOTE = DefineOrthanc(url = 'http://%s:%d/' % (args.server, args.rest),
                        username = args.username,
                        password = args.password,
@@ -108,7 +123,7 @@ REMOTE = DefineOrthanc(url = 'http://%s:%d/' % (args.server, args.rest),
 
 
 
-print('Parameters of the instance of Orthanc to test:')
+print('Parameters of the instance of Orthanc being tested:')
 pprint.pprint(REMOTE)
 print('')
 
