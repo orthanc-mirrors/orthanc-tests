@@ -30,6 +30,7 @@ import unittest
 
 from ExternalCommandThread import *
 from Toolbox import *
+from Tests import *
 
 
 ##
@@ -52,13 +53,13 @@ parser.add_argument('--rest',
                     default = 8042,
                     help = 'Port to the REST API')
 parser.add_argument('--username',
-                    default = None,
+                    default = 'alice',
                     help = 'Username to the REST API')
 parser.add_argument('--password',
-                    default = None,
+                    default = 'orthanctest',
                     help = 'Password to the REST API')
-parser.add_argument("--force", help = "Do not warn the user",
-                    action = "store_true")
+parser.add_argument('--force', help = 'Do not warn the user',
+                    action = 'store_true')
 
 args = parser.parse_args()
 
@@ -109,67 +110,23 @@ REMOTE = DefineOrthanc(url = 'http://%s:%d/' % (args.server, args.rest),
 
 
 
-class Orthanc(unittest.TestCase):
-    def setUp(self):
-        DropOrthanc(LOCAL)
-        DropOrthanc(REMOTE)
-
-    def test_system(self):
-        self.assertTrue('Version' in DoGet(REMOTE, '/system'))
-        self.assertEqual('0', DoGet(REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual('0', DoGet(REMOTE, '/statistics')['TotalUncompressedSize'])
-
-    def test_upload(self):
-        u = UploadInstance(REMOTE, 'DummyCT.dcm')
-        self.assertEqual('Success', u['Status'])
-        u = UploadInstance(REMOTE, 'DummyCT.dcm')
-        self.assertEqual('AlreadyStored', u['Status'])
-        self.assertEqual(1, len(DoGet(REMOTE, '/patients')))
-        self.assertEqual(1, len(DoGet(REMOTE, '/studies')))
-        self.assertEqual(1, len(DoGet(REMOTE, '/series')))
-        self.assertEqual(1, len(DoGet(REMOTE, '/instances')))
-
-        i = DoGet(REMOTE, '/instances/%s/simplified-tags' % u['ID'])
-        self.assertEqual('20070101', i['StudyDate'])
+print('Parameters of the instance of Orthanc to test:')
+print(REMOTE)
+print('')
 
 
-    def test_rest_grid(self):
-        i = UploadInstance(REMOTE, 'DummyCT.dcm')['ID']
-        instance = DoGet(REMOTE, '/instances/%s' % i)
-        self.assertEqual(i, instance['ID'])
-        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
-                         instance['MainDicomTags']['SOPInstanceUID'])
-
-        series = DoGet(REMOTE, '/series/%s' % instance['ParentSeries'])
-        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', 
-                         series['MainDicomTags']['SeriesInstanceUID'])
-
-        study = DoGet(REMOTE, '/studies/%s' % series['ParentStudy'])
-        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
-                         study['MainDicomTags']['StudyInstanceUID'])
-
-        patient = DoGet(REMOTE, '/patients/%s' % study['ParentPatient'])
-        self.assertEqual('ozp00SjY2xG',
-                         patient['MainDicomTags']['PatientID'])
-
-        dicom = DoGet(REMOTE, '/instances/%s/file' % instance['ID'])
-        self.assertEqual(2472, len(dicom))
-        self.assertEqual('3e29b869978b6db4886355a2b1132124', ComputeMD5(dicom))
-        self.assertEqual(1, len(DoGet(REMOTE, '/instances/%s/frames' % i)))
-        self.assertEqual('TWINOW', DoGet(REMOTE, '/instances/%s/simplified-tags' % i)['StationName'])
-        self.assertEqual('TWINOW', DoGet(REMOTE, '/instances/%s/tags' % i)['0008,1010']['Value'])
+print('Waiting for the internal Orthanc to start...')
+while True:
+    try:
+        DoGet(LOCAL, '/instances')
+        break
+    except:
+        time.sleep(0.1)
 
 
 try:
-    print('Waiting for the internal Orthanc to start...')
-    while True:
-        try:
-            DoGet(LOCAL, '/instances')
-            break
-        except:
-            time.sleep(0.1)
-
     print('Starting the tests...')
+    SetOrthancParameters(LOCAL, REMOTE)
     unittest.main(argv = [ sys.argv[0] ]) #argv = args)
 
 finally:
