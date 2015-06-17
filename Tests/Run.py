@@ -18,15 +18,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-# sudo docker run --rm -t -i -v `pwd`:/tmp/tests:ro -p 5000:8042 -p 5001:4242 --entrypoint python jodogne/orthanc-tests /tmp/tests/Run.py --force
-
-
-
 import re
 import sys
 import argparse
 import subprocess
 import unittest
+import pprint
 
 from ExternalCommandThread import *
 from Toolbox import *
@@ -111,7 +108,7 @@ REMOTE = DefineOrthanc(url = 'http://%s:%d/' % (args.server, args.rest),
 
 
 print('Parameters of the instance of Orthanc to test:')
-print(REMOTE)
+pprint.pprint(REMOTE)
 print('')
 
 
@@ -125,11 +122,13 @@ while True:
 
 
 try:
-    print('Starting the tests...')
+    print('\nStarting the tests...')
     SetOrthancParameters(LOCAL, REMOTE)
     unittest.main(argv = [ sys.argv[0] ]) #argv = args)
 
 finally:
+    print('\nDone')
+
     # The tests have stopped or "Ctrl-C" has been hit
     try:
         localOrthanc.stop()

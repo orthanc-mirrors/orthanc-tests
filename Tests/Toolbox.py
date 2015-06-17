@@ -18,9 +18,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-
-from PIL import Image
-from urllib import urlencode
 import hashlib
 import httplib2
 import json
@@ -29,6 +26,9 @@ import re
 import subprocess
 import time
 import zipfile
+
+from PIL import Image
+from urllib import urlencode
 
 
 HERE = os.path.dirname(__file__)
@@ -134,7 +134,7 @@ def DoPost(orthanc, uri, data = {}, contentType = '', headers = {}):
 
 def UploadInstance(orthanc, filename):
     global HERE
-    p = os.path.join(HERE, 'Database', filename)
+    p = os.path.join(HERE, '..', 'Database', filename)
     f = open(p, 'rb')
     d = f.read()
     f.close()
