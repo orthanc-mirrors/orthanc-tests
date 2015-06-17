@@ -210,12 +210,13 @@ class ExternalCommandThread:
 
         print 'Stopping the external command'
         external.terminate()
+        external.communicate()  # Wait for the command to stop
 
     def __init__(self, command, env = None):
         self.thread_stop = threading.Event()
         self.thread = threading.Thread(target = self.ExternalCommandFunction, 
                                        args = (10, self.thread_stop, command, env))
-        self.daemon = True
+        #self.daemon = True
         self.thread.start()
 
     def stop(self):
