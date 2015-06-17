@@ -25,8 +25,8 @@ import subprocess
 import unittest
 import pprint
 
-from Toolbox import *
 from Tests import *
+from Toolbox import DoGet
 
 
 ##
@@ -123,7 +123,7 @@ while True:
 try:
     print('\nStarting the tests...')
     SetOrthancParameters(LOCAL, REMOTE)
-    unittest.main(argv = [ sys.argv[0] ]) #argv = args)
+    unittest.main(argv = [ sys.argv[0] ])
 
 finally:
     print('\nDone')

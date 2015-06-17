@@ -54,7 +54,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('20070101', i['StudyDate'])
 
 
-    def test_rest_grid(self):
+    def test_upload_2(self):
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
         instance = DoGet(_REMOTE, '/instances/%s' % i)
         self.assertEqual(i, instance['ID'])
@@ -81,4 +81,35 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('TWINOW', DoGet(_REMOTE, '/instances/%s/tags' % i)['0008,1010']['Value'])
 
 
+    def test_images(self):
+        i = UploadInstance(_REMOTE, 'Phenix/IM-0001-0001.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
 
+        im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/image-uint8' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/image-uint16' % i)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/image-uint8' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/image-uint16' % i)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+        
