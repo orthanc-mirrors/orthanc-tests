@@ -25,7 +25,6 @@ import subprocess
 import unittest
 import pprint
 
-from ExternalCommandThread import *
 from Toolbox import *
 from Tests import *
 

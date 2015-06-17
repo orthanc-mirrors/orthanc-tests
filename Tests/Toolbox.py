@@ -21,9 +21,11 @@
 import hashlib
 import httplib2
 import json
-import os.path
+import os
 import re
+import signal
 import subprocess
+import threading
 import time
 import zipfile
 
@@ -190,3 +192,32 @@ def GetDockerHostAddress():
         return 'localhost'
     else:
         return m.groups()[0]
+
+
+
+
+class ExternalCommandThread:
+    @staticmethod
+    def ExternalCommandFunction(arg, stop_event, command, env):
+        external = subprocess.Popen(command, env = env)
+
+        while (not stop_event.is_set()):
+            error = external.poll()
+            if error != None:
+                # http://stackoverflow.com/a/1489838/881731
+                os._exit(-1)
+            stop_event.wait(0.1)
+
+        print 'Stopping the external command'
+        external.terminate()
+
+    def __init__(self, command, env = None):
+        self.thread_stop = threading.Event()
+        self.thread = threading.Thread(target = self.ExternalCommandFunction, 
+                                       args = (10, self.thread_stop, command, env))
+        self.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        self.thread_stop.set()
+        self.thread.join()
