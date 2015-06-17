@@ -211,3 +211,20 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_REMOTE)
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+
+    def test_multi_frame(self):
+        i = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
+        self.assertEqual(76, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+  
+        DoGet(_REMOTE, '/instances/%s/frames/0/image-uint8' % i)
+        DoGet(_REMOTE, '/instances/%s/frames/0/image-uint16' % i)
+        DoGet(_REMOTE, '/instances/%s/frames/75/preview' % i)
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/aaa/preview' % i))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/76/preview' % i))
+
