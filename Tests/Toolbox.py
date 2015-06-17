@@ -144,7 +144,7 @@ def UploadInstance(orthanc, filename):
 
 def UploadFolder(orthanc, path):
     global HERE
-    p = os.path.join(HERE, 'Database', path)
+    p = os.path.join(HERE, '..', 'Database', path)
     for i in os.listdir(p):
         try:
             UploadInstance(orthanc, os.path.join(path, i))

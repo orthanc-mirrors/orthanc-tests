@@ -56,6 +56,8 @@ parser.add_argument('--password',
                     help = 'Password to the REST API')
 parser.add_argument('--force', help = 'Do not warn the user',
                     action = 'store_true')
+parser.add_argument('options', metavar = 'N', nargs = '*',
+                    help='Arguments to Python unittest')
 
 args = parser.parse_args()
 
@@ -123,7 +125,7 @@ while True:
 try:
     print('\nStarting the tests...')
     SetOrthancParameters(LOCAL, REMOTE)
-    unittest.main(argv = [ sys.argv[0] ])
+    unittest.main(argv = [ sys.argv[0] ] + args.options)
 
 finally:
     print('\nDone')

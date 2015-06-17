@@ -113,3 +113,101 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(512, im.size[0])
         self.assertEqual(358, im.size[1])
         
+
+    def test_hierarchy(self):
+        UploadFolder(_REMOTE, 'Brainix/Epi')
+        UploadFolder(_REMOTE, 'Brainix/Flair')
+        UploadFolder(_REMOTE, 'Knee/T1')
+        UploadFolder(_REMOTE, 'Knee/T2')
+
+        p = DoGet(_REMOTE, '/patients')
+        s = DoGet(_REMOTE, '/studies')
+        t = DoGet(_REMOTE, '/series')
+        self.assertEqual(2, len(p))
+        self.assertEqual(2, len(s))
+        self.assertEqual(4, len(t))
+        self.assertEqual(94, len(DoGet(_REMOTE, '/instances')))
+
+        brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
+        brainixStudy = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
+        brainixEpi = '2ac1316d-3e432022-62eabff2-c59f5475-9b1ac3f8'
+        brainixFlair = '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+
+        kneePatient = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+        kneeStudy = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+        kneeT1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+        kneeT2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+
+        self.assertTrue(brainixPatient in p)
+        self.assertTrue(kneePatient in p)
+        self.assertTrue(brainixStudy in s)
+        self.assertTrue(kneeStudy in s)
+        self.assertTrue(brainixEpi in t)
+        self.assertTrue(brainixFlair in t)
+        self.assertTrue(kneeT1 in t)
+        self.assertTrue(kneeT2 in t)
+
+        self.assertEqual(44, len(DoGet(_REMOTE, '/patients/%s/instances' % brainixPatient)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients/%s/series' % brainixPatient)))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/studies' % brainixPatient)))
+
+        self.assertEqual(50, len(DoGet(_REMOTE, '/patients/%s/instances' % kneePatient)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients/%s/series' % kneePatient)))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/studies' % kneePatient)))
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies/%s/series' % brainixStudy)))
+        self.assertEqual(44, len(DoGet(_REMOTE, '/studies/%s/instances' % brainixStudy)))
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies/%s/series' % kneeStudy)))
+        self.assertEqual(50, len(DoGet(_REMOTE, '/studies/%s/instances' % kneeStudy)))
+
+        self.assertEqual(22, len(DoGet(_REMOTE, '/series/%s/instances' % brainixEpi)))
+        self.assertEqual(22, len(DoGet(_REMOTE, '/series/%s/instances' % brainixFlair)))
+        self.assertEqual(24, len(DoGet(_REMOTE, '/series/%s/instances' % kneeT1)))
+        self.assertEqual(26, len(DoGet(_REMOTE, '/series/%s/instances' % kneeT2)))
+
+        for patient in p:
+            for study in DoGet(_REMOTE, '/patients/%s/studies' % patient):
+                self.assertEqual(patient, study['ParentPatient'])
+                for series in DoGet(_REMOTE, '/studies/%s/series' % study['ID']):
+                    self.assertEqual(study['ID'], series['ParentStudy'])
+                    for instance in DoGet(_REMOTE, '/series/%s/instances' % series['ID']):
+                        self.assertEqual(series['ID'], instance['ParentSeries'])
+
+                        self.assertEqual(json.dumps(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance['ID'])),
+                                         json.dumps(DoGet(_REMOTE, '/instances/%s/tags' % instance['ID'])))
+
+
+        r = DoDelete(_REMOTE, "/studies/%s" % brainixStudy)['RemainingAncestor']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(50, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(None, r)
+
+        r = DoDelete(_REMOTE, "/series/%s" % kneeT2)['RemainingAncestor']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(24, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual('Study', r['Type'])
+        self.assertEqual(kneeStudy, r['ID'])
+
+        r = DoDelete(_REMOTE, "/instances/%s" % DoGet(_REMOTE, '/instances')[0])['RemainingAncestor']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(23, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual('Series', r['Type'])
+        self.assertEqual(kneeT1, r['ID'])
+
+        r = DoDelete(_REMOTE, "/patients/%s" % kneePatient)['RemainingAncestor']
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(None, r)
+
+        DropOrthanc(_REMOTE)
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
