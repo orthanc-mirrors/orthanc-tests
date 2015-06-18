@@ -379,7 +379,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
 
 
-    def test_private_tags(self):
+    def test_raw_tags(self):
         i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
 
         dicom = DoGet(_REMOTE, '/instances/%s/file' % i)
@@ -393,8 +393,6 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Abdomen', DoGet(_REMOTE, s + '7fe1-1001/0/7fe1-1008/0/7fe1-1057').strip())
         self.assertEqual('cla_3c', DoGet(_REMOTE, s + '7fe1-1001/0/7fe1-1008/8/7fe1-1057').strip())
 
-
-    def test_sop_instance_uid(self):
         UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
@@ -744,3 +742,91 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(ImageChops.difference(im, truth).getbbox() is None)
 
 
+    def test_faking_ruby_put(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        a = DoGet(_REMOTE, '/patients')[0]
+        b = DoGet(_REMOTE, '/patients')[1]
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoGet(_REMOTE, '/patients/%s/protected' % a, data = { '_method' : 'PUT' }, body = '0')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoGet(_REMOTE, '/patients/%s/protected' % a, data = { '_method' : 'PUT' }, body = '1')
+        self.assertEqual(1, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoGet(_REMOTE, '/patients/%s/protected' % a, data = { '_method' : 'PUT' }, body = '0')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+
+
+    def test_faking_ruby_delete(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        a = DoGet(_REMOTE, '/patients')[0]
+        b = DoGet(_REMOTE, '/patients')[1]
+        DoGet(_REMOTE, '/patients/%s' % a, data = { '_method' : 'DELETE' })
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        DoGet(_REMOTE, '/patients/%s' % b, data = { '_method' : 'DELETE' })
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_faking_google_put(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        a = DoGet(_REMOTE, '/patients')[0]
+        b = DoGet(_REMOTE, '/patients')[1]
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPost(_REMOTE, '/patients/%s/protected' % a, headers = { 'X-HTTP-Method-Override' : 'PUT' }, data = '0')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPost(_REMOTE, '/patients/%s/protected' % a, headers = { 'X-HTTP-Method-Override' : 'PUT' }, data = '1')
+        self.assertEqual(1, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPost(_REMOTE, '/patients/%s/protected' % a, headers = { 'X-HTTP-Method-Override' : 'PUT' }, data = '0')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+
+
+    def test_faking_google_delete(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        a = DoGet(_REMOTE, '/patients')[0]
+        b = DoGet(_REMOTE, '/patients')[1]
+        DoPost(_REMOTE, '/patients/%s' % a, headers = { 'X-HTTP-Method-Override' : 'DELETE' })
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        DoPost(_REMOTE, '/patients/%s' % b, headers = { 'X-HTTP-Method-Override' : 'DELETE' })
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_lua(self):
+        self.assertEqual(42, DoPost(_REMOTE, '/tools/execute-script', 'print(42)'))
+        self.assertTrue(IsDefinedInLua(_REMOTE, 'PrintRecursive'))
+        self.assertFalse(IsDefinedInLua(_REMOTE, 'HelloWorld'))
+
+
+    def test_metadata(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        p = DoGet(_REMOTE, '/patients')[0]
+        i = DoGet(_REMOTE, '/instances')[0]
+
+        m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
+        self.assertEqual(1, len(m))
+        self.assertEqual('LastUpdate', m[0])
+
+        m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
+        self.assertEqual(3, len(m))
+        self.assertTrue('IndexInSeries' in m)
+        self.assertTrue('ReceptionDate' in m)
+        self.assertTrue('RemoteAET' in m)
+
+        # Play with custom metadata
+        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
+        m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
+        self.assertEqual(2, len(m))
+        self.assertTrue('LastUpdate' in m)
+        self.assertTrue('5555' in m)
+        self.assertEqual('coucou', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
+        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello')
+        self.assertEqual('hello', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
+        DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
+        m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
+        self.assertEqual(1, len(m))
+        self.assertTrue('LastUpdate' in m)
