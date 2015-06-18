@@ -41,6 +41,12 @@ Here is the source of each set of sample images:
 
 - Brainix/* : From OsiriX, "BRAINIX".
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
-- Phenix/* : From OsiriX, "PHENIX".
+- Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
+- Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
+- Issue22.dcm : From Emsy Chan on Google Code (Error decoding multi-frame instances)
+- Issue32.dcm : From aceberg93 on Google Code (Cyrillic symbols)
 - Knee/* : From OsiriX, "KNEE".
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"
+- Phenix/* : From OsiriX, "PHENIX".
+- PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
+- PrivateMDNTags.dcm : From University Hospital of Liege

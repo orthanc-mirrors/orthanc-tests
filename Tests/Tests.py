@@ -361,3 +361,177 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081909113806560', a) != None)
 
         os.remove('/tmp/DICOMDIR')
+
+
+    def test_protection(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        a = DoGet(_REMOTE, '/patients')[0]
+        b = DoGet(_REMOTE, '/patients')[1]
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPut(_REMOTE, '/patients/%s/protected' % a, '0', 'text/plain')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPut(_REMOTE, '/patients/%s/protected' % a, '1', 'text/plain')
+        self.assertEqual(1, DoGet(_REMOTE, '/patients/%s/protected' % a))
+        DoPut(_REMOTE, '/patients/%s/protected' % a, '0', 'text/plain')
+        self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
+
+
+    def test_private_tags(self):
+        i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
+
+        dicom = DoGet(_REMOTE, '/instances/%s/file' % i)
+        self.assertEqual('1a7c56cb02d6e742cc9c856a8ac182e3', ComputeMD5(dicom))
+
+        s = '/instances/%s/content/' % i
+
+        self.assertEqual('LOGIQBOOK', DoGet(_REMOTE, s + '0008-1010').strip())
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, s + '0008-1011'))
+
+        self.assertEqual('Abdomen', DoGet(_REMOTE, s + '7fe1-1001/0/7fe1-1008/0/7fe1-1057').strip())
+        self.assertEqual('cla_3c', DoGet(_REMOTE, s + '7fe1-1001/0/7fe1-1008/8/7fe1-1057').strip())
+
+
+    def test_sop_instance_uid(self):
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        for i in DoGet(_REMOTE, '/instances'):
+            aid = DoGet(_REMOTE, '/instances/%s' % i)['MainDicomTags']['SOPInstanceUID']
+            self.assertEqual(aid, DoGet(_REMOTE, '/instances/%s/content/0008-0018' % i).replace(chr(0), ''))
+
+
+    def test_raw_tags_mdn(self):
+        # Bug reported by Cyril Paulus
+        i = UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')['ID']
+        self.assertAlmostEqual(0.000027, DoGet(_REMOTE, '/instances/%s/content/7053-1000' % i))
+
+
+    def test_modify_instance(self):
+        i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
+        modified = DoPost(_REMOTE, '/instances/%s/modify' % i,
+                          json.dumps({
+                    "Replace" : {
+                        "PatientName" : "hello",
+                        #"PatientID" : "world"
+                        },
+                    "Remove" : [ "StationName" ],
+                    "RemovePrivateTags" : None
+                    }),
+                          'application/json')
+        j = DoPost(_REMOTE, '/instances', modified, 'application/dicom')['ID']
+
+        self.assertNotEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
+        #self.assertNotEqual('world', DoGet(_REMOTE, '/instances/%s/content/0010-0020' % i).strip())
+        self.assertEqual('LOGIQBOOK', DoGet(_REMOTE, '/instances/%s/content/0008-1010' % i).strip())        
+        DoGet(_REMOTE, '/instances/%s/content/6003-1010' % i)  # Some private tag
+
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())
+        #self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/0010-0020' % j).strip())
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/0008-1010' % j))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/6003-1010' % j))
+
+
+    def test_modify_series(self):
+        # Upload 4 images from the same series
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+        origSeries = DoGet(_REMOTE, '/series')[0]
+        newSeries = DoPost(_REMOTE, '/series/%s/modify' % origSeries,
+                           '{"Replace":{"PatientName":"Jodogne"}}',
+                           'application/json')['ID']
+
+        self.assertEqual(origSeries, DoGet(_REMOTE, '/series/%s' % newSeries)['ModifiedFrom'])
+        instances = DoGet(_REMOTE, '/series/%s' % newSeries)['Instances']
+        self.assertEqual(4, len(instances))
+        for i in instances:
+            j = DoGet(_REMOTE, '/instances/%s' % i)['ModifiedFrom']
+            self.assertEqual(newSeries, DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries'])
+            self.assertEqual(origSeries, DoGet(_REMOTE, '/instances/%s' % j)['ParentSeries'])
+
+            self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
+            self.assertNotEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())
+
+
+    def test_modify_study(self):
+        # Upload 4 images from the 2 series of the same study
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+        origStudy = DoGet(_REMOTE, '/studies')[0]
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % origStudy,
+                          '{"Replace":{"PatientName":"Jodogne"}}',
+                          'application/json')['ID']
+
+        self.assertEqual(origStudy, DoGet(_REMOTE, '/studies/%s' % newStudy)['ModifiedFrom'])
+        series = DoGet(_REMOTE, '/studies/%s' % newStudy)['Series']
+        self.assertEqual(2, len(series))
+        for s in series:
+            ss = DoGet(_REMOTE, '/series/%s' % s)['ModifiedFrom']
+            self.assertEqual(newStudy, DoGet(_REMOTE, '/series/%s' % s)['ParentStudy'])
+            self.assertEqual(origStudy, DoGet(_REMOTE, '/series/%s' % ss)['ParentStudy'])
+
+            instances = DoGet(_REMOTE, '/series/%s' % s)['Instances']
+            for i in instances:
+                j = DoGet(_REMOTE, '/instances/%s' % i)['ModifiedFrom']
+                self.assertEqual(s, DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries'])
+                self.assertEqual(ss, DoGet(_REMOTE, '/instances/%s' % j)['ParentSeries'])
+
+                self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
+                self.assertNotEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())
+
+
+    def test_anonymize_series(self):
+        # Upload 4 images from the same series
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+        origSeries = DoGet(_REMOTE, '/series')[0]
+        newSeries = DoPost(_REMOTE, '/series/%s/anonymize' % origSeries,
+                           '{}',
+                           'application/json')['ID']
+
+        self.assertEqual(origSeries, DoGet(_REMOTE, '/series/%s' % newSeries)['AnonymizedFrom'])
+        instances = DoGet(_REMOTE, '/series/%s' % newSeries)['Instances']
+        self.assertEqual(4, len(instances))
+        for i in instances:
+            j = DoGet(_REMOTE, '/instances/%s' % i)['AnonymizedFrom']
+            self.assertEqual(newSeries, DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries'])
+            self.assertEqual(origSeries, DoGet(_REMOTE, '/instances/%s' % j)['ParentSeries'])
+
+            DoGet(_REMOTE, '/instances/%s/content/0008-1010' % j)
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/0008-1010' % i))
+
+
+    def test_anonymize_study(self):
+        # Upload 4 images from the 2 series of the same study
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+        origStudy = DoGet(_REMOTE, '/studies')[0]
+        newStudy = DoPost(_REMOTE,'/studies/%s/anonymize' % origStudy,
+                          '{"Replace":{"PatientName":"Jodogne"}}',
+                          'application/json')['ID']
+
+        self.assertEqual(origStudy, DoGet(_REMOTE, '/studies/%s' % newStudy)['AnonymizedFrom'])
+        series = DoGet(_REMOTE, '/studies/%s' % newStudy)['Series']
+        self.assertEqual(2, len(series))
+        for s in series:
+            ss = DoGet(_REMOTE, '/series/%s' % s)['AnonymizedFrom']
+            self.assertEqual(newStudy, DoGet(_REMOTE, '/series/%s' % s)['ParentStudy'])
+            self.assertEqual(origStudy, DoGet(_REMOTE, '/series/%s' % ss)['ParentStudy'])
+
+            instances = DoGet(_REMOTE, '/series/%s' % s)['Instances']
+            for i in instances:
+                j = DoGet(_REMOTE, '/instances/%s' % i)['AnonymizedFrom']
+                self.assertEqual(s, DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries'])
+                self.assertEqual(ss, DoGet(_REMOTE, '/instances/%s' % j)['ParentSeries'])
+
+                self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
+                self.assertNotEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())

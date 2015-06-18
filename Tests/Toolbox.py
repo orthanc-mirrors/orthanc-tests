@@ -129,7 +129,7 @@ def DoDelete(orthanc, uri):
             return content
 
 def DoPut(orthanc, uri, data = {}, contentType = ''):
-    return DoPutOrPost(orthanc, uri, 'PUT', data, contentType)
+    return _DoPutOrPost(orthanc, uri, 'PUT', data, contentType, {})
 
 def DoPost(orthanc, uri, data = {}, contentType = '', headers = {}):
     return _DoPutOrPost(orthanc, uri, 'POST', data, contentType, headers)
