@@ -20,6 +20,7 @@ import unittest
 
 from PIL import ImageChops
 from Toolbox import *
+from xml.dom import minidom
 
 _LOCAL = None
 _REMOTE = None
@@ -738,7 +739,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(41, im.size[1])
 
         # http://effbot.org/zone/pil-comparing-images.htm
-        truth = Image.open(os.path.join(os.path.dirname(__file__), '..', 'Database', 'ColorTestMalaterre.png'))
+        truth = Image.open(GetDatabasePath('ColorTestMalaterre.png'))
         self.assertTrue(ImageChops.difference(im, truth).getbbox() is None)
 
 
@@ -830,3 +831,485 @@ class Orthanc(unittest.TestCase):
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(1, len(m))
         self.assertTrue('LastUpdate' in m)
+
+
+    def test_statistics(self):
+        # Upload 16 instances
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+        s = DoGet(_REMOTE, '/statistics')
+        self.assertEqual(16, s['CountInstances'])
+        self.assertEqual(2, s['CountPatients'])
+        self.assertEqual(2, s['CountStudies'])
+        self.assertEqual(4, s['CountSeries'])
+        d = int(s['TotalUncompressedSize'])
+
+        e = 0
+        for patient in DoGet(_REMOTE, '/patients'):
+            s = DoGet(_REMOTE, '/patients/%s/statistics' % patient)
+            self.assertEqual(8, s['CountInstances'])
+            self.assertEqual(1, s['CountStudies'])
+            self.assertEqual(2, s['CountSeries'])
+            e += int(s['UncompressedSize'])
+
+        for study in DoGet(_REMOTE, '/studies'):
+            s = DoGet(_REMOTE, '/studies/%s/statistics' % study)
+            self.assertEqual(8, s['CountInstances'])
+            self.assertEqual(2, s['CountSeries'])
+            e += int(s['UncompressedSize'])
+
+        for series in DoGet(_REMOTE, '/series'):
+            s = DoGet(_REMOTE, '/series/%s/statistics' % series)
+            self.assertEqual(4, s['CountInstances'])
+            e += int(s['UncompressedSize'])
+
+        self.assertEqual(3 * d, e)
+
+
+    def test_custom_attachment(self):
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        patient = DoGet(_REMOTE, '/patients')[0]
+        instance = DoGet(_REMOTE, '/instances')[0]
+        size = int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize'])
+        self.assertEqual(size, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+        self.assertTrue('dicom' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+        self.assertTrue('dicom-as-json' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/patients/%s/attachments/22' % patient, 'hello'))
+        hello = 'hellohellohellohellohellohellohellohellohello'
+        DoPut(_REMOTE, '/patients/%s/attachments/1025' % patient, hello)
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         size + int(DoGet(_REMOTE, '/patients/%s/attachments/1025/compressed-size' % patient)))
+
+        DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world')
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         size + 
+                         int(DoGet(_REMOTE, '/patients/%s/attachments/1025/compressed-size' % patient)) +
+                         int(DoGet(_REMOTE, '/patients/%s/attachments/1026/compressed-size' % patient)))
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
+        self.assertEqual(hello, DoGet(_REMOTE, '/patients/%s/attachments/1025/data' % patient))
+        self.assertEqual('world', DoGet(_REMOTE, '/patients/%s/attachments/1026/data' % patient))
+        DoPost(_REMOTE, '/patients/%s/attachments/1025/verify-md5' % patient)
+        DoPost(_REMOTE, '/patients/%s/attachments/1026/verify-md5' % patient)
+        DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world2')
+        self.assertEqual('world2', DoGet(_REMOTE, '/patients/%s/attachments/1026/data' % patient))
+
+        self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
+        DoDelete(_REMOTE, '/patients/%s/attachments/1025' % patient)
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
+                         size + int(DoGet(_REMOTE, '/patients/%s/attachments/1026/compressed-size' % patient)))
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
+        DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
+
+        self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']), size)
+        self.assertEqual(size, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+
+
+    def test_incoming_storescu(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        subprocess.check_call([ 'storescu', _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                GetDatabasePath('ColorTestImageJ.dcm') ])
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_incoming_findscu(self):
+        def CallFindScu(args):
+            p = subprocess.Popen([ 'findscu', '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
+                                   _REMOTE['Server'], str(_REMOTE['DicomPort']) ] + args,
+                                 stderr=subprocess.PIPE)
+            return p.communicate()[1]
+
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
+
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0010,0010' ])
+        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(patientNames))
+        self.assertTrue('Test Patient BG ' in patientNames)
+        self.assertTrue('Anonymized' in patientNames)
+
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021' ])
+        series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(2, len(series))
+        self.assertTrue('20070208' in series)
+        self.assertTrue('19980312' in series)
+        
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=Anonymized' ])
+        series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(1, len(series))
+
+        # Test the "CaseSentitivePN" flag (false by default)
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=anonymized' ])
+        series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(1, len(series))
+        
+
+    @unittest.skip("This test fails, to fix")
+    def test_incoming_movescu(self):
+        def CallMoveScu(args):
+            subprocess.check_call([ 'movescu', 
+                                    '--move', _LOCAL['DicomAet'],     # Target AET (i.e. storescp)
+                                    '--call', _REMOTE['DicomAet'],    # Called AET (i.e. Orthanc)
+                                    '--aetitle', _LOCAL['DicomAet'],  # Calling AET (i.e. storescp)
+                                    _REMOTE['Server'], str(_REMOTE['DicomPort'])  ] + args,
+                                  stderr=subprocess.PIPE)
+
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        #CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=none' ])
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=12345678' ])
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+
+
+    def test_findscu(self):
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        j = UploadInstance(_REMOTE, 'Issue22.dcm')['ID']
+        k = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
+        DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
+        
+        # Test the "find-patient" level
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { })
+        self.assertEqual(1, len(p))
+        self.assertEqual('ozp00SjY2xG', p[0]['PatientID'])
+        
+        # Test wildcards constraints. The "LO" value representation
+        # for PatientID is always case-sensitive, but the "PN" for
+        # PatientName might depend on the implementation:
+        # "GenerateConfigurationForTests.py" will force it to be case
+        # insensitive (which was the default until Orthanc 0.8.6).
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientName' : 'K*' })
+        self.assertEqual(1, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientName' : 'k*' })
+        self.assertEqual(1, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientID' : 'ozp*' })
+        self.assertEqual(1, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientID' : 'o?p*' })
+        self.assertEqual(1, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientID' : '0?q*' })
+        self.assertEqual(0, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientName' : 'B*' })
+        self.assertEqual(0, len(p))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientName' : 'b*' })
+        self.assertEqual(0, len(p))
+        
+        DoPost(_REMOTE, '/modalities/orthanctest/store', str(j), 'text/plain')
+        DoPost(_REMOTE, '/modalities/orthanctest/store', str(k), 'text/plain')
+        DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { })
+        self.assertEqual(3, len(DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { })))
+        
+        p = DoPost(_REMOTE, '/modalities/orthanctest/find-patient', { 'PatientName' : 'A*' })
+        self.assertEqual(2, len(p))
+
+        # Test the "find-study" level. This is the instance "ColorTestImageJ.dcm"
+        s = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ' })
+        self.assertEqual(1, len(s))
+        self.assertEqual('20070208', s[0]['StudyDate'])
+        
+        # Test range searches
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '-20070101' })
+        self.assertEqual(0, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '20090101-' })
+        self.assertEqual(0, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '20070101-' })
+        self.assertEqual(1, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '-20090101' })
+        self.assertEqual(1, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '20070207-20070207' })
+        self.assertEqual(0, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '20070208-20070208' })
+        self.assertEqual(1, len(t))
+        
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', { 'PatientID' : 'B9uTHKOZ',
+                                                                    'StudyDate' : '20070209-20070209' })
+        self.assertEqual(0, len(t))
+        
+        # Test the ModalitiesInStudy tag
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', {
+            'PatientID' : 'B9uTHKOZ', 
+            'ModalitiesInStudy' : 'US' })
+        self.assertEqual(0, len(t))
+
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', {
+            'PatientID' : 'B9uTHKOZ', 
+            'ModalitiesInStudy' : 'CT' })
+        self.assertEqual(1, len(t))
+
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', {
+            'PatientID' : 'B9uTHKOZ', 
+            'ModalitiesInStudy' : 'US\\CT' })
+        self.assertEqual(1, len(t))
+
+        # Test the "find-series" level
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-series', {
+            'PatientID' : 'B9uTHKOZ', 
+            'StudyInstanceUID' : s[0]['StudyInstanceUID'] })
+        self.assertEqual(1, len(t))
+
+        # Test "\" separator
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-series', {
+            'PatientID' : 'B9uTHKOZ', 
+            'StudyInstanceUID' : s[0]['StudyInstanceUID'],
+            'Modality' : 'MR\\CT\\US' })
+        self.assertEqual(1, len(t))
+
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-series', {
+            'PatientID' : 'B9uTHKOZ', 
+            'StudyInstanceUID' : s[0]['StudyInstanceUID'],
+            'Modality' : 'MR\\US' })
+        self.assertEqual(0, len(t))
+
+
+    def test_update_modalities(self):
+        try:
+            DoDelete(_REMOTE, '/modalities/toto')
+        except:
+            pass
+        try:
+            DoDelete(_REMOTE, '/modalities/tata')
+        except:
+            pass
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
+        DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000 ])
+        DoPut(_REMOTE, '/modalities/tata', [ "STORESCP", "localhost", 2000, 'MedInria' ])
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000, 'MedInriaaa' ]))
+        self.assertTrue('store' in DoGet(_REMOTE, '/modalities/toto'))
+        self.assertTrue('store' in DoGet(_REMOTE, '/modalities/tata'))
+        DoDelete(_REMOTE, '/modalities/toto')
+        DoDelete(_REMOTE, '/modalities/tata')
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/tata'))
+
+
+    def test_update_peers(self):
+        # curl -X PUT http://localhost:8042/peers/toto -d '["http://localhost:8042/"]' -v
+        try:
+            DoDelete(_REMOTE, '/peers/toto')
+        except:
+            pass
+        try:
+            DoDelete(_REMOTE, '/peers/tata')
+        except:
+            pass
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
+        DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/' ])
+        DoPut(_REMOTE, '/peers/tata', [ 'http://localhost:8042/', 'user', 'pass' ])
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/', 'a' ]))
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/', 'a', 'b', 'c' ]))
+        self.assertTrue('store' in DoGet(_REMOTE, '/peers/toto'))
+        self.assertTrue('store' in DoGet(_REMOTE, '/peers/tata'))
+        DoDelete(_REMOTE, '/peers/toto')
+        DoDelete(_REMOTE, '/peers/tata')
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/tata'))
+
+
+    def test_mesterhazy_modification(self):
+        # When I modify a series ( eg. curl
+        # http://localhost:8042/series/uidhere/modify -X POST -d
+        # '{"Replace":{"SeriesDate":"19990101"}}' ) the modified
+        # series is added to a new Study, instead of the existing
+        # Study. Fixed in Orthanc 0.7.5
+
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        study = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
+        series = 'f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe'
+
+        modified = DoPost(_REMOTE, '/series/%s/modify' % series,
+                          json.dumps({ "Replace" : { "SeriesDate" : "19990101" }}))
+
+        self.assertEqual(study, DoGet(_REMOTE, '/series/%s' % modified['ID']) ['ParentStudy'])
+
+
+    def test_create(self):
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                    'PatientName' : 'Jodogne',
+                    'Modality' : 'CT',
+                    'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
+                    }))
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
+
+        png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
+        self.assertEqual((5, 5), png.size)
+
+
+    def test_pilates(self):
+        # "SCU failed error when accessing orthanc with osirix" by
+        # Pilates Agentur (Mar 10, 2014 at 9:33 PM)
+        i = UploadInstance(_REMOTE, 'PilatesArgenturGEUltrasoundOsiriX.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+
+
+    def test_shared_tags(self):
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')['ID']
+        p = DoGet(_REMOTE, '/patients')[0]
+        
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
+        self.assertTrue('PatientName' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
+        self.assertTrue('0008,1030' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
+        self.assertTrue('StudyDescription' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
+        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
+        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
+        self.assertFalse('0008,0018' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
+        self.assertFalse('SOPInstanceUID' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
+
+        self.assertTrue('0008,0018' in DoGet(_REMOTE, '/instances/%s/tags' % a))
+        self.assertTrue('SOPInstanceUID' in DoGet(_REMOTE, '/instances/%s/tags?simplify' % a))
+
+
+    def test_modules(self):
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        p = DoGet(_REMOTE, '/patients')[0]
+        s = DoGet(_REMOTE, '/studies')[0]
+        t = DoGet(_REMOTE, '/series')[0]
+        
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/module' % p))
+        self.assertTrue('PatientName' in DoGet(_REMOTE, '/patients/%s/module?simplify' % p))
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/studies/%s/module-patient' % p))
+        self.assertTrue('PatientName' in DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % p))
+        self.assertTrue('0008,1030' in DoGet(_REMOTE, '/studies/%s/module' % s))
+        self.assertTrue('StudyDescription' in DoGet(_REMOTE, '/studies/%s/module?simplify' % s))
+        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/series/%s/module' % p))
+        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/series/%s/module?simplify' % p))
+        self.assertTrue('0008,0018' in DoGet(_REMOTE, '/instances/%s/module' % a))
+        self.assertTrue('SOPInstanceUID' in DoGet(_REMOTE, '/instances/%s/module?simplify' % a))
+
+
+    def test_auto_directory(self):
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        self.assertTrue('now' in DoGet(_REMOTE, '/tools'))
+        self.assertTrue('dicom-conformance' in DoGet(_REMOTE, '/tools'))
+        self.assertTrue(len(DoGet(_REMOTE, '/tools/dicom-conformance')) > 1000)
+        self.assertTrue('orthanctest' in DoGet(_REMOTE, '/modalities'))
+        self.assertTrue('echo' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('find' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('find-instance' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('find-patient' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('find-series' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('find-study' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('store' in DoGet(_REMOTE, '/modalities/orthanctest'))
+        self.assertTrue('store' in DoGet(_REMOTE, '/peers/peer'))
+        self.assertTrue('matlab' in DoGet(_REMOTE, '/instances/%s/frames/0' % a))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/tools/nope'))
+
+
+    def test_echo(self):
+        DoPost(_REMOTE, '/modalities/orthanctest/echo')
+
+
+    def test_xml(self):
+        json = DoGet(_REMOTE, '/tools', headers = { 'accept' : 'application/json' })
+        xml = minidom.parseString(DoGet(_REMOTE, '/tools', headers = { 'accept' : 'application/xml' }))
+        items = xml.getElementsByTagName('root')[0].getElementsByTagName('item') 
+        self.assertEqual(len(items), len(json))
+
+        self.assertTrue('dicom-conformance' in json)
+
+        ok = False
+        for i in items:
+            if i.childNodes[0].data == 'dicom-conformance':
+                ok = True
+        self.assertTrue(ok)
+
+
+    def test_issue_16(self):
+        i = UploadInstance(_REMOTE, 'Issue16.dcm')['ID']
+        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)['FrameIncrementPointer']
+        self.assertEqual('0018,1063', t)
+
+
+    def test_issue_22(self):
+        s = UploadInstance(_REMOTE, 'Issue22.dcm')['ID']
+        a = [
+            "f804691f62197040438f4627c6b994f1",  # Frame 0
+            "c69eee9a51eea3e8611e82e578897254",
+            "315666be83e2d0111c77bc0996d84901",
+            "3e27aa959d911172c48a1436443c72b1",
+            "958642c9e7e9d232d3869faff546058c",
+            "5e7ea8e3e4230cae707d143481355c59",
+            "eda37f83558d858a596175aed8b2ad47",
+            "486713bd2895c4ecbe0e97715ac7f80a",
+            "091ef729eb169e67da8a0faa9631f9a8",
+            "5aa2b8c7ffe0a483efaa8e12417686ca",
+            "e2f39e85896fe58876654b94cd0b5013",
+            "6fd2129e4950abbe1be053bc814d5da8",
+            "c3331a8ba7a757f3d423735ab7fa81f9",
+            "746f808582156734dd6b6fdfd3a0b72c",
+            "8075ea2b227a70c60ea6b7b75a6bb190",
+            "806b8b3e300c615099c11a5ec23465aa",
+            "7c836aa298ba6eef96434579af631a11",
+            "a0357dc9f4f72d73a885c33d7c287446",
+            "f25ba3be1cc7d7fad95706adc199ea7d",
+            "8b114c526b8cbed6cad8a3248b7b480c",
+            "44e6670f127e612a2b4aa60a0d207698",
+            "b8945f90fe02facf2ace24ca1ecbe0a5",
+            "95c796c2fa8f59018b15cf2987b1f79b",
+            "ce0a51ab30224205b44920221dc27351",  # Frame 23
+            ]
+
+        self.assertEqual(24, len(DoGet(_REMOTE, '/instances/%s/frames' % s)))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/24/preview' % s))
+
+        for i in range(len(a)):
+            self.assertEqual(a[i], ComputeMD5(DoGet(_REMOTE, '/instances/%s/frames/%d/preview' % (s, i))))
+
+
+    def test_issue_19(self):
+        # This is an image with "YBR_FULL" photometric interpretation
+        # gdcmconv -i /home/jodogne/DICOM/GdcmDatabase/US_DataSet/HDI5000_US/3EAF5E01 -w -o Issue19.dcm
+
+        a = UploadInstance(_REMOTE, 'Issue19.dcm')['ID']
+        i = DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview')
+
+        # eb5d156c3594497f589158a6c6f3ca51 <=> Unsupported.png
+        self.assertEqual('eb5d156c3594497f589158a6c6f3ca51', ComputeMD5(i))
+
+
+    def test_issue_37(self):
+        # Same test for issues 35 and 37. Fixed in Orthanc 0.9.1
+        u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'StationName' : 'SMR4-MP3' }})
+        self.assertEqual(1, len(a))

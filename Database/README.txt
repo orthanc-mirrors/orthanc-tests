@@ -39,7 +39,10 @@ Content
 
 Here is the source of each set of sample images:
 
+- Beaufix/* : From OsiriX, "BEAUFIX".
 - Brainix/* : From OsiriX, "BRAINIX".
+- ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm
+- ColorTestMalaterre.dcm : From Mathieu Malaterre, Debian bug #698417
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
 - Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
@@ -48,6 +51,6 @@ Here is the source of each set of sample images:
 - Knee/* : From OsiriX, "KNEE".
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"
 - Phenix/* : From OsiriX, "PHENIX".
-- PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
+- PilatesArgenturGEUltrasoundOsiriX.dcm: From https://groups.google.com/d/msg/orthanc-users/m3zQLyl_jNc/TUrR462UKSMJ
 - PrivateMDNTags.dcm : From University Hospital of Liege
-- ColorTestMalaterre.dcm : From Mathieu Malaterre, Debian bug #698417
+- PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"

@@ -110,16 +110,18 @@ localOrthanc = ExternalCommandThread([
 
 
 LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',
-                      url = 'http://localhost:5000',
+                      server = 'localhost',
                       dicomPort = 5001,
+                      restPort = 5000,
                       username = 'alice',
                       password = 'orthanctest')
 
-REMOTE = DefineOrthanc(url = 'http://%s:%d/' % (args.server, args.rest),
+REMOTE = DefineOrthanc(server = args.server,
                        username = args.username,
                        password = args.password,
                        aet = args.aet,
-                       dicomPort = args.dicom)
+                       dicomPort = args.dicom,
+                       restPort = args.rest)
 
 
 

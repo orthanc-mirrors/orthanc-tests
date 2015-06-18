@@ -33,9 +33,6 @@ from PIL import Image
 from urllib import urlencode
 
 
-HERE = os.path.dirname(__file__)
-
-
 # http://stackoverflow.com/a/1313868/881731
 try:
     from cStringIO import StringIO
@@ -43,22 +40,24 @@ except:
     from StringIO import StringIO
 
 
-def DefineOrthanc(url = 'http://localhost:8042',
+def DefineOrthanc(server = 'localhost',
+                  restPort = 8042,
                   username = None,
                   password = None,
                   aet = 'ORTHANC',
                   dicomPort = 4242):
-    m = re.match(r'(http|https)://([^:]+):([^@]+)@([^@]+)', url)
-    if m != None:
-        url = m.groups()[0] + '://' + m.groups()[3]
-        username = m.groups()[1]
-        password = m.groups()[2]
+    #m = re.match(r'(http|https)://([^:]+):([^@]+)@([^@]+)', url)
+    #if m != None:
+    #    url = m.groups()[0] + '://' + m.groups()[3]
+    #    username = m.groups()[1]
+    #    password = m.groups()[2]
 
-    if not url.endswith('/'):
-        url += '/'
+    #if not url.endswith('/'):
+    #    url += '/'
 
     return {
-        'Url' : url, 
+        'Server' : server,
+        'Url' : 'http://%s:%d/' % (server, restPort),
         'Username' : username,
         'Password' : password,
         'DicomAet' : aet,
@@ -134,18 +133,17 @@ def DoPut(orthanc, uri, data = {}, contentType = ''):
 def DoPost(orthanc, uri, data = {}, contentType = '', headers = {}):
     return _DoPutOrPost(orthanc, uri, 'POST', data, contentType, headers)
 
+def GetDatabasePath(filename):
+    return os.path.join(os.path.dirname(__file__), '..', 'Database', filename)
+
 def UploadInstance(orthanc, filename):
-    global HERE
-    p = os.path.join(HERE, '..', 'Database', filename)
-    f = open(p, 'rb')
+    f = open(GetDatabasePath(filename), 'rb')
     d = f.read()
     f.close()
     return DoPost(orthanc, '/instances', d, 'application/dicom')
 
 def UploadFolder(orthanc, path):
-    global HERE
-    p = os.path.join(HERE, '..', 'Database', path)
-    for i in os.listdir(p):
+    for i in os.listdir(GetDatabasePath(path)):
         try:
             UploadInstance(orthanc, os.path.join(path, i))
         except:
