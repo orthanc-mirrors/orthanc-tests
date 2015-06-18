@@ -50,6 +50,16 @@ def ExtractDicomTags(rawDicom, tags):
     return result
 
 
+def InstallLuaScript(path):
+    with open(GetDatabasePath(path), 'r') as f:
+        DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
+    
+
+def UninstallLuaCallbacks():
+    DoPost(_REMOTE, '/tools/execute-script', 'function OnStoredInstance() end', 'application/lua')
+
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         DropOrthanc(_LOCAL)
@@ -1656,3 +1666,52 @@ class Orthanc(unittest.TestCase):
         a = DoPost(_REMOTE, '/tools/lookup', '3113719P')
         self.assertEqual(0, len(a))
 
+
+    def test_autorouting(self):
+        knee1 = 'Knee/T1/IM-0001-0001.dcm'
+        knee2 = 'Knee/T2/IM-0001-0002.dcm'
+        other = 'Brainix/Flair/IM-0001-0001.dcm'
+
+        # Check that this version is >= 0.8.0
+        self.assertTrue(IsDefinedInLua(_REMOTE, '_InitializeJob'))
+        self.assertTrue('orthanctest' in DoGet(_REMOTE, '/modalities'))
+
+        UploadInstance(_REMOTE, knee1)
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+        DropOrthanc(_REMOTE)
+        DropOrthanc(_LOCAL)
+        InstallLuaScript('Lua/Autorouting.lua')
+        UploadInstance(_REMOTE, knee1)
+        UploadInstance(_REMOTE, knee2)
+        UploadInstance(_REMOTE, other)
+        WaitEmpty(_REMOTE)
+        UninstallLuaCallbacks()
+        self.assertEqual(3, len(DoGet(_LOCAL, '/instances')))
+
+        DropOrthanc(_REMOTE)
+        DropOrthanc(_LOCAL)
+        InstallLuaScript('Lua/AutoroutingConditional.lua')
+        UploadInstance(_REMOTE, knee1)
+        UploadInstance(_REMOTE, knee2)
+        UploadInstance(_REMOTE, other)
+        WaitEmpty(_REMOTE)
+        UninstallLuaCallbacks()
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+        
+        DropOrthanc(_REMOTE)
+        DropOrthanc(_LOCAL)
+        InstallLuaScript('Lua/AutoroutingModification.lua')
+        UploadInstance(_REMOTE, knee1)
+        WaitEmpty(_REMOTE)
+        UninstallLuaCallbacks()
+        i = DoGet(_LOCAL, '/instances')
+        self.assertEqual(1, len(i))
+        
+        with tempfile.NamedTemporaryFile(delete = True) as f:
+            f.write(DoGet(_LOCAL, '/instances/%s/file' % i[0]))
+            f.flush()
+            routed = subprocess.check_output([ 'dcm2xml', f.name ])
+            self.assertEqual('My Medical Device', re.search('"StationName">(.*?)<', routed).group(1).strip())
+            self.assertEqual(None, re.search('"MilitaryRank"', routed))
+            self.assertEqual(None, re.search('"0051,0010"', routed))  # A private tag
