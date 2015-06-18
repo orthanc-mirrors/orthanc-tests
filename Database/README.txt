@@ -50,3 +50,4 @@ Here is the source of each set of sample images:
 - Phenix/* : From OsiriX, "PHENIX".
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - PrivateMDNTags.dcm : From University Hospital of Liege
+- ColorTestMalaterre.dcm : From Mathieu Malaterre, Debian bug #698417

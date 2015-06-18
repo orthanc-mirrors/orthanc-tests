@@ -75,8 +75,10 @@ config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANC"', config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : "orthanctest"', config)
-config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", %d ]' % 
+config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanctest" : [ "%s", "%s", %d ]' % 
                 ('ORTHANCTEST', ip, 5001), config)
+config = re.sub(r'("OrthancPeers"\s*:)\s*{', r'\1 { "peer" : [ "http://%s:%d/", "%s", "%s" ]' % 
+                (ip, 5000, 'alice', 'orthanctest'), config)
 
 with open(args.target, 'wt') as f:
     f.write(config)

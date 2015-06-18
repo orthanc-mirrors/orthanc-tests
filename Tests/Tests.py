@@ -18,6 +18,7 @@
 
 import unittest
 
+from PIL import ImageChops
 from Toolbox import *
 
 _LOCAL = None
@@ -535,3 +536,211 @@ class Orthanc(unittest.TestCase):
 
                 self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
                 self.assertNotEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())
+
+
+
+    def test_storescu(self):
+        # Check emptiness
+        e = DoGet(_REMOTE, '/exports')
+        self.assertEqual(0, len(e['Exports']))
+        self.assertEqual(0, e['Last'])
+        self.assertTrue(e['Done'])
+        e = DoGet(_REMOTE, '/exports?last')
+        self.assertEqual(0, len(e['Exports']))
+        self.assertEqual(0, e['Last'])
+        self.assertTrue(e['Done'])
+
+        # Add 1 instance
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+
+        # Export the instance
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')  # instance
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/studies')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/series')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+
+        e = DoGet(_REMOTE, '/exports')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], e['Last'])
+        e = DoGet(_REMOTE, '/exports?limit=1')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], e['Last'])
+        e = DoGet(_REMOTE, '/exports?last')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], e['Last'])
+        seqInstance = e['Last']
+
+        # Export the series
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', 'f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', 'text/plain')
+
+        e = DoGet(_REMOTE, '/exports')
+        self.assertEqual(2, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], e['Last'])
+        seqSeries = e['Last']
+        self.assertNotEqual(seqInstance, seqSeries)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=0')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertFalse(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqInstance)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=' + str(seqInstance))
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqSeries)
+        e = DoGet(_REMOTE, '/exports?last')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqSeries)
+
+        # Export the study
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', 'text/plain')
+        seqStudy = DoGet(_REMOTE, '/exports')['Last']
+
+        # Export the patient
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', '6816cb19-844d5aee-85245eba-28e841e6-2414fae2', 'text/plain')
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/studies')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/series')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+
+        e = DoGet(_REMOTE, '/exports')
+        self.assertEqual(4, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], e['Last'])
+        seqPatient = e['Last']
+        self.assertNotEqual(seqInstance, seqSeries)
+        self.assertNotEqual(seqSeries, seqStudy)
+        self.assertNotEqual(seqStudy, seqPatient)
+        self.assertTrue(seqInstance < seqSeries)
+        self.assertTrue(seqSeries < seqStudy)
+        self.assertTrue(seqStudy < seqPatient)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=0')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertFalse(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqInstance)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=' + str(seqInstance))
+        self.assertEqual(1, len(e['Exports']))
+        self.assertFalse(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqSeries)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=' + str(seqSeries))
+        self.assertEqual(1, len(e['Exports']))
+        self.assertFalse(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqStudy)
+        e = DoGet(_REMOTE, '/exports?limit=1&since=' + str(seqStudy))
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqPatient)
+        e = DoGet(_REMOTE, '/exports?last')
+        self.assertEqual(1, len(e['Exports']))
+        self.assertTrue(e['Done'])
+        self.assertEqual(e['Exports'][-1]['Seq'], seqPatient)
+
+
+        # Check the content of the logged information
+        e = DoGet(_REMOTE, '/exports')['Exports']
+
+        if 'PatientID' in e[0]:
+            # Since Orthanc 0.8.6
+            patient = 'PatientID'
+            study = 'StudyInstanceUID'
+            series = 'SeriesInstanceUID'
+            instance = 'SOPInstanceUID'
+        else:
+            # Up to Orthanc 0.8.5
+            patient = 'PatientId'
+            study = 'StudyInstanceUid'
+            series = 'SeriesInstanceUid'
+            instance = 'SopInstanceUid'
+
+        for k in range(4):
+            self.assertTrue('Date' in e[k])
+            self.assertTrue('Seq' in e[k])
+            self.assertEqual('orthanctest', e[k]['RemoteModality'])
+
+        self.assertEqual(10, len(e[0]))
+        self.assertEqual('Instance', e[0]['ResourceType'])
+        self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', e[0]['ID'])
+        self.assertEqual('/instances/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', e[0]['Path'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', e[0][instance])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', e[0][series])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', e[0][study])
+        self.assertEqual('ozp00SjY2xG', e[0][patient])
+
+        self.assertEqual(9, len(e[1]))
+        self.assertEqual('Series', e[1]['ResourceType'])
+        self.assertEqual('f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', e[1]['ID'])
+        self.assertEqual('/series/f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', e[1]['Path'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', e[1][series])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', e[1][study])
+        self.assertEqual('ozp00SjY2xG', e[1][patient])
+
+        self.assertEqual(8, len(e[2]))
+        self.assertEqual('Study', e[2]['ResourceType'])
+        self.assertEqual('b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', e[2]['ID'])
+        self.assertEqual('/studies/b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', e[2]['Path'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', e[2][study])
+        self.assertEqual('ozp00SjY2xG', e[2][patient])
+
+        self.assertEqual(7, len(e[3]))
+        self.assertEqual('Patient', e[3]['ResourceType'])
+        self.assertEqual('6816cb19-844d5aee-85245eba-28e841e6-2414fae2', e[3]['ID'])
+        self.assertEqual('/patients/6816cb19-844d5aee-85245eba-28e841e6-2414fae2', e[3]['Path'])
+        self.assertEqual('ozp00SjY2xG', e[3][patient])
+
+        DropOrthanc(_REMOTE)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+
+    def test_store_peer(self):
+        self.assertEqual(0, len(DoGet(_LOCAL, '/exports')['Exports']))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        j = DoPost(_REMOTE, '/peers/peer/store', str(i), 'text/plain')
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+        DropOrthanc(_REMOTE)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+
+    def test_bulk_storescu(self):
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        b = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', [ a['ID'], b['ID'] ], 'application/json')
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+
+        DropOrthanc(_LOCAL)
+
+        # Send using patient's UUID
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', 
+                   [ 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17' ], 'application/json')
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+        
+
+    def test_color(self):
+        i = UploadInstance(_REMOTE, 'ColorTestMalaterre.dcm')['ID']
+        im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(41, im.size[0])
+        self.assertEqual(41, im.size[1])
+
+        # http://effbot.org/zone/pil-comparing-images.htm
+        truth = Image.open(os.path.join(os.path.dirname(__file__), '..', 'Database', 'ColorTestMalaterre.png'))
+        self.assertTrue(ImageChops.difference(im, truth).getbbox() is None)
+
+
