@@ -16,6 +16,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
+import tempfile
 import unittest
 
 from PIL import ImageChops
@@ -30,6 +31,23 @@ def SetOrthancParameters(local, remote):
     global _LOCAL, _REMOTE
     _LOCAL = local
     _REMOTE = remote
+
+
+def ExtractDicomTags(rawDicom, tags):
+    with tempfile.NamedTemporaryFile(delete = True) as f:
+        f.write(rawDicom)
+        f.flush()
+        data = subprocess.check_output([ 'dcm2xml', f.name ])
+
+    result = []
+    for tag in tags:
+        match = re.search('<element[^>]+name="%s">([^>]*)</element>' % tag, data)
+        if match == None:
+            result.append('')
+        else:
+            result.append(match.group(1))
+
+    return result
 
 
 class Orthanc(unittest.TestCase):
@@ -1313,3 +1331,328 @@ class Orthanc(unittest.TestCase):
                                              'CaseSensitive' : True,
                                              'Query' : { 'StationName' : 'SMR4-MP3' }})
         self.assertEqual(1, len(a))
+
+
+    def test_rest_find(self):
+        # Upload 8 instances
+        for i in range(2):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : '*n*' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : '*n*' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Expand' : True,
+                                             'Level' : 'Patient',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : '*ne*' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('20080822', a[0]['MainDicomTags']['PatientBirthDate'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : '*ne*' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : '*NE*' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : '*NE*' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : '*NE*' }})
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient', 'Query' : { }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : { }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series', 'Query' : { }})
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance', 'Query' : { }})
+        self.assertEqual(8, len(a))
+
+
+    def test_rest_query_retrieve(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+        # Upload 8 instances
+        for i in range(2):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        for p in DoGet(_REMOTE, '/patients'):
+            DoPost(_REMOTE, '/modalities/orthanctest/store', p)
+            DoDelete(_REMOTE, '/patients/%s' % p)
+
+        for q in DoGet(_REMOTE, '/queries'):
+            DoDelete(_REMOTE, '/queries/%s' % q)
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
+        a = DoPost(_REMOTE, '/modalities/orthanctest/query', { 'Level' : 'Series',
+                                                               'Query' : { 'PatientName' : '*NE*' }})['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/queries')))
+
+        b = DoGet(_REMOTE, '/queries/%s' % a)
+        self.assertTrue('answers' in b)
+        self.assertTrue('level' in b)
+        self.assertTrue('modality' in b)
+        self.assertTrue('query' in b)
+        self.assertTrue('retrieve' in b)
+        self.assertEqual('Series', DoGet(_REMOTE, '/queries/%s/level' % a))
+        self.assertEqual('orthanctest', DoGet(_REMOTE, '/queries/%s/modality' % a))
+        
+        q = DoGet(_REMOTE, '/queries/%s/query?simplify' % a)
+        self.assertEqual(1, len(q))
+        self.assertTrue('PatientName' in q)
+        self.assertEqual('*NE*', q['PatientName'])
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+
+        s = DoGet(_REMOTE, '/queries/%s/answers/0' % a)
+        self.assertTrue('content' in s)
+        self.assertTrue('retrieve' in s)
+
+        s = DoGet(_REMOTE, '/queries/%s/answers/0/content?simplify' % a)
+        self.assertEqual('887', s['PatientID'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s['StudyInstanceUID'])
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        DoPost(_REMOTE, '/queries/%s/answers/0/retrieve' % a, 'ORTHANC')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+        DoPost(_REMOTE, '/queries/%s/answers/1/retrieve' % a, 'ORTHANC')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+
+        DoDelete(_REMOTE, '/queries/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
+
+
+    def test_parent(self):
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        patient = '6816cb19-844d5aee-85245eba-28e841e6-2414fae2'
+        study = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
+        series = 'f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe'
+        instance = '66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d'
+        self.assertEqual(instance, u);
+
+        a = DoGet(_REMOTE, '/studies/%s/patient' % study)
+        self.assertEqual('Patient', a['Type'])
+        self.assertEqual(patient, a['ID'])
+        
+        a = DoGet(_REMOTE, '/series/%s/patient' % series)
+        self.assertEqual('Patient', a['Type'])
+        self.assertEqual(patient, a['ID'])
+        
+        a = DoGet(_REMOTE, '/series/%s/study' % series)
+        self.assertEqual('Study', a['Type'])
+        self.assertEqual(study, a['ID'])
+        
+        a = DoGet(_REMOTE, '/instances/%s/patient' % instance)
+        self.assertEqual('Patient', a['Type'])
+        self.assertEqual(patient, a['ID'])
+        
+        a = DoGet(_REMOTE, '/instances/%s/study' % instance)
+        self.assertEqual('Study', a['Type'])
+        self.assertEqual(study, a['ID'])
+        
+        a = DoGet(_REMOTE, '/instances/%s/series' % instance)
+        self.assertEqual('Series', a['Type'])
+        self.assertEqual(series, a['ID'])
+        
+
+    def test_shanon(self):
+        def Anonymize(instance, replacements = {}):
+            return DoPost(_REMOTE, '/instances/%s/anonymize' % instance, { 'Replace' : replacements }, 'application/json')
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        tags = [ 'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'DeidentificationMethod' ]
+        ids = [ 'ozp00SjY2xG',
+                '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+                '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394',
+                '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109' ]
+
+        a = ExtractDicomTags(Anonymize(u), tags)
+        for i in range(4):
+            self.assertNotEqual(ids[i], a[i])
+        self.assertTrue(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'PatientName' : 'toto' }), tags)
+        for i in range(4):
+            self.assertNotEqual(ids[i], a[i])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'SOPInstanceUID' : 'instance' }), tags)
+        self.assertEqual('instance', a[3])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'SeriesInstanceUID' : 'series' }), tags)
+        self.assertEqual('series', a[2])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'StudyInstanceUID' : 'study' }), tags)
+        self.assertEqual('study', a[1])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient' }), tags)
+        self.assertEqual('patient', a[0])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient',
+                                            'StudyInstanceUID' : 'study',
+                                            'SeriesInstanceUID' : 'series',
+                                            'SOPInstanceUID' : 'instance' }), tags)
+        self.assertEqual('patient', a[0])
+        self.assertFalse(a[4].startswith('Orthanc'))
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_shanon_2(self):
+        def Modify(instance, replacements = {}):
+            return DoPost(_REMOTE, '/instances/%s/modify' % instance, { 'Replace' : replacements }, 'application/json')
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        tags = [ 'PatientID', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'DeidentificationMethod' ]
+        ids = [ 'ozp00SjY2xG',
+                '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+                '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394',
+                '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109' ]
+
+        a = ExtractDicomTags(Modify(u), tags)
+        self.assertEqual(ids[0], a[0])
+        self.assertEqual(ids[1], a[1])
+        self.assertEqual(ids[2], a[2])
+        self.assertNotEqual(ids[3], a[3])
+        self.assertEqual(0, len(a[4]))
+
+        a = ExtractDicomTags(Modify(u, { 'SOPInstanceUID' : 'instance' }), tags)
+        self.assertEqual(ids[0], a[0])
+        self.assertEqual(ids[1], a[1])
+        self.assertEqual(ids[2], a[2])
+        self.assertEqual('instance', a[3])
+
+        a = ExtractDicomTags(Modify(u, { 'SeriesInstanceUID' : 'series' }), tags)
+        self.assertEqual(ids[0], a[0])
+        self.assertEqual(ids[1], a[1])
+        self.assertEqual('series', a[2])
+        self.assertNotEqual(ids[3], a[3])
+
+        a = ExtractDicomTags(Modify(u, { 'StudyInstanceUID' : 'study' }), tags)
+        self.assertEqual(ids[0], a[0])
+        self.assertEqual('study', a[1])
+        self.assertNotEqual(ids[2], a[2])
+        self.assertNotEqual(ids[3], a[3])
+
+        a = ExtractDicomTags(Modify(u, { 'PatientID' : 'patient' }), tags)
+        self.assertEqual('patient', a[0])
+        self.assertNotEqual(ids[1], a[1])
+        self.assertNotEqual(ids[2], a[2])
+        self.assertNotEqual(ids[3], a[3])
+
+        a = ExtractDicomTags(Modify(u, { 'PatientID' : 'patient',
+                                         'StudyInstanceUID' : 'study',
+                                         'SeriesInstanceUID' : 'series',
+                                         'SOPInstanceUID' : 'instance' }), tags)
+        self.assertEqual('patient', a[0])
+        self.assertEqual('study', a[1])
+        self.assertEqual('series', a[2])
+        self.assertEqual('instance', a[3])
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        
+
+    def test_instances_tags(self):
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        b = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')['ID']
+        #a = UploadInstance(_REMOTE, 'Cardiac/MR.X.1.2.276.0.7230010.3.1.4.2831157719.2256.1336386937.676343')['ID']
+        #b = UploadInstance(_REMOTE, 'Cardiac/MR.X.1.2.276.0.7230010.3.1.4.2831157719.2256.1336386925.676329')['ID']
+
+        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/patients')[0])
+        self.assertEqual(2, len(i))
+        self.assertEqual('887', i[i.keys()[0]]['PatientID'])
+        self.assertEqual('887', i[i.keys()[1]]['PatientID'])
+
+        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/studies')[0])
+        self.assertEqual(2, len(i))
+        self.assertEqual('887', i[i.keys()[0]]['PatientID'])
+        self.assertEqual('887', i[i.keys()[1]]['PatientID'])
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[0])
+        self.assertEqual(1, len(i))
+        self.assertEqual('887', i[i.keys()[0]]['PatientID'])
+        
+        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[1])
+        self.assertEqual(1, len(i))
+        self.assertEqual('887', i[i.keys()[0]]['PatientID'])
+
+
+    def test_lookup(self):
+        a = DoPost(_REMOTE, '/tools/lookup', 'ozp00SjY2xG')
+        self.assertEqual(0, len(a))
+
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        a = DoPost(_REMOTE, '/tools/lookup', 'ozp00SjY2xG')
+        self.assertEqual(1, len(a))
+        self.assertEqual('Patient', a[0]['Type'])
+        self.assertEqual('6816cb19-844d5aee-85245eba-28e841e6-2414fae2', a[0]['ID'])
+        self.assertEqual('/patients/%s' % a[0]['ID'], a[0]['Path'])
+        
+        a = DoPost(_REMOTE, '/tools/lookup', '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390')
+        self.assertEqual(1, len(a))
+        self.assertEqual('Study', a[0]['Type'])
+        self.assertEqual('b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', a[0]['ID'])
+        self.assertEqual('/studies/%s' % a[0]['ID'], a[0]['Path'])
+        
+        a = DoPost(_REMOTE, '/tools/lookup', '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394')
+        self.assertEqual(1, len(a))
+        self.assertEqual('Series', a[0]['Type'])
+        self.assertEqual('f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', a[0]['ID'])
+        self.assertEqual('/series/%s' % a[0]['ID'], a[0]['Path'])
+        
+        a = DoPost(_REMOTE, '/tools/lookup', '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109')
+        self.assertEqual(1, len(a))
+        self.assertEqual('Instance', a[0]['Type'])
+        self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', a[0]['ID'])
+        self.assertEqual('/instances/%s' % a[0]['ID'], a[0]['Path'])
+
+        DropOrthanc(_REMOTE)
+        a = DoPost(_REMOTE, '/tools/lookup', '3113719P')
+        self.assertEqual(0, len(a))
+
