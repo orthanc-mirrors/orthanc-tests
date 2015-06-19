@@ -988,20 +988,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(series))
         
 
-    @unittest.skip("This test fails, to fix")
     def test_incoming_movescu(self):
         def CallMoveScu(args):
             subprocess.check_call([ 'movescu', 
-                                    '--move', _LOCAL['DicomAet'],     # Target AET (i.e. storescp)
-                                    '--call', _REMOTE['DicomAet'],    # Called AET (i.e. Orthanc)
-                                    '--aetitle', _LOCAL['DicomAet'],  # Calling AET (i.e. storescp)
+                                    '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
+                                    '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
+                                    '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
                                     _REMOTE['Server'], str(_REMOTE['DicomPort'])  ] + args,
                                   stderr=subprocess.PIPE)
 
         UploadInstance(_REMOTE, 'Multiframe.dcm')
         
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
-        #CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=none' ])
+        CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=none' ])
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
         CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=12345678' ])
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
@@ -1715,3 +1714,10 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('My Medical Device', re.search('"StationName">(.*?)<', routed).group(1).strip())
             self.assertEqual(None, re.search('"MilitaryRank"', routed))
             self.assertEqual(None, re.search('"0051,0010"', routed))  # A private tag
+
+
+    def test_storescu_rf(self):
+        i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
