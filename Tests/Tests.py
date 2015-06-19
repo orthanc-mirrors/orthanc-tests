@@ -1721,3 +1721,82 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
         j = DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+
+
+    def test_anonymize_instance(self):
+        def AnonymizeAndUpload(instanceId, parameters):
+            return DoPost(_REMOTE, '/instances', DoPost(_REMOTE, '/instances/%s/anonymize' % instanceId, parameters,
+                                               'application/json'), 'application/dicom')['ID']
+
+        def ModifyAndUpload(instanceId, parameters):
+            return DoPost(_REMOTE, '/instances', DoPost(_REMOTE, '/instances/%s/modify' % instanceId, parameters,
+                                               'application/json'), 'application/dicom')['ID']
+
+        a = UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')['ID']
+        s1 = DoGet(_REMOTE, '/instances/%s/content/PatientName' % a)
+        s2 = DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % a)  # Some private tag
+        s3 = DoGet(_REMOTE, '/instances/%s/content/StudyDescription' % a)
+        s4 = DoGet(_REMOTE, '/instances/%s/content/SeriesDescription' % a)
+        s5 = DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % a)
+        
+        b = AnonymizeAndUpload(a, '{}')
+        self.assertNotEqual(s1, DoGet(_REMOTE, '/instances/%s/content/PatientName' % b))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
+        
+        # Keep private tag (only OK since Orthanc 0.8.0)
+        b = AnonymizeAndUpload(a, '{"Keep":["00e1-10c2"]}')  
+        self.assertNotEqual(s1, DoGet(_REMOTE, '/instances/%s/content/PatientName' % b))
+        self.assertEqual(s2, DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
+        
+        b = AnonymizeAndUpload(a, '{"Keep":["00e1,10c2","PatientName"]}')
+        self.assertEqual(s1, DoGet(_REMOTE, '/instances/%s/content/PatientName' % b))
+        self.assertEqual(s2, DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
+        
+        b = AnonymizeAndUpload(a, '{"Keep":["PatientName"],"Replace":{"00e1,10c2":"Hello"}}')
+        self.assertEqual(s1, DoGet(_REMOTE, '/instances/%s/content/PatientName' % b))
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b).startswith('Hello'))
+
+        # Examples from the Wiki
+        b = AnonymizeAndUpload(a, '{"Replace":{"PatientName":"hello","0010-0020":"world"},"Keep":["StudyDescription", "SeriesDescription"],"KeepPrivateTags": null}')
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
+        self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
+        self.assertEqual(s3, DoGet(_REMOTE, '/instances/%s/content/0008,1030' % b))
+        self.assertEqual(s4, DoGet(_REMOTE, '/instances/%s/content/0008,103e' % b))
+        self.assertEqual(s4, DoGet(_REMOTE, '/instances/%s/content/0008-103E' % b))
+        self.assertEqual(s2, DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
+        DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % a)
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % b))
+
+        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"},"Remove":["InstitutionName"],"RemovePrivateTags": null}')
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
+        self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
+        self.assertEqual(s3, DoGet(_REMOTE, '/instances/%s/content/0008,1030' % b))
+        self.assertEqual(s4, DoGet(_REMOTE, '/instances/%s/content/0008,103e' % b))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % b))
+
+        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"}}')
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
+        self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
+        self.assertEqual(s2, DoGet(_REMOTE, '/instances/%s/content/00e1,10c2' % b))
+        self.assertEqual(s3, DoGet(_REMOTE, '/instances/%s/content/0008,1030' % b))
+        self.assertEqual(s4, DoGet(_REMOTE, '/instances/%s/content/0008-103E' % b))
+        self.assertEqual(s5, DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % b))
+
+
+        # Test modify non-existing
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                    'PatientName' : 'Jodogne',
+                    'Modality' : 'CT',
+                    }))['ID']
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i).strip())
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/StudyDescription' % i))
+        self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i).strip())
+
+        b = ModifyAndUpload(i, '{"Replace":{"StudyDescription":"hello","Modality":"world"}}')
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % b).strip())
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/StudyDescription' % b).strip())
+        self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/Modality' % b).strip())
+
