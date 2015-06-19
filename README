@@ -1,0 +1,83 @@
+Orthanc - A Lightweight, RESTful DICOM Server
+=============================================
+
+
+General Information
+===================
+
+This repository contains the integration tests that are used to
+validate Orthanc before each official release, in complement to the
+unit tests that are part of the Orthanc repository. These integrations
+tests should be run by the package maintainers of the various
+platforms supported by Orthanc.
+
+General information about Orthanc can be found on its official
+Website: http://www.orthanc-server.com/
+
+
+Running the tests
+=================
+
+The integration tests are written in Python and are started by the
+"./Tests/Run.py" script. The tests will validate a "remote" instance
+of Orthanc (whose AET is "ORTHANC") that is assumed to be running
+before the tests are started. To test the DICOM protocol, a second,
+"local" instance of Orthanc is automatically started by the
+integration tests (its AET is "ORTHANCTEST"). This situation is
+depicted on the following illustration:
+
++--------------------------+             +-----------------------+
+| Local computer           |             | Remote computer       |
++--------------------------+    HTTP     +-----------------------+
+|                          | 5000 : 8042 |                       |
+| Run.py <---> ORTHANCTEST <=============> ORTHANC               |
+|                          | 5001 : 4242 |                       |
++--------------------------+    DICOM    +-----------------------+
+
+
+1. Configure the remote Orthanc
+-------------------------------
+
+To run the integration tests, you first have to create a configuration
+file for the remote instance of Orthanc. This is done by running the
+"./GenerateConfigurationForTests.py" script on the *local*
+computer. This script will autodetect the proper network parameters.
+For instance (a help is available):
+
+# ./GenerateConfigurationForTests.py --force
+
+This will create the "./IntegrationTestsConfiguration.json"
+configuration file that must be copied to the remote computer. Then,
+start Orthanc on the remote computer with this configuration file.
+
+By default, the configuration file will use "ORTHANC" as the AET, 8042
+as the HTTP port, and 4242 as the DICOM port. You can of course
+adapt these parameters by editing the generated configuration file,
+if you have special constraints or if the autodetection fails.
+
+
+
+Licensing
+=========
+
+The integration tests are licensed under the GPLv3 license. The sample
+DICOM images contained in the "Database" folder are the property of
+their respective owners, as listed in the "Database/README.txt" file.
+
+We also kindly ask scientific works and clinical studies that make
+use of Orthanc to cite Orthanc in their associated publications.
+Similarly, we ask open-source and closed-source products that make
+use of Orthanc to warn us about this use. You can cite our work
+using the following BibTeX entry:
+
+@inproceedings{Jodogne:ISBI2013,
+  author = {Jodogne, S. and Bernard, C. and Devillers, M. and Lenaerts, E. and Coucke, P.},
+  title = {Orthanc -- {A} Lightweight, {REST}ful {DICOM} Server for Healthcare and Medical Research},
+  booktitle={Biomedical Imaging ({ISBI}), {IEEE} 10th International Symposium on}, 
+  year={2013}, 
+  pages={190-193}, 
+  ISSN={1945-7928},
+  month=apr,
+  url={http://ieeexplore.ieee.org/xpl/articleDetails.jsp?tp=&arnumber=6556444},
+  address={San Francisco, {CA}, {USA}}
+}

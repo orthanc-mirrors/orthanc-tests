@@ -1,0 +1,21 @@
+Orthanc - A Lightweight, RESTful DICOM Server
+=============================================
+
+
+Authors of Orthanc
+------------------
+
+* Sebastien Jodogne <s.jodogne@gmail.com>
+  Department of Medical Physics
+  University Hospital of Liege
+  Belgium
+
+  Overall design and lead developer.
+
+
+Contributors
+------------
+
+Many people have contributed to the integration tests by submitting
+sample DICOM images. They are listed in the "Database/README.txt"
+file.
