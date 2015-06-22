@@ -77,6 +77,7 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
         d = '?' + urlencode(data)
 
     http = httplib2.Http()
+    http.follow_redirects = False
     _SetupCredentials(orthanc, http)
 
     resp, content = http.request(orthanc['Url'] + uri + d, 'GET', body = body,
@@ -91,6 +92,7 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
 
 def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     http = httplib2.Http()
+    http.follow_redirects = False
     _SetupCredentials(orthanc, http)
 
     if isinstance(data, str):
@@ -116,6 +118,7 @@ def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
 
 def DoDelete(orthanc, uri):
     http = httplib2.Http()
+    http.follow_redirects = False
     _SetupCredentials(orthanc, http)
 
     resp, content = http.request(orthanc['Url'] + uri, 'DELETE')

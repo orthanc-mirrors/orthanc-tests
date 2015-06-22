@@ -59,11 +59,31 @@ def UninstallLuaCallbacks():
     DoPost(_REMOTE, '/tools/execute-script', 'function OnStoredInstance() end', 'application/lua')
 
 
+def CompareLists(a, b):
+    if len(a) != len(b):
+        return False
+
+    for i in range(len(a)):
+        d = a[i] - b[i]
+        if abs(d) >= 0.51:  # Add some tolerance for rounding errors
+            return False
+
+    return True
+
+
+
+
 
 class Orthanc(unittest.TestCase):
     def setUp(self):
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
+        #print "In test", self._testMethodName
+
+    def AssertSameImages(self, truth, url):
+        im = GetImage(_REMOTE, url)
+        self.assertTrue(CompareLists(truth, im.getdata()))
+
 
     def test_system(self):
         self.assertTrue('Version' in DoGet(_REMOTE, '/system'))
@@ -243,7 +263,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
 
 
-    def test_multi_frame(self):
+    def test_multiframe(self):
         i = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
         self.assertEqual(76, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
 
@@ -1322,14 +1342,11 @@ class Orthanc(unittest.TestCase):
 
 
     def test_issue_19(self):
-        # This is an image with "YBR_FULL" photometric interpretation
+        # This is an image with "YBR_FULL" photometric interpretation, it is not supported by Orthanc
         # gdcmconv -i /home/jodogne/DICOM/GdcmDatabase/US_DataSet/HDI5000_US/3EAF5E01 -w -o Issue19.dcm
 
         a = UploadInstance(_REMOTE, 'Issue19.dcm')['ID']
-        i = DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview')
-
-        # eb5d156c3594497f589158a6c6f3ca51 <=> Unsupported.png
-        self.assertEqual('eb5d156c3594497f589158a6c6f3ca51', ComputeMD5(i))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview'))
 
 
     def test_issue_37(self):
@@ -1800,3 +1817,151 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/StudyDescription' % b).strip())
         self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/Modality' % b).strip())
 
+
+    def test_incoming_jpeg(self):
+        def storescu():
+            with open(os.devnull, 'w') as FNULL:
+                subprocess.check_call([ 'storescu', '-xs',
+                                        _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                        GetDatabasePath('Knix/Loc/IM-0001-0001.dcm') ],
+                                      stderr = FNULL)
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        InstallLuaScript('Lua/TransferSyntaxDisable.lua')
+        self.assertRaises(Exception, storescu)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        InstallLuaScript('Lua/TransferSyntaxEnable.lua')
+        storescu()
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_storescu_jpeg(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+        knixStudy = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
+        UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0003.dcm')
+
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        b = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        DoPost(_REMOTE, '/modalities/orthanctest/store', [ knixStudy, a, b ])
+        self.assertEqual(5, len(DoGet(_LOCAL, '/instances')))
+
+        self.assertEqual(3, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+        DropOrthanc(_REMOTE)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+
+    def test_pixel_data(self):
+        jpeg = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')['ID']
+        color = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
+        phenix = UploadInstance(_REMOTE, 'Phenix/IM-0001-0001.dcm')['ID']
+        
+        phenixSize = 358 * 512 * 2
+        colorSize = 1000 * 1000 * 3
+        jpegSize = 51918
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010' % phenix)))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010' % color)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010' % jpeg)))
+        
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010/0' % jpeg)))
+        self.assertEqual(jpegSize, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010/1' % jpeg)))       
+
+        self.assertEqual(phenixSize, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010/0' % phenix)))
+        self.assertEqual(colorSize, len(DoGet(_REMOTE, '/instances/%s/content/7fe0-0010/0' % color)))
+
+
+    def test_decode_brainix(self):
+        brainix = [
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID'], # (*)
+            UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')['ID'],  # JPEG-LS, same as (*) (since Orthanc 0.7.6)
+            UploadInstance(_REMOTE, 'Formats/Jpeg.dcm')['ID'],  # JPEG, same as (*) (since Orthanc 0.7.6)
+            ]
+        h = '6fb11b932d535c2be04beabd99793ff8'
+        maxValue = 426.0
+
+        truth = Image.open(GetDatabasePath('Formats/Brainix.png'))
+        for i in brainix:
+            self.AssertSameImages(truth.getdata(), '/instances/%s/image-int16' % i)
+            self.AssertSameImages(truth.getdata(), '/instances/%s/image-uint16' % i)
+
+        truth2 = map(lambda x: min(255, x), truth.getdata())
+        for i in brainix:
+            self.AssertSameImages(truth2, '/instances/%s/image-uint8' % i)
+
+        truth2 = map(lambda x: x * 255.0 / maxValue, truth.getdata())
+        for i in brainix:
+            self.AssertSameImages(truth2, '/instances/%s/preview' % i)
+
+        for i in brainix:
+            self.assertEqual(h, ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % i)))
+
+
+    def test_decode_color(self):
+        imagej = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
+        color = UploadInstance(_REMOTE, 'ColorTestMalaterre.dcm')['ID']
+
+        for i in [ imagej, color ]:
+            for j in [ 'image-uint8', 'image-uint16', 'image-int16' ]:
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/%s' % (i, j)))
+
+        self.assertEqual('c14c687f7a1ea9fe022479fc87c67274', ComputeMD5(DoGet(_REMOTE, '/instances/%s/preview' % imagej)))
+        self.assertEqual('a87d122918a56f803bcfe9d2586b9125', ComputeMD5(DoGet(_REMOTE, '/instances/%s/preview' % color)))
+
+        self.assertEqual('30cc46bfa7aba77a40e4178f6184c25a', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % imagej)))
+        self.assertEqual('ff195005cef06b59666fd220a9b4cd9a', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % color)))
+
+
+    def test_decode_rf(self):
+        rf = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
+        truth = Image.open(GetDatabasePath('Formats/KarstenHilbertRF.png'))
+
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-uint8' % rf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-uint16' % rf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-int16' % rf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/preview' % rf)
+
+        self.assertEqual('42254d70efd2f4a1b8f3455909689f0e', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % rf)))
+
+
+    def test_decode_multiframe(self):
+        mf = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
+
+        # Test the first frame
+        truth = Image.open(GetDatabasePath('Formats/Multiframe0.png'))
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-uint8' % mf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-uint16' % mf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-int16' % mf)
+        self.AssertSameImages(truth.getdata(), '/instances/%s/preview' % mf)
+        self.assertEqual('9812b99d93bbcd4e7684ded089b5dfb3', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % mf)))
+
+        self.AssertSameImages(truth.getdata(), '/instances/%s/frames/0/image-uint16' % mf)
+
+        # Test the last frame
+        truth = Image.open(GetDatabasePath('Formats/Multiframe75.png'))
+        self.AssertSameImages(truth.getdata(), '/instances/%s/frames/75/image-uint16' % mf)
+
+
+    def test_decode_signed(self):
+        signed = UploadInstance(_REMOTE, 'SignedCT.dcm')['ID']
+        minValue = -2000
+        maxValue = 4042
+
+        truth = Image.open(GetDatabasePath('Formats/SignedCT.png'))
+        self.AssertSameImages(truth.getdata(), '/instances/%s/image-int16' % signed)
+
+        truth2 = map(lambda x: 0 if x >= 32768 else x, truth.getdata())
+        self.AssertSameImages(truth2, '/instances/%s/image-uint16' % signed)
+
+        truth3 = map(lambda x: 255 if x >= 256 else x, truth2)
+        self.AssertSameImages(truth3, '/instances/%s/image-uint8' % signed)
+
+        tmp = map(lambda x: x - 65536 if x >= 32768 else x, truth.getdata())
+        tmp = map(lambda x: (255.0 * (x - minValue)) / (maxValue - minValue), tmp)
+        self.AssertSameImages(tmp, '/instances/%s/preview' % signed)
+
+        self.assertEqual('b57e6c872a3da50877c7da689b03a444', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % signed)))
