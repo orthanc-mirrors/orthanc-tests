@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2015 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
@@ -1965,3 +1969,17 @@ class Orthanc(unittest.TestCase):
         self.AssertSameImages(tmp, '/instances/%s/preview' % signed)
 
         self.assertEqual('b57e6c872a3da50877c7da689b03a444', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % signed)))
+
+
+    def test_issue_32(self):
+        f = UploadInstance(_REMOTE, 'Issue32.dcm')['ID']
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
+        self.assertEqual(u'Рентгенография', tags['SeriesDescription'])
+        self.assertEqual(u'Таз', tags['BodyPartExamined'])
+        self.assertEqual(u'Прямая', tags['ViewPosition'])
+
+
+    def test_encodings(self):
+        brainix = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % brainix)
+        self.assertEqual(u'IRM cérébrale, neuro-crâne', tags['StudyDescription'])

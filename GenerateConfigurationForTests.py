@@ -75,6 +75,7 @@ config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANC"', config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
+config = re.sub(r'("DefaultEncoding"\s*:)\s*".*?"', r'\1 "Windows1251"', config)  # For test_issue_32
 config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : "orthanctest"', config)
 config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanctest" : [ "%s", "%s", %d ]' % 
                 ('ORTHANCTEST', ip, 5001), config)
