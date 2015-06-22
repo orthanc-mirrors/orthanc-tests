@@ -39,8 +39,8 @@ Content
 
 Here is the source of each set of sample images:
 
-- Beaufix/* : From OsiriX, "BEAUFIX".
-- Brainix/* : From OsiriX, "BRAINIX".
+- Beaufix/* : From OsiriX, "BEAUFIX" (sample of JPEG2000).
+- Brainix/* : From OsiriX, "BRAINIX" (sample of uncompressed data).
 - ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm
 - ColorTestMalaterre.dcm : From Mathieu Malaterre, Debian bug #698417
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
@@ -48,10 +48,11 @@ Here is the source of each set of sample images:
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
 - Issue22.dcm : From Emsy Chan on Google Code (Error decoding multi-frame instances)
 - Issue32.dcm : From aceberg93 on Google Code (Cyrillic symbols)
-- KarstenHilbertRF.dcm : From Karsten Hilbert
-- Knee/* : From OsiriX, "KNEE".
+- KarstenHilbertRF.dcm : From Karsten Hilbert.
+- Knee/* : From OsiriX, "KNEE" (sample of JPEG2000).
+- Knix/* : From OsiriX, "KNIX" (sample of lossless JPEG).
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"
-- Phenix/* : From OsiriX, "PHENIX".
+- Phenix/* : From OsiriX, "PHENIX" (sample of uncompressed data).
 - PilatesArgenturGEUltrasoundOsiriX.dcm: From https://groups.google.com/d/msg/orthanc-users/m3zQLyl_jNc/TUrR462UKSMJ
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
