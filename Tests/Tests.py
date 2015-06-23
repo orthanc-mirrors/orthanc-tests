@@ -1980,6 +1980,15 @@ class Orthanc(unittest.TestCase):
 
 
     def test_encodings(self):
+        # Latin-1 (ISO_IR 100)
         brainix = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % brainix)
         self.assertEqual(u'IRM cérébrale, neuro-crâne', tags['StudyDescription'])
+
+        # Latin-2 (ISO_IR 101)
+        a = UploadInstance(_REMOTE, 'MarekLatin2.dcm')['ID']
+        i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % a)
+        # dcm2xml MarekLatin2.dcm | iconv -f latin2 -t utf-8 | xmllint --format -
+        self.assertEqual('Imię i Nazwisko osoby opisującej', 
+                         i['ContentSequence'][4]['ConceptNameCodeSequence'][0]['CodeMeaning'].encode('utf-8'))
+        
