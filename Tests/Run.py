@@ -106,8 +106,9 @@ with open(CONFIG, 'wt') as f:
     f.write(config)
 
 localOrthanc = ExternalCommandThread([ 
-        'Orthanc', CONFIG, #'--verbose'
-        ])
+    'Orthanc', CONFIG, #'--verbose',
+    #'/home/jodogne/Subversion/Orthanc/i/Orthanc', CONFIG, '--verbose'
+])
 
 
 LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',

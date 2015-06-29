@@ -1443,7 +1443,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
         a = DoPost(_REMOTE, '/modalities/orthanctest/query', { 'Level' : 'Series',
-                                                               'Query' : { 'PatientName' : '*NE*' }})['ID']
+                                                               'Query' : { 
+                                                                   'PatientName' : '*NE*',
+                                                                   'StudyDate' : '*',
+                                                               }})['ID']
         self.assertEqual(1, len(DoGet(_REMOTE, '/queries')))
 
         b = DoGet(_REMOTE, '/queries/%s' % a)
@@ -1456,9 +1459,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('orthanctest', DoGet(_REMOTE, '/queries/%s/modality' % a))
         
         q = DoGet(_REMOTE, '/queries/%s/query?simplify' % a)
-        self.assertEqual(1, len(q))
+        self.assertEqual(2, len(q))
         self.assertTrue('PatientName' in q)
+        self.assertTrue('StudyDate' in q)
         self.assertEqual('*NE*', q['PatientName'])
+        self.assertEqual('*', q['StudyDate'])
 
         self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
 
