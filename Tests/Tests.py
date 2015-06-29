@@ -82,6 +82,7 @@ class Orthanc(unittest.TestCase):
     def setUp(self):
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
+        UninstallLuaCallbacks()
         #print "In test", self._testMethodName
 
     def AssertSameImages(self, truth, url):
@@ -1992,3 +1993,51 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Imię i Nazwisko osoby opisującej', 
                          i['ContentSequence'][4]['ConceptNameCodeSequence'][0]['CodeMeaning'].encode('utf-8'))
         
+
+    def test_storescu_custom_aet(self):
+        # This tests a feature introduced in Orthanc 0.9.1: "Custom
+        # setting of the local AET during C-Store SCU (both in Lua and
+        # in the REST API)."
+        # https://groups.google.com/forum/#!msg/orthanc-users/o5qMULformU/wZjW2iSaMcAJ
+
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')
+        c = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0003.dcm')
+
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
+            'LocalAet' : 'YOP',
+            'Resources' : [ a['ID'], b['ID'] ]
+        })
+
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual('YOP', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
+
+        DropOrthanc(_LOCAL)
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
+            'Resources' : [ c['ID'] ]
+        })
+
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual('ORTHANC', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % c['ID']))
+
+        DropOrthanc(_REMOTE)        
+        DropOrthanc(_LOCAL)        
+
+        InstallLuaScript('Lua/AutoroutingChangeAet.lua')
+        DoPost(_REMOTE, '/tools/execute-script', 'aet = "HELLO"', 'application/lua')
+
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        WaitEmpty(_REMOTE)
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual('HELLO', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
+
+        DoPost(_REMOTE, '/tools/execute-script', 'aet = nill', 'application/lua')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')
+        WaitEmpty(_REMOTE)
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual('ORTHANC', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % b['ID']))
