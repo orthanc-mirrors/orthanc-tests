@@ -70,8 +70,7 @@ def _SetupCredentials(orthanc, http):
         orthanc['Password'] != None):
         http.add_credentials(orthanc['Username'], orthanc['Password'])
 
-
-def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
+def DoGetRaw(orthanc, uri, data = {}, body = None, headers = {}):
     d = ''
     if len(data.keys()) > 0:
         d = '?' + urlencode(data)
@@ -82,6 +81,12 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
 
     resp, content = http.request(orthanc['Url'] + uri + d, 'GET', body = body,
                                  headers = headers)
+    return (resp, content)
+
+
+def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
+    (resp, content) = DoGetRaw(orthanc, uri, data = data, body = body, headers = headers)
+
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status)
     else:

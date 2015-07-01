@@ -1283,6 +1283,10 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('store' in DoGet(_REMOTE, '/peers/peer'))
         self.assertTrue('matlab' in DoGet(_REMOTE, '/instances/%s/frames/0' % a))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/tools/nope'))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/nope'))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/nope/nope.html'))
+        self.assertEqual(404, DoGetRaw(_REMOTE, '/nope')[0].status)
+        self.assertEqual(404, DoGetRaw(_REMOTE, '/nope/nope.html')[0].status)
 
 
     def test_echo(self):
