@@ -87,6 +87,9 @@ subprocess.check_call([ 'Orthanc', '--config=%s' % CONFIG ])
 with open(CONFIG, 'rt') as f:
     config = f.read()
 
+if args.docker and args.server == 'localhost':
+    args.server = GetDockerHostAddress()
+
 config = re.sub(r'("StorageDirectory"\s*:)\s*".*?"', r'\1 "/tmp/OrthancStorage"', config)
 config = re.sub(r'("IndexDirectory"\s*:)\s*".*?"', r'\1 "/tmp/OrthancStorage"', config)
 config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANCTEST"', config)
@@ -108,13 +111,8 @@ localOrthanc = ExternalCommandThread([
 ])
 
 
-if args.docker:
-    localServer = GetDockerHostAddress()
-else:
-    localServer = 'localhost'
-
 LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',
-                      server = localServer,
+                      server = 'localhost',
                       dicomPort = 5001,
                       restPort = 5000,
                       username = 'alice',
