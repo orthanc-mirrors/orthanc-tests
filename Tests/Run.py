@@ -81,9 +81,6 @@ Are you sure ["yes" to go on]?""" % args.server)
 ## Orthanc
 ##
 
-if args.docker:
-    args.server = GetDockerHostAddress()
-
 CONFIG = '/tmp/IntegrationTestsConfiguration.json'
 subprocess.check_call([ 'Orthanc', '--config=%s' % CONFIG ])
 
@@ -111,8 +108,13 @@ localOrthanc = ExternalCommandThread([
 ])
 
 
+if args.docker:
+    localServer = GetDockerHostAddress()
+else:
+    localServer = 'localhost'
+
 LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',
-                      server = 'localhost',
+                      server = localServer,
                       dicomPort = 5001,
                       restPort = 5000,
                       username = 'alice',
