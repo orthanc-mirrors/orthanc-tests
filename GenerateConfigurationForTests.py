@@ -40,6 +40,9 @@ parser.add_argument('--force',
                     help = 'Overwrite the file even if it already exists',
                     action = 'store_true')
 
+parser.add_argument('--plugins', 
+                    help = 'Add a path to a folder containing plugins')
+
 args = parser.parse_args()
 
 
@@ -84,6 +87,10 @@ config = re.sub(r'("OrthancPeers"\s*:)\s*{', r'\1 { "peer" : [ "http://%s:%d/", 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
 config = re.sub(r'("CaseSensitivePN"\s*:)\s*true', r'\1 false', config) 
+
+if args.plugins != None:
+    config = re.sub(r'("Plugins"\s*:\s*\[)', r'\1 "%s"' % args.plugins, config)
+   
 
 with open(args.target, 'wt') as f:
     f.write(config)
