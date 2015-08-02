@@ -19,9 +19,11 @@
 
 
 import os
+import pprint
 import sys
 import argparse
 import unittest
+from DicomWeb import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
 from Toolbox import *
@@ -49,7 +51,7 @@ parser.add_argument('--password',
 parser.add_argument('--wado',
                     default = '/wado',
                     help = 'Path to the WADO API')
-parser.add_argument('--dicom-web',
+parser.add_argument('--dicomweb',
                     default = '/dicom-web/',
                     help = 'Path to the DICOMweb API')
 parser.add_argument('--force', help = 'Do not warn the user',
@@ -139,6 +141,24 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('L', im.mode)
         self.assertEqual(512, im.size[0])
         self.assertEqual(358, im.size[1])
+
+    def test_stow(self):
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+        SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+
+        self.assertEqual(0, len(a['00081198']['Value']))  # No error
+        self.assertEqual(1, len(a['00081199']['Value']))  # 1 success
+
+        self.assertTrue(a['00081190']['Value'][0].endswith('studies/2.16.840.1.113669.632.20.1211.10000098591'))
+        self.assertTrue(a['00081199']['Value'][0]['00081190']['Value'][0].
+                        endswith('series/1.2.840.113704.1.111.5692.1127828999.2/instances/1.2.840.113704.7.1.1.6632.1127829031.2'))
+
+        b = GetMultipart(a['00081190']['Value'][0])
+        self.assertEqual(1, len(b))
+        self.assertEqual(368852, len(b[0]))
 
 
 
