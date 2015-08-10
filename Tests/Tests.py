@@ -2050,3 +2050,51 @@ class Orthanc(unittest.TestCase):
         WaitEmpty(_REMOTE)
         self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual('ORTHANC', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % b['ID']))
+
+    def test_resources_since_limit(self):
+        # Upload 16 instances
+        for i in range(4):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(16, len(DoGet(_REMOTE, '/instances')))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&since=10' % i))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&limit=10' % i))
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients?since=0&limit=100')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies?since=0&limit=100')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/series?since=0&limit=100')))
+        self.assertEqual(16, len(DoGet(_REMOTE, '/instances?since=0&limit=100')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients?since=1&limit=100')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=2&limit=100')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=3&limit=100')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies?since=1&limit=100')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/series?since=1&limit=100')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series?since=2&limit=100')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series?since=3&limit=100')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series?since=4&limit=100')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series?since=100&limit=100')))
+        self.assertEqual(15, len(DoGet(_REMOTE, '/instances?since=1&limit=100')))
+
+        for limit in [ 1, 2, 3, 7, 16, 17 ]:
+            s = {}
+            since = 0
+            while True:
+                t = DoGet(_REMOTE, '/instances?since=%d&limit=%d' % (since, limit))
+                if len(t) == 0:
+                    break
+
+                since += len(t)
+                for i in t:
+                    s[i] = None
+
+            self.assertEqual(16, len(s))
+            for instance in DoGet(_REMOTE, '/instances'):
+                self.assertTrue(instance in s)
