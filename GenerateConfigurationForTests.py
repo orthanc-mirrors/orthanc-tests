@@ -84,6 +84,7 @@ config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanctest" : [ "%s", "
                 ('ORTHANCTEST', ip, 5001), config)
 config = re.sub(r'("OrthancPeers"\s*:)\s*{', r'\1 { "peer" : [ "http://%s:%d/", "%s", "%s" ]' % 
                 (ip, 5000, 'alice', 'orthanctest'), config)
+config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
 config = re.sub(r'("CaseSensitivePN"\s*:)\s*true', r'\1 false', config) 
