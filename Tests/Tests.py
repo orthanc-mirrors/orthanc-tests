@@ -2160,7 +2160,7 @@ class Orthanc(unittest.TestCase):
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps({
                        'Parent' : brainixEpi,
-                       'Tags' : { },
+                       'Tags' : { 'SpecificCharacterSet' : 'ISO_IR 13' },
                        'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
                    }))
         
