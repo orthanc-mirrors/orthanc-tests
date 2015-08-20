@@ -22,6 +22,7 @@
 
 import tempfile
 import unittest
+import base64
 
 from PIL import ImageChops
 from Toolbox import *
@@ -2098,3 +2099,75 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(16, len(s))
             for instance in DoGet(_REMOTE, '/instances'):
                 self.assertTrue(instance in s)
+
+
+    def test_create_pdf(self):
+        # Upload 4 instances
+        brainixInstance = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        
+        brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
+        brainixStudy = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
+        brainixEpi = '2ac1316d-3e432022-62eabff2-c59f5475-9b1ac3f8'
+
+        with open(GetDatabasePath('HelloWorld.pdf'), 'rb') as f:
+            pdf = f.read()
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Tags' : {
+                           'PatientName' : 'Jodogne',
+                           'Modality' : 'CT',
+                       },
+                       'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
+                   }))
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual('OT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
+
+        b = DoGet(_REMOTE, '/instances/%s/content/0042-0011' % i['ID'])
+        self.assertEqual(len(b), len(pdf) + 1)
+        self.assertEqual(ComputeMD5(b), ComputeMD5(pdf + '\0'))
+
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/create-dicom',
+                                                    json.dumps({
+                                                        'Parent' : brainixPatient,
+                                                        'Tags' : {
+                                                            'PatientName' : 'Jodogne',
+                                                        }
+                                                    })))
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Parent' : brainixPatient,
+                       'Tags' : { 'StudyDescription' : 'PDF^Patient' },
+                       'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
+                   }))
+        
+        self.assertEqual(brainixPatient, DoGet(_REMOTE, '/instances/%s/patient' % i['ID'])['ID'])
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Parent' : brainixStudy,
+                       'Tags' : { 'SeriesDescription' : 'PDF^Study' },
+                       'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
+                   }))
+        
+        self.assertEqual(brainixStudy, DoGet(_REMOTE, '/instances/%s/study' % i['ID'])['ID'])
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Parent' : brainixEpi,
+                       'Tags' : { },
+                       'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
+                   }))
+        
+        self.assertEqual(brainixEpi, DoGet(_REMOTE, '/instances/%s/series' % i['ID'])['ID'])
+
+        b = DoGet(_REMOTE, '/instances/%s/pdf' % i['ID'])
+        self.assertEqual(len(b), len(pdf))
+        self.assertEqual(ComputeMD5(b), ComputeMD5(pdf))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/pdf' % brainixInstance))
