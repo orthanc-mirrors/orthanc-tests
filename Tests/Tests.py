@@ -2194,4 +2194,5 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Series', s['Type'])
         self.assertEqual(s['ID'], i['ID'])
         self.assertEqual(2, len(s['Instances']))
-
+        self.assertEqual(2, s['ExpectedNumberOfInstances'])
+        self.assertEqual('Complete', s['Status'])
