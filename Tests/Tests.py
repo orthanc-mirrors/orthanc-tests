@@ -2181,11 +2181,15 @@ class Orthanc(unittest.TestCase):
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps({
                     'Tags' : {
-                        'PatientName' : 'Jodogne',
+                        'SpecificCharacterSet' : 'ISO_IR 100',
+                        'PatientName' : 'Sébastien Jodogne',
                         'Modality' : 'CT',
                         },
                     'Content' : [
-                        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==', # red dot in RGBA
+                        {
+                            'Content': 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==', # red dot in RGBA
+                            'Tags' : { 'ImageComments' : 'Tutu' }
+                            },
                         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAoUlEQVQ4jZ2SWw3EIBREjwUsYAELa2EtoAULFUCyXAtroRZqoRbox254BdLC/DZnZjoXWJFgCDg8egW2CBEhEnDzyRk+Ecxz2KP/0AL8S99T+jQccAVs22qKwAuPuq0uyNg9cPLh3am+pe/dkHLZtqJHj6vXJrZ7nvzvxxgemXgUwnGfXqpee09mUwp8m022OYP6bLF7mVuVe0y/umxinsAXRd9z0k1ubWsAAAAASUVORK5CYII=',
                         ]
                     }))
@@ -2196,3 +2200,15 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(s['Instances']))
         self.assertEqual(2, s['ExpectedNumberOfInstances'])
         self.assertEqual('Complete', s['Status'])
+
+        a = DoGet(_REMOTE, '/instances/%s/tags?simplify' % s['Instances'][0])
+        b = DoGet(_REMOTE, '/instances/%s/tags?simplify' % s['Instances'][1])
+        self.assertTrue('ImageComments' in a or 'ImageComments' in b)
+        if 'ImageComments' in a:
+            self.assertEqual('Tutu', a['ImageComments'])
+        else:
+            self.assertEqual('Tutu', b['ImageComments'])
+
+        patient = DoGet(_REMOTE, '/instances/%s/patient' % s['Instances'][0])
+        self.assertEqual(patient['MainDicomTags']['PatientName'].encode('utf-8'),
+                         'Sébastien Jodogne')
