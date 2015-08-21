@@ -1222,6 +1222,10 @@ class Orthanc(unittest.TestCase):
         png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
         self.assertEqual((5, 5), png.size)
 
+        j = DoGet(_REMOTE, i['Path'])
+        self.assertEqual('Instance', j['Type'])
+        self.assertEqual(j['ID'], i['ID'])
+
 
     def test_pilates(self):
         # "SCU failed error when accessing orthanc with osirix" by
@@ -2171,3 +2175,23 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(ComputeMD5(b), ComputeMD5(pdf))
 
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/pdf' % brainixInstance))
+
+
+    def test_create_series(self):
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                    'Tags' : {
+                        'PatientName' : 'Jodogne',
+                        'Modality' : 'CT',
+                        },
+                    'Content' : [
+                        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==', # red dot in RGBA
+                        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAoUlEQVQ4jZ2SWw3EIBREjwUsYAELa2EtoAULFUCyXAtroRZqoRbox254BdLC/DZnZjoXWJFgCDg8egW2CBEhEnDzyRk+Ecxz2KP/0AL8S99T+jQccAVs22qKwAuPuq0uyNg9cPLh3am+pe/dkHLZtqJHj6vXJrZ7nvzvxxgemXgUwnGfXqpee09mUwp8m022OYP6bLF7mVuVe0y/umxinsAXRd9z0k1ubWsAAAAASUVORK5CYII=',
+                        ]
+                    }))
+
+        s = DoGet(_REMOTE, i['Path'])
+        self.assertEqual('Series', s['Type'])
+        self.assertEqual(s['ID'], i['ID'])
+        self.assertEqual(2, len(s['Instances']))
+
