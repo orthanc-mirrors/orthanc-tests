@@ -62,6 +62,7 @@ def InstallLuaScript(path):
 
 def UninstallLuaCallbacks():
     DoPost(_REMOTE, '/tools/execute-script', 'function OnStoredInstance() end', 'application/lua')
+    InstallLuaScript('Lua/TransferSyntaxEnable.lua')
 
 
 def CompareLists(a, b):
@@ -1850,6 +1851,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, storescu)
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         InstallLuaScript('Lua/TransferSyntaxEnable.lua')
+        DoPost(_REMOTE, '/tools/execute-script', "print('All special transfer syntaxes are now accepted')")
         storescu()
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
 
