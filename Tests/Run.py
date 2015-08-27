@@ -26,7 +26,7 @@ import unittest
 import pprint
 
 from Tests import *
-from Toolbox import DoGet
+import Toolbox
 
 
 ##
@@ -82,7 +82,8 @@ Are you sure ["yes" to go on]?""" % args.server)
 ##
 
 CONFIG = '/tmp/IntegrationTestsConfiguration.json'
-subprocess.check_call([ 'Orthanc', '--config=%s' % CONFIG ])
+subprocess.check_call([ Toolbox.FindExecutable('Orthanc'), 
+                        '--config=%s' % CONFIG ])
 
 with open(CONFIG, 'rt') as f:
     config = f.read()
@@ -136,7 +137,7 @@ print('')
 print('Waiting for the internal Orthanc to start...')
 while True:
     try:
-        DoGet(LOCAL, '/instances')
+        Toolbox.DoGet(LOCAL, '/instances')
         break
     except:
         time.sleep(0.1)

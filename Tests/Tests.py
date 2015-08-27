@@ -42,7 +42,7 @@ def ExtractDicomTags(rawDicom, tags):
     with tempfile.NamedTemporaryFile(delete = True) as f:
         f.write(rawDicom)
         f.flush()
-        data = subprocess.check_output([ 'dcm2xml', f.name ])
+        data = subprocess.check_output([ Toolbox.FindExecutable('dcm2xml'), f.name ])
 
     result = []
     for tag in tags:
@@ -85,8 +85,8 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
         UninstallLuaCallbacks()
-        #print "In test", self._testMethodName
-
+        print "In test", self._testMethodName
+        
     def AssertSameImages(self, truth, url):
         im = GetImage(_REMOTE, url)
         self.assertTrue(CompareLists(truth, im.getdata()))
@@ -401,19 +401,19 @@ class Orthanc(unittest.TestCase):
             pass
 
         z.extract('DICOMDIR', '/tmp')
-        a = subprocess.check_output([ 'dciodvfy', '/tmp/DICOMDIR' ],
+        a = subprocess.check_output([ Toolbox.FindExecutable('dciodvfy'), '/tmp/DICOMDIR' ],
                                     stderr = subprocess.STDOUT).split('\n')
         self.assertEqual(3, len(a))
         self.assertTrue(a[0].startswith('Warning'))
         self.assertEqual('BasicDirectory', a[1])
         self.assertEqual('', a[2])
 
-        a = subprocess.check_output([ 'dcentvfy', '/tmp/DICOMDIR' ],
+        a = subprocess.check_output([ Toolbox.FindExecutable('dcentvfy'), '/tmp/DICOMDIR' ],
                                     stderr = subprocess.STDOUT).split('\n')
         self.assertEqual(1, len(a))
         self.assertEqual('', a[0])
 
-        a = subprocess.check_output([ 'dcm2xml', '/tmp/DICOMDIR' ])
+        a = subprocess.check_output([ Toolbox.FindExecutable('dcm2xml'), '/tmp/DICOMDIR' ])
         self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081908590448738', a) != None)
         self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081909113806560', a) != None)
 
@@ -978,14 +978,16 @@ class Orthanc(unittest.TestCase):
 
     def test_incoming_storescu(self):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        subprocess.check_call([ 'storescu', _REMOTE['Server'], str(_REMOTE['DicomPort']),
+        subprocess.check_call([ Toolbox.FindExecutable('storescu'),
+                                _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                 GetDatabasePath('ColorTestImageJ.dcm') ])
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
 
 
     def test_incoming_findscu(self):
         def CallFindScu(args):
-            p = subprocess.Popen([ 'findscu', '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
+            p = subprocess.Popen([ Toolbox.FindExecutable('findscu'), 
+                                   '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
                                    _REMOTE['Server'], str(_REMOTE['DicomPort']) ] + args,
                                  stderr=subprocess.PIPE)
             return p.communicate()[1]
@@ -1017,7 +1019,7 @@ class Orthanc(unittest.TestCase):
 
     def test_incoming_movescu(self):
         def CallMoveScu(args):
-            subprocess.check_call([ 'movescu', 
+            subprocess.check_call([ Toolbox.FindExecutable('movescu'), 
                                     '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
                                     '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
                                     '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
@@ -1747,7 +1749,7 @@ class Orthanc(unittest.TestCase):
         with tempfile.NamedTemporaryFile(delete = True) as f:
             f.write(DoGet(_LOCAL, '/instances/%s/file' % i[0]))
             f.flush()
-            routed = subprocess.check_output([ 'dcm2xml', f.name ])
+            routed = subprocess.check_output([ Toolbox.FindExecutable('dcm2xml'), f.name ])
             self.assertEqual('My Medical Device', re.search('"StationName">(.*?)<', routed).group(1).strip())
             self.assertEqual(None, re.search('"MilitaryRank"', routed))
             self.assertEqual(None, re.search('"0051,0010"', routed))  # A private tag
@@ -1841,7 +1843,7 @@ class Orthanc(unittest.TestCase):
     def test_incoming_jpeg(self):
         def storescu():
             with open(os.devnull, 'w') as FNULL:
-                subprocess.check_call([ 'storescu', '-xs',
+                subprocess.check_call([ Toolbox.FindExecutable('storescu'), '-xs',
                                         _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                         GetDatabasePath('Knix/Loc/IM-0001-0001.dcm') ],
                                       stderr = FNULL)
