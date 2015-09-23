@@ -1316,13 +1316,13 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(ok)
 
 
-    def test_issue_16(self):
+    def test_googlecode_issue_16(self):
         i = UploadInstance(_REMOTE, 'Issue16.dcm')['ID']
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)['FrameIncrementPointer']
         self.assertEqual('0018,1063', t)
 
 
-    def test_issue_22(self):
+    def test_googlecode_issue_22(self):
         s = UploadInstance(_REMOTE, 'Issue22.dcm')['ID']
         a = [
             "f804691f62197040438f4627c6b994f1",  # Frame 0
@@ -1358,7 +1358,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(a[i], ComputeMD5(DoGet(_REMOTE, '/instances/%s/frames/%d/preview' % (s, i))))
 
 
-    def test_issue_19(self):
+    def test_googlecode_issue_19(self):
         # This is an image with "YBR_FULL" photometric interpretation, it is not supported by Orthanc
         # gdcmconv -i /home/jodogne/DICOM/GdcmDatabase/US_DataSet/HDI5000_US/3EAF5E01 -w -o Issue19.dcm
 
@@ -1366,7 +1366,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview'))
 
 
-    def test_issue_37(self):
+    def test_googlecode_issue_37(self):
         # Same test for issues 35 and 37. Fixed in Orthanc 0.9.1
         u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
 
@@ -1990,7 +1990,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('b57e6c872a3da50877c7da689b03a444', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % signed)))
 
 
-    def test_issue_32(self):
+    def test_googlecode_issue_32(self):
         f = UploadInstance(_REMOTE, 'Issue32.dcm')['ID']
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
         self.assertEqual(u'Рентгенография', tags['SeriesDescription'])
