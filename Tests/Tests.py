@@ -2216,3 +2216,29 @@ class Orthanc(unittest.TestCase):
         patient = DoGet(_REMOTE, '/instances/%s/patient' % s['Instances'][0])
         self.assertEqual(patient['MainDicomTags']['PatientName'].encode('utf-8'),
                          'Sébastien Jodogne')
+
+
+    def test_create_binary(self):
+        binary = ''.join(map(chr, range(256)))
+        encoded = 'data:application/octet-stream;base64,' + base64.b64encode(binary)
+        tags = {
+            'PatientName' : 'Jodogne',
+            '8899-8899' : encoded
+        }
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Tags' : tags
+                   }))
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual(binary, DoGet(_REMOTE, '/instances/%s/content/8899-8899' % i['ID']).strip())
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'InterpretBinaryTags' : False,
+                       'Tags' : tags
+                   }))
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual(encoded, DoGet(_REMOTE, '/instances/%s/content/8899-8899' % i['ID'])[0:-1])
