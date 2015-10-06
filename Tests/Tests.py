@@ -2242,3 +2242,45 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
         self.assertEqual(encoded, DoGet(_REMOTE, '/instances/%s/content/8899-8899' % i['ID'])[0:-1])
+
+
+    def test_patient_ids_collision(self):
+        # Upload 3 instances from 3 different studies, but with the
+        # same PatientID
+        for i in range(3):
+            UploadInstance(_REMOTE, 'PatientIdsCollision/Image%d.dcm' % (i + 1))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'Query' : { 'PatientName' : '*' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('COMMON', DoGet(_REMOTE, '/patients/%s' % a[0]) ['MainDicomTags']['PatientID'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientName' : 'FOO\\HELLO' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'Foo' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('FOO^SERIES', DoGet(_REMOTE, '/series/%s/study' % a[0]) ['MainDicomTags']['StudyDescription'])
+        self.assertEqual('FOO', DoGet(_REMOTE, '/series/%s/study' % a[0]) ['PatientMainDicomTags']['PatientName'])
+        self.assertEqual('COMMON', DoGet(_REMOTE, '/series/%s/study' % a[0]) ['PatientMainDicomTags']['PatientID'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'PatientName' : '*' }})
+        self.assertEqual(3, len(a))
+        d = map(lambda x: DoGet(_REMOTE, '/studies/%s' % x) ['MainDicomTags']['StudyDescription'], a)
+        self.assertTrue('FOO^SERIES' in d)
+        self.assertTrue('HELLO^SERIES' in d)
+        self.assertTrue('WORLD^SERIES' in d)
+
+        d = map(lambda x: DoGet(_REMOTE, '/studies/%s' % x) ['PatientMainDicomTags']['PatientID'], a)
+        self.assertEqual(1, len(set(d)))
+        self.assertEqual('COMMON', d[0])
+
+        for i in a:
+            d = DoGet(_REMOTE, '/studies/%s' % i) ['MainDicomTags']['StudyDescription']
+            p = DoGet(_REMOTE, '/studies/%s' % i) ['PatientMainDicomTags']['PatientName']
+            self.assertEqual('%s^SERIES' % p, d)
