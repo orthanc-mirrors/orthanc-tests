@@ -2284,3 +2284,26 @@ class Orthanc(unittest.TestCase):
             d = DoGet(_REMOTE, '/studies/%s' % i) ['MainDicomTags']['StudyDescription']
             p = DoGet(_REMOTE, '/studies/%s' % i) ['PatientMainDicomTags']['PatientName']
             self.assertEqual('%s^SERIES' % p, d)
+
+
+    def test_bitbucket_issue_4(self):
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0003.dcm')
+        UploadInstance(_REMOTE, 'Formats/Jpeg.dcm')
+        UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
+        UploadInstance(_REMOTE, 'Formats/Rle.dcm')
+       
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(6, len(DoGet(_REMOTE, '/instances')))
+
+        p = DoGet(_REMOTE, '/patients')
+        self.assertEqual(2, len(p))
+        i1 = map(lambda x: x['ID'], DoGet(_REMOTE, '/patients/%s/instances' % p[0]))
+        i2 = map(lambda x: x['ID'], DoGet(_REMOTE, '/patients/%s/instances' % p[1]))
+        self.assertEqual(3, len(i1))
+        self.assertEqual(3, len(i2))
+
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', i2[0:1] + i1 + i2[1:3])
+
+        self.assertEqual(6, len(DoGet(_LOCAL, '/instances')))
