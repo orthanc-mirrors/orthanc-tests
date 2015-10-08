@@ -2307,3 +2307,37 @@ class Orthanc(unittest.TestCase):
         j = DoPost(_REMOTE, '/modalities/orthanctest/store', i2[0:1] + i1 + i2[1:3])
 
         self.assertEqual(6, len(DoGet(_LOCAL, '/instances')))
+
+
+    def test_create_sequence(self):
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                    'Tags' : {
+                        'SpecificCharacterSet': 'ISO_IR 100',  # Encode using Latin1
+                        'PatientName': 'Jodogne^',
+                        'ReferencedStudySequence': [
+                            {
+                                'StudyDescription': 'Hello^',
+                                'ReferencedStudySequence' : [
+                                    {
+                                        'StudyDescription': 'Toto',
+                                    },
+                                    {
+                                        'StudyDescription': 'Tata',
+                                    },
+                                ]
+                            },
+                            {
+                                'StudyDescription': 'Sébastien^',
+                                'StudyDate' : '19700202',
+                            }
+                        ]
+                    }
+                   }))['ID']
+
+        self.assertEqual('Jodogne^', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i))
+        self.assertEqual('Hello^', DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/0/StudyDescription' % i))
+        self.assertEqual('Toto', DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/0/ReferencedStudySequence/0/StudyDescription' % i))
+        self.assertEqual('Tata', DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/0/ReferencedStudySequence/1/StudyDescription' % i))
+        self.assertEqual(u'Sébastien^'.encode('latin-1'),
+                         DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/1/StudyDescription' % i))
