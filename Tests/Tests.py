@@ -2362,4 +2362,52 @@ class Orthanc(unittest.TestCase):
         j = DoPost(_REMOTE, '/instances', j, 'application/dicom')['ID']
         DoDelete(_REMOTE, '/instances/%s' % i)
 
-        self.assertEqual(2, len( DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence' % j)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence' % j)))
+
+
+    def test_compression(self):
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+
+        data = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % i)[1]
+
+        # "StorageCompression" is enabled in the Orthanc to be tested,
+        # uncompress the data before running the test
+        if DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i) != 0:
+            DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/uncompress' % i)
+ 
+        cs = DoGet(_REMOTE, '/statistics')['TotalDiskSize']
+        us = DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']
+        size = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i)
+        md5 = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i)
+        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1])
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
+        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
+
+        ops = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json' % i)
+        self.assertTrue('compress' in ops)
+        self.assertTrue('uncompress' in ops)
+        self.assertTrue('is-compressed' in ops)
+        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
+
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/compress' % i)
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
+        self.assertEqual(1, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
+        self.assertLess(cs, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual(us, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+        self.assertGreater(len(data), len(DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1]))
+        self.assertGreater(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
+        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i))
+        self.assertNotEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
+
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/uncompress' % i)
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
+        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
+        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1])
+        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
+        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
+        self.assertEqual(cs, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual(us, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
