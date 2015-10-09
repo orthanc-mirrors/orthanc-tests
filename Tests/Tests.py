@@ -78,6 +78,26 @@ def CompareLists(a, b):
 
 
 
+def GenerateTestSequence():
+    return [
+        {
+            'StudyDescription': 'Hello^',
+            'ReferencedStudySequence' : [
+                {
+                    'StudyDescription': 'Toto',
+                    },
+                {
+                    'StudyDescription': 'Tata',
+                    },
+                ]
+            },
+        {
+            'StudyDescription': 'Sébastien^',
+            'StudyDate' : '19700202',
+            }
+        ]
+
+
 
 
 class Orthanc(unittest.TestCase):
@@ -2315,23 +2335,7 @@ class Orthanc(unittest.TestCase):
                     'Tags' : {
                         'SpecificCharacterSet': 'ISO_IR 100',  # Encode using Latin1
                         'PatientName': 'Jodogne^',
-                        'ReferencedStudySequence': [
-                            {
-                                'StudyDescription': 'Hello^',
-                                'ReferencedStudySequence' : [
-                                    {
-                                        'StudyDescription': 'Toto',
-                                    },
-                                    {
-                                        'StudyDescription': 'Tata',
-                                    },
-                                ]
-                            },
-                            {
-                                'StudyDescription': 'Sébastien^',
-                                'StudyDate' : '19700202',
-                            }
-                        ]
+                        'ReferencedStudySequence': GenerateTestSequence(),
                     }
                    }))['ID']
 
@@ -2341,3 +2345,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Tata', DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/0/ReferencedStudySequence/1/StudyDescription' % i))
         self.assertEqual(u'Sébastien^'.encode('latin-1'),
                          DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence/1/StudyDescription' % i))
+
+
+    def test_modify_sequence(self):
+        i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence' % i))
+
+        j = DoPost(_REMOTE, '/instances/%s/modify' % i,
+                   json.dumps({
+                    "Replace" : {
+                        "PatientName" : "hello",
+                        'ReferencedStudySequence': GenerateTestSequence(),
+                        },
+                    }),
+                   'application/json')
+        j = DoPost(_REMOTE, '/instances', j, 'application/dicom')['ID']
+        DoDelete(_REMOTE, '/instances/%s' % i)
+
+        self.assertEqual(2, len( DoGet(_REMOTE, '/instances/%s/content/ReferencedStudySequence' % j)))
