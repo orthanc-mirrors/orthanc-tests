@@ -2411,3 +2411,44 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
         self.assertEqual(cs, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
         self.assertEqual(us, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+
+    def test_ordered_slices(self):
+        i = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
+        s = DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries']
+        o = DoGet(_REMOTE, '/series/%s/ordered-slices' % s)
+        self.assertEqual('Sequence', o['Type'])
+        self.assertEqual(1, len(o['Dicom']))
+        self.assertEqual('/instances/9e05eb0a-18b6268c-e0d36085-8ddab517-3b5aec02/file', o['Dicom'][0])
+        self.assertEqual(76, len(o['Slices']))
+        for j in range(76):
+            self.assertEqual('/instances/9e05eb0a-18b6268c-e0d36085-8ddab517-3b5aec02/frames/%d' % j, o['Slices'][j])
+
+        i = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
+        j = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0002.dcm')['ID']
+        k = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0003.dcm')['ID']
+        s = DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries']
+        o = DoGet(_REMOTE, '/series/%s/ordered-slices' % s)
+
+        self.assertEqual('Volume', o['Type'])
+        self.assertEqual(3, len(o['Dicom']))
+        self.assertEqual(3, len(o['Slices']))
+        self.assertEqual('/instances/%s/file' % i, o['Dicom'][2])
+        self.assertEqual('/instances/%s/file' % j, o['Dicom'][1])
+        self.assertEqual('/instances/%s/file' % k, o['Dicom'][0])
+        self.assertEqual('/instances/%s/frames/0' % i, o['Slices'][2])
+        self.assertEqual('/instances/%s/frames/0' % j, o['Slices'][1])
+        self.assertEqual('/instances/%s/frames/0' % k, o['Slices'][0])
+
+        i = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
+        j = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0002.dcm')['ID']
+        s = DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries']
+        o = DoGet(_REMOTE, '/series/%s/ordered-slices' % s)
+
+        self.assertEqual('Sequence', o['Type'])
+        self.assertEqual(2, len(o['Dicom']))
+        self.assertEqual(2, len(o['Slices']))
+        self.assertEqual('/instances/%s/file' % i, o['Dicom'][0])
+        self.assertEqual('/instances/%s/file' % j, o['Dicom'][1])
+        self.assertEqual('/instances/%s/frames/0' % i, o['Slices'][0])
+        self.assertEqual('/instances/%s/frames/0' % j, o['Slices'][1])
