@@ -77,6 +77,15 @@ def CompareLists(a, b):
     return True
 
 
+def CallMoveScu(args):
+    subprocess.check_call([ FindExecutable('movescu'), 
+                            '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
+                            '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
+                            '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
+                            _REMOTE['Server'], str(_REMOTE['DicomPort'])  ] + args,
+                          stderr=subprocess.PIPE)
+
+
 
 def GenerateTestSequence():
     return [
@@ -1038,14 +1047,6 @@ class Orthanc(unittest.TestCase):
         
 
     def test_incoming_movescu(self):
-        def CallMoveScu(args):
-            subprocess.check_call([ FindExecutable('movescu'), 
-                                    '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
-                                    '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
-                                    '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
-                                    _REMOTE['Server'], str(_REMOTE['DicomPort'])  ] + args,
-                                  stderr=subprocess.PIPE)
-
         UploadInstance(_REMOTE, 'Multiframe.dcm')
         
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
@@ -2452,3 +2453,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('/instances/%s/file' % j, o['Dicom'][1])
         self.assertEqual('/instances/%s/frames/0' % i, o['Slices'][0])
         self.assertEqual('/instances/%s/frames/0' % j, o['Slices'][1])
+
+
+    def test_incoming_movescu_accession(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=nope' ])
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        CallMoveScu([ '--study', '-k', '0008,0052=PATIENT', '-k', 'AccessionNumber=A10003245599' ])
+        self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+        CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=A10003245599' ])
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+
