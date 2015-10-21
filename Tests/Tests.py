@@ -2466,3 +2466,14 @@ class Orthanc(unittest.TestCase):
         CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=A10003245599' ])
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
 
+
+    def test_dicom_to_json(self):
+        i = UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')['ID']
+
+        t = DoGet(_REMOTE, '/instances/%s/tags' % i)
+        with open(GetDatabasePath('PrivateMDNTagsFull.json'), 'r') as f:
+            self.assertEqual(json.loads(f.read()), t)
+
+        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
+            self.assertEqual(json.loads(f.read()), t)
