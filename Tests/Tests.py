@@ -1036,6 +1036,11 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('20070208' in series)
         self.assertTrue('19980312' in series)
         
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021', '-k', 'ModalitiesInStudy=MR\\XA' ])
+        series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(1, len(series))
+        self.assertTrue('19980312' in series)
+        
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=Anonymized' ])
         series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
