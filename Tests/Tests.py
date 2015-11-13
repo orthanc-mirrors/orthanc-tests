@@ -1242,6 +1242,7 @@ class Orthanc(unittest.TestCase):
                    json.dumps({
                     'PatientName' : 'Jodogne',
                     'Modality' : 'CT',
+                    'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
                     'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
                     }))
 
