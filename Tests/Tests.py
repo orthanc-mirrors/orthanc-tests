@@ -2482,3 +2482,41 @@ class Orthanc(unittest.TestCase):
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
         with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
             self.assertEqual(json.loads(f.read()), t)
+
+
+    def test_batch_archive(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
+
+        s = DoPost(_REMOTE, '/tools/create-archive', [ ])
+        z = zipfile.ZipFile(StringIO(s), "r")
+        self.assertEqual(0, len(z.namelist()))
+       
+        # One patient
+        s = DoPost(_REMOTE, '/tools/create-archive', [ 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17' ])
+        z = zipfile.ZipFile(StringIO(s), "r")
+        self.assertEqual(4, len(z.namelist()))
+
+        # One patient + twice its study + one series from other patient
+        s = DoPost(_REMOTE, '/tools/create-archive', [ 
+            'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
+            '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918',
+            '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+        ])
+        z = zipfile.ZipFile(StringIO(s), "r")
+        self.assertEqual(6, len(z.namelist()))        
+
+        # One patient + one series + one instance
+        s = DoPost(_REMOTE, '/tools/create-archive', [ 
+            'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
+            '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0',
+            '1d429ccb-bdcc78a1-7d129d6a-ba4966ed-fe4dbd87'
+        ])
+        z = zipfile.ZipFile(StringIO(s), "r")
+        self.assertEqual(7, len(z.namelist()))
