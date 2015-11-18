@@ -2521,3 +2521,40 @@ class Orthanc(unittest.TestCase):
         ])
         z = zipfile.ZipFile(StringIO(s), "r")
         self.assertEqual(7, len(z.namelist()))
+
+
+    def test_decode_brainix_as_jpeg(self):
+        i = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
+
+        j = GetImage(_REMOTE, '/instances/%s/preview' % i)
+        self.assertEqual('PNG', j.format)
+        self.assertEqual(j.size[0], 256)
+        self.assertEqual(j.size[1], 256)
+
+        j = GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : '*/*' })
+        self.assertEqual('PNG', j.format)
+
+        j = GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'image/*' })
+        self.assertEqual('PNG', j.format)
+
+        j = GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'image/png' })
+        self.assertEqual('PNG', j.format)
+
+        j = GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'image/jpeg' })
+        self.assertEqual('JPEG', j.format)
+        self.assertEqual(j.size[0], 256)
+        self.assertEqual(j.size[1], 256)
+
+        a = len(DoGet(_REMOTE, '/instances/%s/preview?quality=50' % i, headers = { 'Accept' : 'image/jpeg' }))
+        b = len(DoGet(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'image/jpeg' }))
+        self.assertLess(a, b)
+
+        j = GetImage(_REMOTE, '/instances/%s/image-uint8' % i, headers = { 'Accept' : 'image/jpeg' })
+        self.assertEqual('JPEG', j.format)
+
+        # 16bit encoding is not supported with JPEG
+        self.assertRaises(Exception, lambda: GetImage(_REMOTE, '/instances/%s/image-uint16' % i, headers = { 'Accept' : 'image/jpeg' }))
+        self.assertRaises(Exception, lambda: GetImage(_REMOTE, '/instances/%s/image-int16' % i, headers = { 'Accept' : 'image/jpeg' }))
+
+        # No matching content type
+        self.assertRaises(Exception, lambda: GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'application/pdf' }))

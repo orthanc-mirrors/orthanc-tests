@@ -171,9 +171,9 @@ def ComputeMD5(data):
     m.update(data)
     return m.hexdigest()
 
-def GetImage(orthanc, uri):
+def GetImage(orthanc, uri, headers = {}):
     # http://www.pythonware.com/library/pil/handbook/introduction.htm
-    data = DoGet(orthanc, uri)
+    data = DoGet(orthanc, uri, headers = headers)
     return Image.open(StringIO(data))
 
 def GetArchive(orthanc, uri):
