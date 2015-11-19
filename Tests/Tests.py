@@ -2475,14 +2475,25 @@ class Orthanc(unittest.TestCase):
 
     def test_dicom_to_json(self):
         i = UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')['ID']
+        j = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
+
+        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
+            self.assertEqual(json.loads(f.read()), t)
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % i)
         with open(GetDatabasePath('PrivateMDNTagsFull.json'), 'r') as f:
             self.assertEqual(json.loads(f.read()), t)
 
-        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
-        with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
-            self.assertEqual(json.loads(f.read()), t)
+        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % j)
+        with open(GetDatabasePath('PrivateTagsSimplify.json'), 'r') as f:
+            a = json.loads(f.read())
+            self.assertEqual(a, t)
+
+        t = DoGet(_REMOTE, '/instances/%s/tags' % j)
+        with open(GetDatabasePath('PrivateTagsFull.json'), 'r') as f:
+            a = json.loads(f.read())
+            self.assertEqual(a, t)
 
 
     def test_batch_archive(self):
