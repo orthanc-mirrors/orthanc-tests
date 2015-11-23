@@ -1886,6 +1886,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         InstallLuaScript('Lua/TransferSyntaxEnable.lua')
+        DoPost(_REMOTE, '/tools/execute-script', "print('All special transfer syntaxes are now accepted')")
         storescu('Knix/Loc/IM-0001-0001.dcm', False)
         storescu('UnknownSopClassUid.dcm', True)
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))

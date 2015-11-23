@@ -30,4 +30,4 @@ function IsUnknownSopClassAccepted(aet, ip)
    return true
 end
 
-print('All special transfer syntaxes are now accepted')
+-- print('All special transfer syntaxes are now accepted')
