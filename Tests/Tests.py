@@ -1868,21 +1868,27 @@ class Orthanc(unittest.TestCase):
 
 
     def test_incoming_jpeg(self):
-        def storescu():
+        def storescu(image, acceptUnknownSopClassUid):
+            if acceptUnknownSopClassUid:
+                tmp = [ '-xf', GetDatabasePath('UnknownSopClassUid.cfg'), 'Default' ]
+            else:
+                tmp = [ '-xs' ]
+
             with open(os.devnull, 'w') as FNULL:
-                subprocess.check_call([ FindExecutable('storescu'), '-xs',
-                                        _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                        GetDatabasePath('Knix/Loc/IM-0001-0001.dcm') ],
+                subprocess.check_call([ FindExecutable('storescu') ] + tmp +
+                                      [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                        GetDatabasePath(image) ],
                                       stderr = FNULL)
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         InstallLuaScript('Lua/TransferSyntaxDisable.lua')
-        self.assertRaises(Exception, storescu)
+        self.assertRaises(Exception, lambda: storescu('Knix/Loc/IM-0001-0001.dcm', False))
+        self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         InstallLuaScript('Lua/TransferSyntaxEnable.lua')
-        DoPost(_REMOTE, '/tools/execute-script', "print('All special transfer syntaxes are now accepted')")
-        storescu()
-        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        storescu('Knix/Loc/IM-0001-0001.dcm', False)
+        storescu('UnknownSopClassUid.dcm', True)
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
 
 
     def test_storescu_jpeg(self):

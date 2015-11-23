@@ -25,3 +25,9 @@ end
 function IsRleTransferSyntaxAccepted(aet, ip)
    return true
 end
+
+function IsUnknownSopClassAccepted(aet, ip)
+   return true
+end
+
+print('All special transfer syntaxes are now accepted')

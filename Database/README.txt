@@ -58,3 +58,4 @@ Here is the source of each set of sample images:
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - SignedCT.dcm : From Sébastien Jodogne.
+- UnknownSopClassUid.dcm : Same as "ColorTestMalaterre.dcm", with arbitrary SOP class UID.
