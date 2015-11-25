@@ -897,10 +897,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('LastUpdate', m[0])
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        self.assertEqual(3, len(m))
+        self.assertEqual(4, len(m))
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
+        self.assertTrue('Origin' in m)
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i), 1)
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i), 'RestApi')
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i), '')  # None, received by REST API
 
         # Play with custom metadata
         DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
@@ -1011,6 +1015,18 @@ class Orthanc(unittest.TestCase):
                                 _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                 GetDatabasePath('ColorTestImageJ.dcm') ])
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        i = DoGet(_REMOTE, '/instances')
+        self.assertEqual(1, len(i))
+        m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
+        self.assertEqual(4, len(m))
+        self.assertTrue('IndexInSeries' in m)
+        self.assertTrue('ReceptionDate' in m)
+        self.assertTrue('RemoteAET' in m)
+        self.assertTrue('Origin' in m)
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i[0]), 1)
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i[0]), 'DicomProtocol')
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i[0]), 'STORESCU')
 
 
     def test_incoming_findscu(self):
