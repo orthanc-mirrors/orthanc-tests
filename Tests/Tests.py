@@ -198,7 +198,10 @@ class Orthanc(unittest.TestCase):
         im = GetImage(_REMOTE, '/instances/%s/frames/0/image-uint16' % i)
         self.assertEqual(512, im.size[0])
         self.assertEqual(358, im.size[1])
-        
+
+        # This is Little Endian Explicit
+        self.assertEqual('1.2.840.10008.1.2.1', DoGet(_REMOTE, '/instances/%s/header?simplify' % i)['TransferSyntaxUID'])
+
 
     def test_hierarchy(self):
         UploadFolder(_REMOTE, 'Brainix/Epi')
@@ -1912,7 +1915,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
 
         knixStudy = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
-        UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')
+        i = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')['ID']
+
+        # This is JPEG lossless
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?simplify' % i)['TransferSyntaxUID'])
+
         UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
         UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0003.dcm')
 
