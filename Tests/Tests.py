@@ -2528,7 +2528,10 @@ class Orthanc(unittest.TestCase):
         t = DoGet(_REMOTE, '/instances/%s/tags' % j)
         with open(GetDatabasePath('PrivateTagsFull.json'), 'r') as f:
             a = json.loads(f.read())
-            self.assertEqual(a, t)
+
+            aa = json.dumps(a).replace('2e+022', '2e+22')
+            tt = json.dumps(t).replace('2e+022', '2e+22')
+            self.assertEqual(aa, tt)
 
 
     def test_batch_archive(self):
