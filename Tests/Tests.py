@@ -1068,6 +1068,11 @@ class Orthanc(unittest.TestCase):
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=anonymized' ])
         series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
+
+        # Test returning sequence values (only since Orthanc 0.9.5)
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
+        sequences = re.findall('\(0008,2112\)', i)
+        self.assertEqual(1, len(sequences))
         
 
     def test_incoming_movescu(self):
