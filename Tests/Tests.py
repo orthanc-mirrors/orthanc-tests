@@ -2466,6 +2466,11 @@ class Orthanc(unittest.TestCase):
         for j in range(76):
             self.assertEqual('/instances/9e05eb0a-18b6268c-e0d36085-8ddab517-3b5aec02/frames/%d' % j, o['Slices'][j])
 
+        self.assertEqual(1, len(o['SlicesShort']))
+        self.assertEqual('9e05eb0a-18b6268c-e0d36085-8ddab517-3b5aec02', o['SlicesShort'][0][0])
+        self.assertEqual(0, o['SlicesShort'][0][1])
+        self.assertEqual(76, o['SlicesShort'][0][2])
+
         i = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
         j = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0002.dcm')['ID']
         k = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0003.dcm')['ID']
@@ -2482,6 +2487,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('/instances/%s/frames/0' % j, o['Slices'][1])
         self.assertEqual('/instances/%s/frames/0' % k, o['Slices'][0])
 
+        self.assertEqual(3, len(o['SlicesShort']))
+        self.assertEqual(k, o['SlicesShort'][0][0])
+        self.assertEqual(0, o['SlicesShort'][0][1])
+        self.assertEqual(1, o['SlicesShort'][0][2])
+        self.assertEqual(j, o['SlicesShort'][1][0])
+        self.assertEqual(0, o['SlicesShort'][1][1])
+        self.assertEqual(1, o['SlicesShort'][1][2])
+        self.assertEqual(i, o['SlicesShort'][2][0])
+        self.assertEqual(0, o['SlicesShort'][2][1])
+        self.assertEqual(1, o['SlicesShort'][2][2])
+
         i = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
         j = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0002.dcm')['ID']
         s = DoGet(_REMOTE, '/instances/%s' % i)['ParentSeries']
@@ -2494,6 +2510,15 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('/instances/%s/file' % j, o['Dicom'][1])
         self.assertEqual('/instances/%s/frames/0' % i, o['Slices'][0])
         self.assertEqual('/instances/%s/frames/0' % j, o['Slices'][1])
+
+        self.assertEqual(2, len(o['SlicesShort']))
+        self.assertEqual(i, o['SlicesShort'][0][0])
+        self.assertEqual(0, o['SlicesShort'][0][1])
+        self.assertEqual(1, o['SlicesShort'][0][2])
+        self.assertEqual(j, o['SlicesShort'][1][0])
+        self.assertEqual(0, o['SlicesShort'][1][1])
+        self.assertEqual(1, o['SlicesShort'][1][2])
+
 
 
     def test_incoming_movescu_accession(self):
