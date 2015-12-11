@@ -1073,6 +1073,21 @@ class Orthanc(unittest.TestCase):
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
         sequences = re.findall('\(0008,2112\)', i)
         self.assertEqual(1, len(sequences))
+
+        # Test range search (buggy if Orthanc <= 0.9.6)
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=19980312-' ])
+        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(2, len(studies))
+        self.assertTrue('20070208' in studies)
+        self.assertTrue('19980312' in studies)
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=19980312-19980312' ])
+        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(1, len(studies))
+        self.assertTrue('19980312' in studies)
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=-19980312' ])
+        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(1, len(studies))
+        self.assertTrue('19980312' in studies)
         
 
     def test_incoming_movescu(self):
