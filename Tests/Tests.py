@@ -2632,3 +2632,41 @@ class Orthanc(unittest.TestCase):
 
         # No matching content type
         self.assertRaises(Exception, lambda: GetImage(_REMOTE, '/instances/%s/preview' % i, headers = { 'Accept' : 'application/pdf' }))
+
+
+
+    def test_media_encodings(self):
+        ascii = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        latin1 = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
+        latin2 = UploadInstance(_REMOTE, 'MarekLatin2.dcm')['ID']
+
+        tmp = DoPost(_REMOTE, '/tools/create-media', [ascii,latin1,latin2])
+        z = zipfile.ZipFile(StringIO(tmp), "r")
+
+        self.assertEqual(4, len(z.namelist()))
+        self.assertTrue('IMAGES/IM0' in z.namelist())
+        self.assertTrue('IMAGES/IM1' in z.namelist())
+        self.assertTrue('IMAGES/IM2' in z.namelist())
+        self.assertTrue('DICOMDIR' in z.namelist())
+
+        try:
+            os.remove('/tmp/DICOMDIR')
+        except:
+            # The file does not exist
+            pass
+
+        z.extract('DICOMDIR', '/tmp')
+        a = subprocess.check_output([ FindExecutable('dciodvfy'), '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+
+        a = subprocess.check_output([ FindExecutable('dcentvfy'), '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+        self.assertEqual(1, len(a))
+        self.assertEqual('', a[0])
+
+        a = subprocess.check_output([ FindExecutable('dcm2xml'), '/tmp/DICOMDIR' ])
+        self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081908590448738', a) != None)
+        self.assertTrue(re.search('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114333648576', a) != None)
+        self.assertTrue(re.search('1.2.826.0.1.3680043.2.1569.1.4.323026757.1700.1399452091.57', a) != None)
+
+        os.remove('/tmp/DICOMDIR')
