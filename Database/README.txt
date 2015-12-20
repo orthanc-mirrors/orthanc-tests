@@ -43,6 +43,7 @@ Here is the source of each set of sample images:
 - Brainix/* : From OsiriX, "BRAINIX" (sample of uncompressed data).
 - ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm
 - ColorTestMalaterre.dcm : From Mathieu Malaterre <mathieu.malaterre@gmail.com>, Debian bug #698417
+- Comunix/* : From OsiriX, "COMUNIX" (sample of PET/CT study).
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
 - Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
