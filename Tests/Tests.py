@@ -77,6 +77,14 @@ def CompareLists(a, b):
     return True
 
 
+def CallFindScu(args):
+    p = subprocess.Popen([ FindExecutable('findscu'), 
+                           '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
+                           _REMOTE['Server'], str(_REMOTE['DicomPort']) ] + args,
+                         stderr=subprocess.PIPE)
+    return p.communicate()[1]
+
+
 def CallMoveScu(args):
     subprocess.check_call([ FindExecutable('movescu'), 
                             '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
@@ -1033,13 +1041,6 @@ class Orthanc(unittest.TestCase):
 
 
     def test_incoming_findscu(self):
-        def CallFindScu(args):
-            p = subprocess.Popen([ FindExecutable('findscu'), 
-                                   '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
-                                   _REMOTE['Server'], str(_REMOTE['DicomPort']) ] + args,
-                                 stderr=subprocess.PIPE)
-            return p.communicate()[1]
-
         UploadInstance(_REMOTE, 'Multiframe.dcm')
         UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
 
@@ -2685,3 +2686,56 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(re.search('1.2.826.0.1.3680043.2.1569.1.4.323026757.1700.1399452091.57', a) != None)
 
         os.remove('/tmp/DICOMDIR')
+
+
+    def test_findscu_counters(self):
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0002.dcm')
+
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedStudies' ])
+        s = re.findall('\(0020,1200\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        self.assertTrue('1 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedSeries' ])
+        s = re.findall('\(0020,1202\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        self.assertTrue('2 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedInstances' ])
+        s = re.findall('\(0020,1204\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        self.assertTrue('3 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'NumberOfStudyRelatedSeries' ])
+        s = re.findall('\(0020,1206\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        self.assertTrue('2 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'NumberOfStudyRelatedInstances' ])
+        s = re.findall('\(0020,1208\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        self.assertTrue('3 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'NumberOfSeriesRelatedInstances' ])
+        s = re.findall('\(0020,1209\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(s))
+        self.assertTrue('1 ' in s)
+        self.assertTrue('2 ' in s)
+
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'ModalitiesInStudy' ])
+        s = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        t = map(lambda x: x.strip(), s[0].split('\\'))
+        self.assertTrue('PT' in t)
+        self.assertTrue('CT' in t)
+
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'SOPClassesInStudy' ])
+        s = re.findall('\(0008,0062\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(s))
+        t = map(lambda x: x.strip(), s[0].split('\\'))
+        self.assertTrue('1.2.840.10008.5.1.4.1.1.2' in t)
+        self.assertTrue('1.2.840.10008.5.1.4.1.1.128' in t)
+
+
