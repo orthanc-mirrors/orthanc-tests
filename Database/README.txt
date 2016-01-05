@@ -24,13 +24,28 @@ courtesy of Jean-Pierre Roux at the following URL:
 http://www.creatis.insa-lyon.fr/~jpr/PUBLIC/gdcm/gdcmSampleData
 
 
+---------------
+Sébastien Barré
+---------------
+
+Some images are provided courtesy of Sébastien Barré:
+http://www.barre.nom.fr/medical/samples/
+
+
+---------------------------
+NEMA - DICOM working groups
+---------------------------
+
+Some images come from the sample images of DICOM WG04:
+ftp://medical.nema.org/medical/Dicom/DataSets/WG04/
+
+
 -------------
 Other sources
 -------------
 
 Other images were publicly posted by external contributors to the
 Orthanc project, or were generated manually by the Orthanc team.
-
 
 
 -------
@@ -59,4 +74,16 @@ Here is the source of each set of sample images:
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - SignedCT.dcm : From Sébastien Jodogne.
+- TransferSyntaxes/1.2.840.10008.1.2.dcm : From Sébastien Barré (MR-MONO2-12-angio-an1)
+- TransferSyntaxes/1.2.840.10008.1.2.1.dcm : From Sébastien Barré (US-RGB-8-esopecho)
+- TransferSyntaxes/1.2.840.10008.1.2.2.dcm : From Sébastien Barré (US-RGB-8-epicard)
+- TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm : From GDCM, "US_DataSet/Philips_US/3EAF5680_8b_YBR_jpeg.dcm"
+- TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm : From DICOM WG04 (IMAGES/JPLY/MG1_JPLY)
+- TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm : From Sébastien Barré (MR-MONO2-12-shoulder)
+- TransferSyntaxes/1.2.840.10008.1.2.4.70.dcm : From Sébastien Barré (CT-MONO2-16-chest)
+- TransferSyntaxes/1.2.840.10008.1.2.4.80.dcm : From DICOM WG04 (IMAGES/JLSL/NM1_JLSL)
+- TransferSyntaxes/1.2.840.10008.1.2.4.81.dcm : From DICOM WG04 (IMAGES/JLSN/CT2_JLSN)
+- TransferSyntaxes/1.2.840.10008.1.2.4.90.dcm : From DICOM WG04 (IMAGES/J2KR/NM1_J2KR)
+- TransferSyntaxes/1.2.840.10008.1.2.4.91.dcm : From DICOM WG04 (IMAGES/J2KI/CT1_J2KI)
+- TransferSyntaxes/1.2.840.10008.1.2.5.dcm : From Sébastien Barré (US-PAL-8-10x-echo)
 - UnknownSopClassUid.dcm : Same as "ColorTestMalaterre.dcm", with arbitrary SOP class UID.
