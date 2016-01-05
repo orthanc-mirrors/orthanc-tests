@@ -85,5 +85,5 @@ Here is the source of each set of sample images:
 - TransferSyntaxes/1.2.840.10008.1.2.4.81.dcm : From DICOM WG04 (IMAGES/JLSN/CT2_JLSN)
 - TransferSyntaxes/1.2.840.10008.1.2.4.90.dcm : From DICOM WG04 (IMAGES/J2KR/NM1_J2KR)
 - TransferSyntaxes/1.2.840.10008.1.2.4.91.dcm : From DICOM WG04 (IMAGES/J2KI/CT1_J2KI)
-- TransferSyntaxes/1.2.840.10008.1.2.5.dcm : From Sébastien Barré (US-PAL-8-10x-echo)
+- TransferSyntaxes/1.2.840.10008.1.2.5.dcm : From DICOM WG04 (IMAGES/RLE/NM1_RLE)
 - UnknownSopClassUid.dcm : Same as "ColorTestMalaterre.dcm", with arbitrary SOP class UID.
