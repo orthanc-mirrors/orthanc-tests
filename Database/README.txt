@@ -74,7 +74,7 @@ Here is the source of each set of sample images:
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - SignedCT.dcm : From Sébastien Jodogne.
-- TransferSyntaxes/1.2.840.10008.1.2.dcm : From Sébastien Barré (MR-MONO2-12-angio-an1)
+- TransferSyntaxes/1.2.840.10008.1.2.dcm : From Sébastien Barré (MR-MONO2-12-an2)
 - TransferSyntaxes/1.2.840.10008.1.2.1.dcm : From Sébastien Barré (US-RGB-8-esopecho)
 - TransferSyntaxes/1.2.840.10008.1.2.2.dcm : From Sébastien Barré (US-RGB-8-epicard)
 - TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm : From GDCM, "US_DataSet/Philips_US/3EAF5680_8b_YBR_jpeg.dcm"
