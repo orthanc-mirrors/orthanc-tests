@@ -67,6 +67,8 @@ Here is the source of each set of sample images:
 - KarstenHilbertRF.dcm : From Karsten Hilbert <karsten.hilbert@gmx.net>.
 - Knee/* : From OsiriX, "KNEE" (sample of JPEG2000).
 - Knix/* : From OsiriX, "KNIX" (sample of lossless JPEG).
+- Lena.png : Lena/Lenna test image (as downloaded from Wikipedia). MD5 = 814a0034f5549e957ee61360d87457e5
+- LenaTwiceWithFragments.dcm: One image with 2 JPEG frames containing Lena (from Orthanc)
 - MarekLatin2.dcm : From Marek Święcicki <mswiecicki@archimedic.pl>.
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"
 - Phenix/* : From OsiriX, "PHENIX" (sample of uncompressed data).

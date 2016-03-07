@@ -1357,6 +1357,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('store' in DoGet(_REMOTE, '/modalities/orthanctest'))
         self.assertTrue('store' in DoGet(_REMOTE, '/peers/peer'))
         self.assertTrue('matlab' in DoGet(_REMOTE, '/instances/%s/frames/0' % a))
+        self.assertTrue('raw' in DoGet(_REMOTE, '/instances/%s/frames/0' % a))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/tools/nope'))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/nope'))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/nope/nope.html'))
@@ -2761,3 +2762,40 @@ class Orthanc(unittest.TestCase):
         Check('1.2.840.10008.1.2', 'd54aed9f67a100984b42942cc2e9939b')
         Check('1.2.840.10008.1.2.4.90', None)  # JPEG-2000 image, not supported
         Check('1.2.840.10008.1.2.4.91', None)  # JPEG-2000 image, not supported
+
+
+    def test_raw_frame(self):
+        s = UploadInstance(_REMOTE, 'Issue22.dcm')['ID']
+        self.assertEqual(24, len(DoGet(_REMOTE, '/instances/%s/frames' % s)))
+        a = DoGet(_REMOTE, '/instances/%s/frames/0/raw' % s)
+        self.assertEqual(512 * 512 * 2, len(a))
+        self.assertEqual(512 * 512 * 2, len(DoGet(_REMOTE, '/instances/%s/frames/23/raw' % s)))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/24/raw' % s))
+        self.assertEqual('1914287dc4d958eca21fdaacfb3482fa', ComputeMD5(a))
+
+        s = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
+        self.assertEqual(76, len(DoGet(_REMOTE, '/instances/%s/frames' % s)))
+        self.assertEqual(186274, len(DoGet(_REMOTE, '/instances/%s/frames/0/raw' % s)))
+        self.assertEqual(189424, len(DoGet(_REMOTE, '/instances/%s/frames/75/raw' % s)))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/76/raw' % s))
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/raw' % s)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        # Test an image with 2 JPEG frames spread over multiple fragments
+        s = UploadInstance(_REMOTE, 'LenaTwiceWithFragments.dcm')['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/frames' % s)))
+        a = DoGet(_REMOTE, '/instances/%s/frames/0/raw' % s)
+        b = DoGet(_REMOTE, '/instances/%s/frames/1/raw' % s)
+        self.assertEqual(69214, len(a))
+        self.assertEqual(ComputeMD5(a), ComputeMD5(b))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/frames/2/raw' % s))
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/raw' % s)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % s)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
