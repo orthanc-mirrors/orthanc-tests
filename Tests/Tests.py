@@ -77,6 +77,16 @@ def CompareLists(a, b):
     return True
 
 
+def CompareTags(a, b, tagsToIgnore):
+    for i in tagsToIgnore:
+        if i in a:
+            del a[i]
+        if i in b:
+            del b[i]
+
+    return a == b
+
+
 def CallFindScu(args):
     p = subprocess.Popen([ FindExecutable('findscu'), 
                            '-P', '-aec', _REMOTE['DicomAet'], '-aet', _LOCAL['DicomAet'],
@@ -2556,21 +2566,23 @@ class Orthanc(unittest.TestCase):
 
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
         with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
-            self.assertEqual(json.loads(f.read()), t)
+            self.assertTrue(CompareTags(t, json.loads(f.read()), [
+                'ACR_NEMA_2C_VariablePixelDataGroupLength', 
+                'GenericGroupLength'
+            ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % i)
         with open(GetDatabasePath('PrivateMDNTagsFull.json'), 'r') as f:
-            self.assertEqual(json.loads(f.read()), t)
+            self.assertTrue(CompareTags(t, json.loads(f.read()), [ '7fe0,0000' ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % j)
         with open(GetDatabasePath('PrivateTagsSimplify.json'), 'r') as f:
-            a = json.loads(f.read())
-            self.assertEqual(a, t)
+            self.assertTrue(CompareTags(t, json.loads(f.read()), [
+            ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % j)
         with open(GetDatabasePath('PrivateTagsFull.json'), 'r') as f:
             a = json.loads(f.read())
-
             aa = json.dumps(a).replace('2e+022', '2e+22')
             tt = json.dumps(t).replace('2e+022', '2e+22')
             self.assertEqual(aa, tt)
