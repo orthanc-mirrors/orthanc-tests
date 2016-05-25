@@ -2811,3 +2811,97 @@ class Orthanc(unittest.TestCase):
         self.assertEqual("RGB", im.mode)
         self.assertEqual(512, im.size[0])
         self.assertEqual(512, im.size[1])
+
+
+
+    def test_rest_movescu(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+        # Upload 4 instances
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        for p in DoGet(_REMOTE, '/patients'):
+            DoPost(_REMOTE, '/modalities/orthanctest/store', p)
+            DoDelete(_REMOTE, '/patients/%s' % p)
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+        # Upload instance Brainix/Flair/IM-0001-0001.dcm
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Instance',
+                                                          'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                        'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                        'SOPInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549',
+                        }
+                    ]})
+
+        # Upload series Brainix/Flair/*
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Series',
+                                                          'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                        'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                        }
+                    ]})
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+        # Upload series Brainix/Epi/*
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Series',
+                                                          'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                        'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314125550',
+                        }
+                    ]})
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/instances')))
+
+        # Upload study Knee/*
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Study',
+                                                          'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+                        }
+                    ]})
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+
+        # Reset
+        for p in DoGet(_REMOTE, '/patients'):
+            DoDelete(_REMOTE, '/patients/%s' % p)
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+
+        # Upload all at once
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Study',
+                                                          'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+                        },
+                    { 
+                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                        }
+                    ]})
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+
