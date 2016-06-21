@@ -43,6 +43,11 @@ parser.add_argument('--force',
 parser.add_argument('--plugins', 
                     help = 'Add a path to a folder containing plugins')
 
+parser.add_argument('--dicom',
+                    type = int,
+                    default = 4242,
+                    help = 'DICOM port of the Orthanc server')
+
 args = parser.parse_args()
 
 
@@ -75,6 +80,7 @@ with open(args.target, 'r') as f:
     config = f.read()
 
 config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANC"', config)
+config = re.sub(r'("DicomPort"\s*:)\s*.*?,', r'\1 %d,' % args.dicom, config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
@@ -88,6 +94,9 @@ config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
 config = re.sub(r'("CaseSensitivePN"\s*:)\s*true', r'\1 false', config) 
+
+config = re.sub(r'("AllowFindSopClassesInStudy"\s*:)\s*false', r'\1 true', config)
+
 
 if args.plugins != None:
     config = re.sub(r'("Plugins"\s*:\s*\[)', r'\1 "%s"' % args.plugins, config)
