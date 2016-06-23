@@ -129,6 +129,11 @@ def GenerateTestSequence():
 
 class Orthanc(unittest.TestCase):
     def setUp(self):
+        if (sys.version_info >= (3, 0)):
+            # Remove annoying warnings about unclosed socket in Python 3
+            import warnings
+            warnings.simplefilter("ignore", ResourceWarning)
+
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
         UninstallLuaCallbacks()
@@ -531,7 +536,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertNotEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
         #self.assertNotEqual('world', DoGet(_REMOTE, '/instances/%s/content/0010-0020' % i).strip())
-        self.assertEqual('LOGIQBOOK', DoGet(_REMOTE, '/instances/%s/content/0008-1010' % i).strip())        
+        self.assertEqual('LOGIQBOOK', DoGet(_REMOTE, '/instances/%s/content/0008-1010' % i).strip())
         DoGet(_REMOTE, '/instances/%s/content/6003-1010' % i)  # Some private tag
 
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())

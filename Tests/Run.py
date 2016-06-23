@@ -146,7 +146,9 @@ while True:
 try:
     print('\nStarting the tests...')
     SetOrthancParameters(LOCAL, REMOTE)
+
     unittest.main(argv = [ sys.argv[0] ] + args.options)
+
 
 finally:
     print('\nDone')

@@ -23,6 +23,7 @@ import pprint
 import sys
 import argparse
 import unittest
+import re
 from DicomWeb import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
@@ -90,6 +91,11 @@ ORTHANC = DefineOrthanc(server = args.server,
 
 class Orthanc(unittest.TestCase):
     def setUp(self):
+        if (sys.version_info >= (3, 0)):
+            # Remove annoying warnings about unclosed socket in Python 3
+            import warnings
+            warnings.simplefilter("ignore", ResourceWarning)
+
         DropOrthanc(ORTHANC)
 
     def test_wado_dicom(self):
@@ -156,9 +162,15 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(a['00081199']['Value'][0]['00081190']['Value'][0].
                         endswith('series/1.2.840.113704.1.111.5692.1127828999.2/instances/1.2.840.113704.7.1.1.6632.1127829031.2'))
 
-        b = GetMultipart(a['00081190']['Value'][0])
-        self.assertEqual(1, len(b))
-        self.assertEqual(368852, len(b[0]))
+        # Remove the "http://localhost:8042" prefix
+        url = a['00081190']['Value'][0]
+        url = re.sub(r'(http|https)://[^/]+(/.*)', r'\2', url)
+
+        # Get the content-length of all the multiparts of this WADO-RS request
+        b = DoGet(ORTHANC, url).decode('utf-8', 'ignore')
+        parts = re.findall(r'^Content-Length:\s*(\d+)\s*', b, re.IGNORECASE | re.MULTILINE)
+        self.assertEqual(1, len(parts))
+        self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
 
 
 

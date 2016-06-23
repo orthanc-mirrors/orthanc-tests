@@ -26,18 +26,40 @@ import re
 import signal
 import subprocess
 import threading
+import sys
 import time
 import zipfile
 
 from PIL import Image
-from urllib import urlencode
+
+if (sys.version_info >= (3, 0)):
+    from urllib.parse import urlencode
+    from io import StringIO
+    from io import BytesIO
+
+else:
+    from urllib import urlencode
+
+    # http://stackoverflow.com/a/1313868/881731
+    try:
+        from cStringIO import StringIO
+    except:
+        from StringIO import StringIO
 
 
-# http://stackoverflow.com/a/1313868/881731
-try:
-    from cStringIO import StringIO
-except:
-    from StringIO import StringIO
+def _DecodeJson(s):
+    t = s
+
+    if (sys.version_info >= (3, 0)):
+        try:
+            t = s.decode()
+        except:
+            pass
+
+    try:
+        return json.loads(t)
+    except:
+        return t
 
 
 def DefineOrthanc(server = 'localhost',
@@ -90,17 +112,14 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status)
     else:
-        try:
-            return json.loads(content)
-        except:
-            return content
+        return _DecodeJson(content)
 
 def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     http = httplib2.Http()
     http.follow_redirects = False
     _SetupCredentials(orthanc, http)
 
-    if isinstance(data, str):
+    if isinstance(data, (str, bytearray, bytes)):
         body = data
         if len(contentType) != 0:
             headers['content-type'] = contentType
@@ -116,10 +135,7 @@ def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     if not (resp.status in [ 200, 302 ]):
         raise Exception(resp.status)
     else:
-        try:
-            return json.loads(content)
-        except:
-            return content
+        return _DecodeJson(content)
 
 def DoDelete(orthanc, uri):
     http = httplib2.Http()
@@ -130,10 +146,7 @@ def DoDelete(orthanc, uri):
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status)
     else:
-        try:
-            return json.loads(content)
-        except:
-            return content
+        return _DecodeJson(content)
 
 def DoPut(orthanc, uri, data = {}, contentType = ''):
     return _DoPutOrPost(orthanc, uri, 'PUT', data, contentType, {})
@@ -145,9 +158,9 @@ def GetDatabasePath(filename):
     return os.path.join(os.path.dirname(__file__), '..', 'Database', filename)
 
 def UploadInstance(orthanc, filename):
-    f = open(GetDatabasePath(filename), 'rb')
-    d = f.read()
-    f.close()
+    with open(GetDatabasePath(filename), 'rb') as f:
+        d = f.read()
+
     return DoPost(orthanc, '/instances', d, 'application/dicom')
 
 def UploadFolder(orthanc, path):
@@ -174,12 +187,19 @@ def ComputeMD5(data):
 def GetImage(orthanc, uri, headers = {}):
     # http://www.pythonware.com/library/pil/handbook/introduction.htm
     data = DoGet(orthanc, uri, headers = headers)
-    return Image.open(StringIO(data))
+    if (sys.version_info >= (3, 0)):
+        return Image.open(BytesIO(data))
+    else:
+        return Image.open(StringIO(data))
 
 def GetArchive(orthanc, uri):
     # http://stackoverflow.com/a/1313868/881731
     s = DoGet(orthanc, uri)
-    return zipfile.ZipFile(StringIO(s), "r")
+
+    if (sys.version_info >= (3, 0)):
+        return zipfile.ZipFile(BytesIO(s), "r")
+    else:
+        return zipfile.ZipFile(StringIO(s), "r")
 
 def IsDefinedInLua(orthanc, name):
     s = DoPost(orthanc, '/tools/execute-script', 'print(type(%s))' % name, 'application/lua')
@@ -224,7 +244,7 @@ class ExternalCommandThread:
                 os._exit(-1)
             stop_event.wait(0.1)
 
-        print 'Stopping the external command'
+        print('Stopping the external command')
         external.terminate()
         external.communicate()  # Wait for the command to stop
 

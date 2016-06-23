@@ -21,7 +21,7 @@
 import os
 import sys
 import email
-import urllib2
+import uuid
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -30,48 +30,38 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
 from Toolbox import *
 
 
-def _AttachPart(related, path, contentType):
+def _AttachPart(body, path, contentType, boundary):
     with open(path, 'rb') as f:
-        part = MIMEApplication(f.read(), contentType, email.encoders.encode_noop)
-        related.attach(part)
+        body += bytearray('--%s\r\n' % boundary, 'ascii')
+        body += bytearray('Content-Type: %s\r\n\r\n' % contentType, 'ascii')
+        body += f.read()
+        body += bytearray('\r\n', 'ascii')
 
 
 def SendStow(orthanc, uri, dicom):
-    related = MIMEMultipart('related')
-    related.set_boundary('boundary_0123456789_boundary')
+    # We do not use Python's "email" package, as it uses LF (\n) for line
+    # endings instead of CRLF (\r\n) for binary messages, as required by
+    # RFC 1341
+    # http://stackoverflow.com/questions/3086860/how-do-i-generate-a-multipart-mime-message-with-correct-crlf-in-python
+    # https://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
+
+    # Create a multipart message whose body contains all the input DICOM files
+    boundary = str(uuid.uuid4())  # The boundary is a random UUID
+    body = bytearray()
 
     if isinstance(dicom, list):
         for i in range(dicom):
-            _AttachPart(related, dicom[i], 'dicom')
+            _AttachPart(body, dicom[i], 'application/dicom', boundary)
     else:
-        _AttachPart(related, dicom, 'dicom')
+        _AttachPart(body, dicom, 'application/dicom', boundary)
 
-    headers = dict(related.items())
-    body = related.as_string()
+    # Closing boundary
+    body += bytearray('--%s--' % boundary, 'ascii')
 
-    # Discard the header
-    body = body.split('\n\n', 1)[1]
-
-    headers['Content-Type'] = 'multipart/related; type=application/dicom; boundary=%s' % related.get_boundary()
-    headers['Accept'] = 'application/json'
+    # Do the HTTP POST request to the STOW-RS server
+    headers = {
+        'Content-Type' : 'multipart/related; type=application/dicom; boundary=%s' % boundary,
+        'Accept' : 'application/json',
+    }
 
     return DoPost(orthanc, uri, body, headers = headers)
-
-
-def GetMultipart(uri, headers = {}):
-    tmp = urllib2.urlopen(uri)
-    info = str(tmp.info())
-    answer = tmp.read()
-
-    s = info + "\n" + answer
-
-    msg = email.message_from_string(s)
-
-    result = []
-
-    for i, part in enumerate(msg.walk(), 1):
-        payload = part.get_payload(decode = True)
-        if payload != None:
-            result.append(payload)
-
-    return result
