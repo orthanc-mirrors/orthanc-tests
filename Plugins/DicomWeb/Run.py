@@ -172,6 +172,99 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(parts))
         self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
 
+    def test_server_get(self):
+        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/servers')))
+        self.assertTrue('sample' in DoGet(ORTHANC, '/dicom-web/servers'))
+
+        sample = DoGet(ORTHANC, '/dicom-web/servers/sample')
+        self.assertEqual(3, len(sample))
+        self.assertTrue('stow' in sample)
+        self.assertTrue('retrieve' in sample)
+        self.assertTrue('get' in sample)
+
+        # application/dicom+xml
+        self.assertEqual(2, len(re.findall('^--', DoGet(ORTHANC, '/dicom-web/studies'), re.MULTILINE)))
+        self.assertEqual(2, len(re.findall('^--', DoPost(ORTHANC, '/dicom-web/servers/sample/get',
+                                                         { 'Uri' : '/studies' }), re.MULTILINE)))
+
+        # application/dicom+json
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies', headers = { 'Accept' : 'application/json' })))
+        self.assertEqual(1, len(DoPost(ORTHANC, '/dicom-web/servers/sample/get',
+                                       { 'Uri' : '/studies',
+                                         'HttpHeaders' : { 'Accept' : 'application/json' }})))
+
+
+    def test_server_stow(self):
+        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
+
+        self.assertRaises(Exception, lambda: 
+                          DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                 { 'Resources' : [ 'nope' ]}))  # inexisting resource
+
+        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17' ]})))  # patient
+
+        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918' ]})))  # study
+
+        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285' ]})))  # series
+
+        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ 'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ]})))  # instance
+
+        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ 
+                                           'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
+                                           '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918',
+                                           '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285',
+                                           'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ]})))  # altogether
+
+
+    def test_server_retrieve(self):
+        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0002.dcm')
+        UploadInstance(ORTHANC, 'Knee/T2/IM-0001-0001.dcm')
+
+        self.assertRaises(Exception, lambda: 
+                          DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                                 { 'Resources' : [ { 'Study' : 'nope' } ]}))  # inexisting resource
+
+        t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                   { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881' } ] })
+        self.assertEqual(3, len(t['Instances']))
+
+        # Missing "Study" field
+        self.assertRaises(Exception, lambda: 
+                          DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                                 { 'Resources' : [ { 'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081908564160709' } ]}))
+
+        t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                   { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                       'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081908564160709' } ] })
+        self.assertEqual(2, len(t['Instances']))
+
+        t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                   { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                       'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350' } ] })
+        self.assertEqual(1, len(t['Instances']))
+
+        t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                   { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                       'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350' },
+                                     { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                       'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081908564160709' } ] })
+        self.assertEqual(3, len(t['Instances']))
+
+        t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
+                   { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                       'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350',
+                                       'Instance' : '1.3.46.670589.11.17521.5.0.3124.2008081909113806560' } ] })
+        self.assertEqual(1, len(t['Instances']))
+
+        
 
 
 try:
