@@ -18,6 +18,18 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
+
+# You must add the following to the configuration file:
+#
+#  "DicomWeb" : {
+#    "Servers" : {
+#      "sample" : [ "http://localhost:8042/dicom-web/", "alice", "orthanctest" ]
+#    }
+#  }
+
+
+
+
 import os
 import pprint
 import sys
