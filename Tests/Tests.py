@@ -2910,3 +2910,35 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
 
+
+
+    def test_reconstruct_json(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        first = DoGet(_REMOTE, '/instances/%s/tags' % instance)
+
+        self.assertEqual('TWINOW', first['0008,1010']['Value'])
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+
+        # Cannot delete the "DICOM" attachment
+        self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
+
+        # Can delete the "DICOM as JSON" attachment
+        r = DoDelete(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance)
+        self.assertTrue(type(r) is dict and len(r) == 0)
+
+        # Only the "DICOM" attachment subsists
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+
+        # Cannot manually reconstruct the "DICOM as JSON" attachment
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/patients/%s/attachments/dicom-as-json' % patient, 'hello'))
+
+        # Transparently reconstruct the "DICOM as JSON" attachment
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance))
+        second = DoGet(_REMOTE, '/instances/%s/tags' % instance)
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+
+        third = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance)
+        self.assertEqual(str(first), str(second))
+        self.assertEqual(str(first), str(third))
