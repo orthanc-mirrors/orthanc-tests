@@ -24,6 +24,7 @@ import re
 import socket
 import subprocess
 import sys
+import json
 
 ##
 ## Parse the command-line arguments
@@ -77,31 +78,36 @@ ip = socket.gethostbyname(socket.gethostname())
 subprocess.check_call([ 'Orthanc', '--config=%s' % args.target ])
 
 with open(args.target, 'r') as f:
-    config = f.read()
+    # Remove the C++-style comments
+    nocomment = re.sub('//.*$', '', f.read(), 0, re.MULTILINE)
 
-config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANC"', config)
-config = re.sub(r'("DicomPort"\s*:)\s*.*?,', r'\1 %d,' % args.dicom, config)
-config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
-config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
-config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
-config = re.sub(r'("DefaultEncoding"\s*:)\s*".*?"', r'\1 "Windows1251"', config)  # For test_issue_32
-config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : "orthanctest"', config)
-config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanctest" : [ "%s", "%s", %d ]' % 
-                ('ORTHANCTEST', ip, 5001), config)
-config = re.sub(r'("OrthancPeers"\s*:)\s*{', r'\1 { "peer" : [ "http://%s:%d/", "%s", "%s" ]' % 
-                (ip, 5000, 'alice', 'orthanctest'), config)
-config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
+    # Remove the C-style comments
+    nocomment = re.sub('/\*.*?\*/', '', nocomment, 0, re.DOTALL | re.MULTILINE)
+
+    config = json.loads(nocomment)
+
+config['AllowFindSopClassesInStudy'] = True
+config['AuthenticationEnabled'] = True
+config['DefaultEncoding'] = 'Windows1251'  # For test_issue_32
+config['DicomAet'] = 'ORTHANC'
+config['DicomAssociationCloseDelay'] = 0
+config['DicomModalities'] = { 'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ] }
+config['DicomPort'] = args.dicom
+config['HttpCompressionEnabled'] = False
+config['OrthancPeers'] = { 'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ] }
+config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
+config['RemoteAccessAllowed'] = True
+config['Dictionary'] = {
+    "00e1,10c2" : [ "UI", "PET-CT Multi Modality Name", 1, 1, "ELSCINT1" ],
+    "7053,1003" : [ "ST", "Original Image Filename", 1, 1, "Philips PET Private Group" ]
+}
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
-config = re.sub(r'("CaseSensitivePN"\s*:)\s*true', r'\1 false', config) 
-
-config = re.sub(r'("AllowFindSopClassesInStudy"\s*:)\s*false', r'\1 true', config)
-
+config['CaseSensitivePN'] = False
 
 if args.plugins != None:
-    config = re.sub(r'("Plugins"\s*:\s*\[)', r'\1 "%s"' % args.plugins, config)
-   
+    config['Plugins'] = [ args.plugins ]
 
 with open(args.target, 'wt') as f:
-    f.write(config)
-
+    f.write(json.dumps(config, indent = True, sort_keys = True))
+    f.write('\n')

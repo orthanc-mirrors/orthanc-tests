@@ -1361,6 +1361,7 @@ class Orthanc(unittest.TestCase):
         a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
         self.assertTrue('now' in DoGet(_REMOTE, '/tools'))
         self.assertTrue('dicom-conformance' in DoGet(_REMOTE, '/tools'))
+        self.assertTrue('invalidate-tags' in DoGet(_REMOTE, '/tools'))
         self.assertTrue(len(DoGet(_REMOTE, '/tools/dicom-conformance')) > 1000)
         self.assertTrue('orthanctest' in DoGet(_REMOTE, '/modalities'))
         self.assertTrue('echo' in DoGet(_REMOTE, '/modalities/orthanctest'))
@@ -2573,12 +2574,18 @@ class Orthanc(unittest.TestCase):
         with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
             self.assertTrue(CompareTags(t, json.loads(f.read()), [
                 'ACR_NEMA_2C_VariablePixelDataGroupLength', 
-                'GenericGroupLength'
+                'GenericGroupLength',
+                'Original Image Filename',
+                'PET-CT Multi Modality Name'
             ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % i)
         with open(GetDatabasePath('PrivateMDNTagsFull.json'), 'r') as f:
-            self.assertTrue(CompareTags(t, json.loads(f.read()), [ '7fe0,0000' ]))
+            self.assertTrue(CompareTags(t, json.loads(f.read()), [ 
+                '7fe0,0000',
+                '00e1,10c2',
+                '7053,1003'
+            ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % j)
         with open(GetDatabasePath('PrivateTagsSimplify.json'), 'r') as f:
@@ -2942,3 +2949,35 @@ class Orthanc(unittest.TestCase):
         third = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance)
         self.assertEqual(str(first), str(second))
         self.assertEqual(str(first), str(third))
+
+
+    def test_reconstruct_json2(self):
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        b = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')['ID']
+
+        self.assertEqual('BRAINIX', DoGet(_REMOTE, '/instances/%s/tags?simplify' % a)['PatientName'])
+        self.assertEqual('KNEE', DoGet(_REMOTE, '/instances/%s/tags?simplify' % b)['PatientName'])
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+
+        DoPost(_REMOTE, '/tools/invalidate-tags', '', 'text/plain')
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+
+        self.assertEqual('BRAINIX', DoGet(_REMOTE, '/instances/%s/tags?simplify' % a)['PatientName'])
+        self.assertEqual('KNEE', DoGet(_REMOTE, '/instances/%s/tags?simplify' % b)['PatientName'])
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+
+
+    def test_private_tags(self):
+        i = UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')['ID']
+        t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual('1.2.840.113704.1.111.6320.1342451261.21', t['PET-CT Multi Modality Name'])
+        self.assertEqual('p37s0_na_ctac.img', t['Original Image Filename'])
+
