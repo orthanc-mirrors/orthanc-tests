@@ -97,10 +97,22 @@ config['HttpCompressionEnabled'] = False
 config['OrthancPeers'] = { 'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ] }
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
+
 config['Dictionary'] = {
     "00e1,10c2" : [ "UI", "PET-CT Multi Modality Name", 1, 1, "ELSCINT1" ],
     "7053,1003" : [ "ST", "Original Image Filename", 1, 1, "Philips PET Private Group" ]
 }
+
+config['DicomWeb'] = {
+    "Servers" : {
+        "sample" : [ 
+            "http://localhost:8042/dicom-web/",
+            "alice", 
+            "orthanctest" 
+        ]
+    }
+}
+
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
 config['CaseSensitivePN'] = False
