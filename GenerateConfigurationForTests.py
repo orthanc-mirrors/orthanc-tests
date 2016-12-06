@@ -99,19 +99,25 @@ config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
 
 config['Dictionary'] = {
-    "00e1,10c2" : [ "UI", "PET-CT Multi Modality Name", 1, 1, "ELSCINT1" ],
-    "7053,1003" : [ "ST", "Original Image Filename", 1, 1, "Philips PET Private Group" ]
+    '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
+    '7053,1003' : [ 'ST', 'Original Image Filename', 1, 1, 'Philips PET Private Group' ]
 }
 
 config['DicomWeb'] = {
-    "Servers" : {
-        "sample" : [ 
-            "http://localhost:8042/dicom-web/",
-            "alice", 
-            "orthanctest" 
+    'Servers' : {
+        'sample' : [ 
+            'http://localhost:8042/dicom-web/',
+            'alice', 
+            'orthanctest' 
         ]
     }
 }
+
+config['Worklists'] = {
+    'Enable': True,
+    'Database': os.path.abspath(os.path.join(os.path.dirname(__file__), './Database/Worklists/Working')),
+}
+
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
