@@ -141,17 +141,17 @@ class Orthanc(unittest.TestCase):
     def test_single(self):
         for db in range(1, 11):
             ClearDatabase()
-            AddToDatabase('DcmtkDatabase/wklist%d.dump' % db)
+            AddToDatabase('Dcmtk/Database/wklist%d.dump' % db)
 
             for query in range(0, 13):
-                answers = RunQuery('DcmtkQueries/wlistqry%d.dump' % query, [
+                answers = RunQuery('Dcmtk/Queries/wlistqry%d.dump' % query, [
                     '0008,0005', 
                     '0040,0004',
                     '0040,0005',
                     '0040,0020',
                 ])
 
-                with open(os.path.join('%s/DcmtkExpected/single-%d-%d.json' % (DATABASE, db, query)), 'r') as f:
+                with open(os.path.join('%s/Dcmtk/Expected/single-%d-%d.json' % (DATABASE, db, query)), 'r') as f:
                     expected = json.loads(f.read())
                     self.assertTrue(CompareAnswers(expected, answers))
 
@@ -160,17 +160,17 @@ class Orthanc(unittest.TestCase):
         ClearDatabase()
 
         for db in range(1, 11):
-            AddToDatabase('DcmtkDatabase/wklist%d.dump' % db)
+            AddToDatabase('Dcmtk/Database/wklist%d.dump' % db)
 
         for query in range(0, 13):
-            answers = RunQuery('DcmtkQueries/wlistqry%d.dump' % query, [
+            answers = RunQuery('Dcmtk/Queries/wlistqry%d.dump' % query, [
                 '0008,0005', 
                 '0040,0004',
                 '0040,0005',
                 '0040,0020',
             ])
 
-            with open(os.path.join('%s/DcmtkExpected/all-%d.json' % (DATABASE, query)), 'r') as f:
+            with open(os.path.join('%s/Dcmtk/Expected/all-%d.json' % (DATABASE, query)), 'r') as f:
                 expected = json.loads(f.read())
                 self.assertTrue(CompareAnswers(expected, answers))
 
