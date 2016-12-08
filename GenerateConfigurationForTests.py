@@ -86,9 +86,10 @@ with open(args.target, 'r') as f:
 
     config = json.loads(nocomment)
 
+del config['DefaultEncoding']
+
 config['AllowFindSopClassesInStudy'] = True
 config['AuthenticationEnabled'] = True
-config['DefaultEncoding'] = 'Windows1251'  # For test_issue_32
 config['DicomAet'] = 'ORTHANC'
 config['DicomAssociationCloseDelay'] = 0
 config['DicomModalities'] = { 'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ] }

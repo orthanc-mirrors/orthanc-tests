@@ -2090,13 +2090,25 @@ class Orthanc(unittest.TestCase):
 
 
     def test_googlecode_issue_32(self):
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/default-encoding', 'nope'))
+        self.assertEqual('Windows1251', DoPut(_REMOTE, '/tools/default-encoding', 'Windows1251'))
+        self.assertEqual('Windows1251', DoGet(_REMOTE, '/tools/default-encoding'))
+        
         f = UploadInstance(_REMOTE, 'Issue32.dcm')['ID']
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
         self.assertEqual(u'Рентгенография', tags['SeriesDescription'])
         self.assertEqual(u'Таз', tags['BodyPartExamined'])
         self.assertEqual(u'Прямая', tags['ViewPosition'])
 
+        # Replay the same test using Latin1 as default encoding: This must fail
+        self.assertEqual('Latin1', DoPut(_REMOTE, '/tools/default-encoding', 'Latin1'))
 
+        DoDelete(_REMOTE, '/instances/%s' % f)
+        f = UploadInstance(_REMOTE, 'Issue32.dcm')['ID']
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
+        self.assertNotEqual(u'Рентгенография', tags['SeriesDescription'])
+
+        
     def test_encodings(self):
         # Latin-1 (ISO_IR 100)
         brainix = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
@@ -2989,3 +3001,89 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.113704.1.111.6320.1342451261.21', t['PET-CT Multi Modality Name'])
         self.assertEqual('p37s0_na_ctac.img', t['Original Image Filename'])
 
+
+    def test_findscu_encoding(self):
+        # Check out ../Database/Encodings/Generate.sh
+        TEST = u'Test-éüäöòДΘĝדصķћ๛ﾈİ'
+        ENCODINGS = {
+            'Arabic' :   [ 'ISO_IR 127' ], 
+            'Ascii' :    [ 'ISO_IR 6' ],   # More accurately, ISO 646
+            'Cyrillic' : [ 'ISO_IR 144' ], 
+            'Greek' :    [ 'ISO_IR 126' ], 
+            'Hebrew' :   [ 'ISO_IR 138' ],
+            'Japanese' : [ 'ISO_IR 13', 'shift-jis' ],
+            'Latin1' :   [ 'ISO_IR 100' ],
+            'Latin2' :   [ 'ISO_IR 101' ], 
+            'Latin3' :   [ 'ISO_IR 109' ],
+            'Latin4' :   [ 'ISO_IR 110' ], 
+            'Latin5' :   [ 'ISO_IR 148' ], 
+            'Thai' :     [ 'ISO_IR 166', 'tis-620' ],
+            'Utf8' :     [ 'ISO_IR 192' ],
+        }
+
+        for name in ENCODINGS.iterkeys():
+            if len(ENCODINGS[name]) == 1:
+                ENCODINGS[name].append(name.lower())
+
+        UploadInstance(_REMOTE, 'Encodings/Lena-utf8.dcm')
+        
+        for name in ENCODINGS.iterkeys():
+            self.assertEqual(name, DoPut(_REMOTE, '/tools/default-encoding', name))
+            self.assertEqual(name, DoGet(_REMOTE, '/tools/default-encoding'))
+
+            i = CallFindScu([ '-k', '0008,0052=STUDY', 
+                              '-k', 'SpecificCharacterSet',  
+                              '-k', 'PatientName' ])
+
+            characterSet = re.findall('\(0008,0005\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(characterSet))
+            self.assertEqual(ENCODINGS[name][0], characterSet[0].strip())
+
+            patientName = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(patientName))
+
+            expected = TEST.encode(ENCODINGS[name][1], 'ignore')
+            self.assertEqual(expected, patientName[0].strip())
+
+
+        #for master in ENCODINGS:
+        for master in [ 'Latin1', 'Utf8', 'Cyrillic' ]:  # Shortcut to speedup tests
+            self.assertEqual(master, DoPut(_REMOTE, '/tools/default-encoding', master))
+            self.assertEqual(master, DoGet(_REMOTE, '/tools/default-encoding'))
+
+            for name in ENCODINGS:
+                DropOrthanc(_REMOTE)
+                UploadInstance(_REMOTE, 'Encodings/Lena-%s.dcm' % ENCODINGS[name][1])
+
+                i = CallFindScu([ '-k', '0008,0052=STUDY', 
+                                  '-k', 'PatientID', 
+                                  '-k', 'SpecificCharacterSet',  
+                                  '-k', 'PatientName' ])
+                i = i.decode(ENCODINGS[master][1])
+
+                characterSet = re.findall('\(0008,0005\).*?\[(.*?)\]', i)
+                self.assertEqual(1, len(characterSet))
+                self.assertEqual(ENCODINGS[master][0], characterSet[0].strip())
+
+                patientId = re.findall('\(0010,0020\).*?\[(.*?)\]', i)
+                self.assertEqual(1, len(patientId))
+                self.assertEqual(ENCODINGS[name][1], patientId[0].strip())
+
+                patientName = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+                self.assertEqual(1, len(patientName))
+
+                tmp = ENCODINGS[name][1]
+                expected = TEST.encode(tmp, 'ignore').decode(tmp)
+                tmp = ENCODINGS[master][1]
+                expected = expected.encode(tmp, 'ignore').decode(tmp)
+
+                self.assertEqual(expected, patientName[0].strip())
+
+
+                a = DoPost(_REMOTE, '/tools/find', { 'Expand' : True,
+                                                     'Level' : 'Study',
+                                                     'Query' : { }})
+                self.assertEqual(1, len(a))
+
+                tmp = ENCODINGS[name][1]
+                self.assertEqual(TEST.encode(tmp, 'ignore').decode(tmp), a[0]["PatientMainDicomTags"]["PatientName"])
