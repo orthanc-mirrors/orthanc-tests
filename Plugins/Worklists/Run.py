@@ -70,13 +70,13 @@ def ClearDatabase():
             os.remove(os.path.join(WORKING, f))
 
 def AddToDatabase(source):
-    subprocess.check_call([ 'dump2dcm', '-g', '--write-xfer-little',
+    subprocess.check_call([ 'dump2dcm', '--write-xfer-little',
                             os.path.join(DATABASE, source),
                             os.path.join(WORKING, os.path.basename(source) + '.wl') ])
 
 def RunQuery(source, ignoreTags):
     with tempfile.NamedTemporaryFile() as f:
-        subprocess.check_call([ 'dump2dcm', '-g', '--write-xfer-little',
+        subprocess.check_call([ 'dump2dcm', '--write-xfer-little',
                                 os.path.join(DATABASE, source), f.name ])
 
         a = subprocess.check_output([ 'findscu', '-v', '--call', 'ORTHANC', '-aet', 'ORTHANCTEST',
@@ -173,6 +173,16 @@ class Orthanc(unittest.TestCase):
             with open(os.path.join('%s/Dcmtk/Expected/all-%d.json' % (DATABASE, query)), 'r') as f:
                 expected = json.loads(f.read())
                 self.assertTrue(CompareAnswers(expected, answers))
+
+
+    def test_vet(self):
+        AddToDatabase('Sequences/STATION_AET/orig.7705.dump')
+        AddToDatabase('Sequences/STATION_AET/orig.7814.dump')
+        AddToDatabase('Sequences/STATION_AET/orig.7814.without.seq.dump')
+        
+        self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.length.dump', [])))
+        self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.seq.dump', [])))
+        self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.dump', [])))
 
 
 
