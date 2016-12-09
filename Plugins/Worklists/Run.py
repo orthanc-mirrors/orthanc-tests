@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
@@ -40,6 +42,16 @@ parser = argparse.ArgumentParser(description = 'Run the integration tests for th
 parser.add_argument('--server', 
                     default = 'localhost',
                     help = 'Address of the Orthanc server to test')
+parser.add_argument('--rest',
+                    type = int,
+                    default = 8042,
+                    help = 'Port to the REST API')
+parser.add_argument('--username',
+                    default = 'alice',
+                    help = 'Username to the REST API')
+parser.add_argument('--password',
+                    default = 'orthanctest',
+                    help = 'Password to the REST API')
 parser.add_argument('--dicom',
                     type = int,
                     default = 4242,
@@ -48,6 +60,13 @@ parser.add_argument('options', metavar = 'N', nargs = '*',
                     help='Arguments to Python unittest')
 
 args = parser.parse_args()
+
+
+
+ORTHANC = DefineOrthanc(server = args.server,
+                        username = args.username,
+                        password = args.password,
+                        restPort = args.rest)
 
 
 
@@ -124,6 +143,15 @@ def CompareAnswers(expected, actual):
     return False
 
 
+def ParseTopLevelTags(answer):
+    tags = {}
+    for line in answer:
+        m = re.match(r'^\(([0-9a-f]{4},[0-9a-f]{4})\)\s*..\s*\[([^]]*)\]', line)
+        tags[m.group(1)] = m.group(2).strip()
+        
+    return tags
+
+
 ##
 ## The tests
 ##
@@ -183,6 +211,45 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.length.dump', [])))
         self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.seq.dump', [])))
         self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.dump', [])))
+
+
+    def test_encodings(self):
+        # Check out ../../Database/Worklists/Encodings/database.dump
+        TEST = u'Test-éüäöòДΘĝדصķћ๛ﾈİ'
+        ENCODINGS = {
+            'Arabic' :   [ 'ISO_IR 127' ], 
+            'Ascii' :    [ 'ISO_IR 6' ],   # More accurately, ISO 646
+            'Cyrillic' : [ 'ISO_IR 144' ], 
+            'Greek' :    [ 'ISO_IR 126' ], 
+            'Hebrew' :   [ 'ISO_IR 138' ],
+            'Japanese' : [ 'ISO_IR 13', 'shift-jis' ],
+            'Latin1' :   [ 'ISO_IR 100' ],
+            'Latin2' :   [ 'ISO_IR 101' ], 
+            'Latin3' :   [ 'ISO_IR 109' ],
+            'Latin4' :   [ 'ISO_IR 110' ], 
+            'Latin5' :   [ 'ISO_IR 148' ], 
+            'Thai' :     [ 'ISO_IR 166', 'tis-620' ],
+            'Utf8' :     [ 'ISO_IR 192' ],
+        }
+
+        AddToDatabase('Encodings/database.dump')
+
+        for name, encoding in ENCODINGS.iteritems():
+            self.assertEqual(name, DoPut(ORTHANC, '/tools/default-encoding', name))
+            result = RunQuery('Encodings/query.dump', [])
+
+            self.assertEqual(1, len(result))
+            self.assertEqual(2, len(result[0]))
+            tags = ParseTopLevelTags(result[0])
+
+            if len(encoding) == 1:
+                encoded = TEST.encode(name, 'ignore')
+            else:
+                encoded = TEST.encode(encoding[1], 'ignore')
+
+            self.assertEqual(encoding[0], tags['0008,0005'])
+            self.assertEqual(encoded, tags['0010,0010'])
+
 
 
 
