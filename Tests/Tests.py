@@ -3091,3 +3091,47 @@ class Orthanc(unittest.TestCase):
 
                 tmp = ENCODINGS[name][1]
                 self.assertEqual(TEST.encode(tmp, 'ignore').decode(tmp), a[0]["PatientMainDicomTags"]["PatientName"])
+
+
+    def test_reconstruct(self):
+        def CompareMainDicomTag(expected, instance, level, tag):
+            self.assertEqual(expected, DoGet(_REMOTE, '/instances/%s/%s' % (instance, level))['MainDicomTags'][tag].strip())
+
+        a = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+
+        studies = DoGet(_REMOTE, '/studies/')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients/')))
+        self.assertEqual(1, len(studies))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series/')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/')))
+
+        modified = DoPost(_REMOTE, '/studies/%s/modify' % studies[0], {
+            "Replace" : {
+                "StudyDescription" : "hello",
+                "SeriesDescription" : "world",
+                "SOPClassUID" : "test",
+                "SOPInstanceUID" : "myid",
+            },
+            "Keep" : [ "StudyInstanceUID", "SeriesInstanceUID" ]
+        })
+
+        instances = DoGet(_REMOTE, '/instances/')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients/')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies/')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series/')))
+        self.assertEqual(2, len(instances))
+
+        b = instances[0] if instances[1] == a else instances[1]
+
+        CompareMainDicomTag('Knee (R)', a, 'study', 'StudyDescription')
+        CompareMainDicomTag('AX.  FSE PD', a, 'series', 'SeriesDescription')
+        CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
+        CompareMainDicomTag('myid', b, '', 'SOPInstanceUID')
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % a).strip())
+        self.assertEqual('test', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % b).strip())
+
+        DoPost(_REMOTE, '/instances/%s/reconstruct' % b, {})
+
+        CompareMainDicomTag('hello', a, 'study', 'StudyDescription')
+        CompareMainDicomTag('world', a, 'series', 'SeriesDescription')
+        CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
