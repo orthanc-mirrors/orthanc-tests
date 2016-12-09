@@ -88,7 +88,7 @@ with open(args.target, 'r') as f:
 
 del config['DefaultEncoding']
 
-config['AllowFindSopClassesInStudy'] = True
+config['AllowFindSopClassesInStudy'] = False
 config['AuthenticationEnabled'] = True
 config['DicomAet'] = 'ORTHANC'
 config['DicomAssociationCloseDelay'] = 0

@@ -211,6 +211,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.length.dump', [])))
         self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.seq.dump', [])))
         self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.dump', [])))
+        #self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.without.station.aet.dump', [])))
 
 
     def test_encodings(self):
