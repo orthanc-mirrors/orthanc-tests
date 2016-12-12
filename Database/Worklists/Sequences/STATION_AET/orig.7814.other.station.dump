@@ -1,10 +1,10 @@
 (0008,0050) SH [AN123457]                               #  14, 1 AccessionNumber
 (0008,0090) PN [ReferringPhysiciansName]                #  12, 1 ReferringPhysiciansName
 (0008,1080) LO (no value available)                     #   0, 0 AdmittingDiagnosesDescription
-# (0008,1110) SQ (Sequence with explicit length #=0)      #  36, 1 ReferencedStudySequence
-# (fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem
-# (0008,1120) SQ (Sequence with explicit length #=0)      #  36, 1 ReferencedPatientSequence
-# (fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem
+(0008,1110) SQ (Sequence with explicit length #=0)      #  36, 1 ReferencedStudySequence
+(fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem
+(0008,1120) SQ (Sequence with explicit length #=0)      #  36, 1 ReferencedPatientSequence
+(fffe,e0dd) na (SequenceDelimitationItem for re-encod.) #   0, 0 SequenceDelimitationItem
 (0010,0010) PN [nn]                                     #   2, 1 PatientsName
 (0010,0020) LO [01234568]                               #  10, 1 PatientID
 (0010,0030) DA (no value available)                     #   0, 0 PatientsBirthDate
@@ -26,7 +26,7 @@
   (fffe,e000) na (Item with explicit length #=13)         # 168, 1 Item
     (0008,0060) CS [CR]                                     #   2, 1 Modality
     (0032,1070) LO (no value available)                     #   0, 0 RequestedContrastAgent
-    (0040,0001) AE [STATION_AET]                               #   8, 1 ScheduledStationAETitle
+    (0040,0001) AE [ORTHANCTEST]                      #   8, 1 ScheduledStationAETitle
     (0040,0002) DA [20161116]                               #   8, 1 ScheduledProcedureStepStartDate
     (0040,0003) TM [110253]                                 #   6, 1 ScheduledProcedureStepStartTime
     (0040,0004) DA (no value available)                     #   0, 0 ScheduledProcedureStepEndDate
