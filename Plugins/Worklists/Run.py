@@ -213,12 +213,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.dump', [])))
 
 
-    @unittest.skip("This test requires a modification in the sample worklist plugin")
-    def test_other_aet(self):
+    @unittest.skip("This test requires to enable option 'FilterIssuerAet' in the sample worklist plugin")
+    def test_filter_issuer_aet(self):
         AddToDatabase('Sequences/STATION_AET/orig.7814.dump')
-        AddToDatabase('Sequences/STATION_AET/orig.7814.other.station.txt')
+        AddToDatabase('Sequences/STATION_AET/orig.7814.other.station.dump')
 
-        self.assertEqual(1, len(RunQuery('Sequences/Queries/7814.without.station.aet.txt', [])))
+        self.assertEqual(1, len(RunQuery('Sequences/Queries/7814.without.station.aet.dump', [])))
 
 
     def test_encodings(self):
