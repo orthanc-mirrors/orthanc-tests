@@ -119,6 +119,16 @@ config['Worklists'] = {
     'Database': os.path.abspath(os.path.join(os.path.dirname(__file__), './Database/Worklists/Working')),
 }
 
+config['PostgreSQL'] = {
+    'EnableIndex' : True,
+    'EnableStorage' : True,
+    'Host' : 'localhost',
+    'Port' : 5432,
+    'Database' : 'orthanctest',
+    'Username' : 'postgres',
+    'Password' : 'postgres'
+}
+
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
