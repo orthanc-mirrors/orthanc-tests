@@ -26,6 +26,8 @@ import socket
 import subprocess
 import sys
 import json
+import urllib
+
 
 ##
 ## Parse the command-line arguments
@@ -76,7 +78,16 @@ Are you sure ["yes" to go on]?""" % args.target)
 # Retrieve the IP address of the localhost
 ip = socket.gethostbyname(socket.gethostname())
 
-subprocess.check_call([ 'Orthanc', '--config=%s' % args.target ])
+
+# Download the content of the default configuration file
+with open(args.target, 'w') as f:
+    url = 'https://bitbucket.org/sjodogne/orthanc/raw/Orthanc-1.2.0/Resources/Configuration.json'
+    http = urllib.urlopen(url)
+    if http.getcode() != 200:
+        raise Exception('Cannot download: %s' % url)
+    
+    f.write(http.read())
+    
 
 with open(args.target, 'r') as f:
     # Remove the C++-style comments
