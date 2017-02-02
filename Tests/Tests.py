@@ -3136,3 +3136,9 @@ class Orthanc(unittest.TestCase):
         CompareMainDicomTag('hello', a, 'study', 'StudyDescription')
         CompareMainDicomTag('world', a, 'series', 'SeriesDescription')
         CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
+
+    def test_httpPost_lua(self):
+        with open(GetDatabasePath('Lua/HttpPost.lua'), 'r') as f:
+            result = DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
+
+        self.assertIn('OK', result)
