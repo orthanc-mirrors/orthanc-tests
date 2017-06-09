@@ -1603,7 +1603,7 @@ class Orthanc(unittest.TestCase):
         study = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
         series = 'f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe'
         instance = '66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d'
-        self.assertEqual(instance, u);
+        self.assertEqual(instance, u)
 
         a = DoGet(_REMOTE, '/studies/%s/patient' % study)
         self.assertEqual('Patient', a['Type'])
@@ -3142,3 +3142,43 @@ class Orthanc(unittest.TestCase):
             result = DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
 
         self.assertIn('OK', result)
+
+
+    def test_bitbucket_issue_44(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/44/bad-interpretation-of-photometric
+        UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
+        UploadInstance(_REMOTE, 'Issue44/Monochrome2.dcm')
+
+        # dcmcjpeg +ua +eb Monochrome1.dcm Monochrome1-Jpeg.dcm
+        UploadInstance(_REMOTE, 'Issue44/Monochrome1-Jpeg.dcm')
+
+        # dcmcjpeg +ua Monochrome1.dcm Monochrome1-JpegLS.dcm
+        UploadInstance(_REMOTE, 'Issue44/Monochrome1-JpegLS.dcm')
+
+        monochrome1 = 'bcdd600a-a6a9c522-5f0a6e84-8657c9f3-b76e59b7'
+        monochrome1_jpeg = '9df82121-208a2da8-0038674a-3d7a773b-b7008cd2'
+        monochrome1_jpegls = '0486d1a2-9165573f-b1976b20-e927b016-6b8d67ab'
+        monochrome2 = 'f00947b7-f61f7164-c93414d1-c6fbda6a-9e92ed20'
+
+        for i in [ monochrome1, monochrome1_jpeg, monochrome1_jpegls ]:
+            im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+            self.assertEqual("L", im.mode)
+            self.assertEqual(2010, im.size[0])
+            self.assertEqual(2446, im.size[1])
+
+            # This is the chest image, with MONOCHROME1. Raw background is
+            # white (255), should be rendered as black (0) => invert
+            if i == monochrome1_jpeg:
+                # Add some tolerance because of JPEG destructive compression
+                self.assertGreater(10, im.getpixel((0,0)))
+            else:
+                self.assertEqual(0, im.getpixel((0,0)))
+
+        im = GetImage(_REMOTE, '/instances/%s/preview' % monochrome2)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(1572, im.size[0])
+        self.assertEqual(2010, im.size[1])
+        
+        # This is the key image, with MONOCHROME2. Raw background is
+        # white (255), should be rendered as white (255)
+        self.assertEqual(255, im.getpixel((0,0)))
