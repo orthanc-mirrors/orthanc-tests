@@ -78,6 +78,9 @@ ORTHANC = DefineOrthanc(server = args.server,
 DATABASE = os.path.abspath(os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'Database', 'Worklists')))
 WORKING = os.path.join(DATABASE, 'Working')
 
+print('Database directory: %s' % DATABASE)
+print('Working directory: %s' % WORKING)
+
 try:
     os.mkdir(WORKING)
 except Exception as e:
@@ -106,23 +109,33 @@ def RunQuery(source, ignoreTags):
         if len(filter(lambda x: x.startswith('E:'), a)) > 0:
             raise Exception('Error while running findscu')
 
-        b = map(lambda x: x[3:], filter(lambda x: x.startswith('W: ---') or x.startswith('W: ('), a))
+        b = map(lambda x: x[3:], filter(lambda x: (x.startswith('I: ---') or
+                                                   x.startswith('W: ---') or
+                                                   x.startswith('I: (') or
+                                                   x.startswith('W: (')), a))
         b = map(lambda x: re.sub(r'\s*#.*', '', x), b)
 
         answers = []
         current = []
+        isQuery = True
 
         for l in b:
+            l = l.replace('\0', '')
+            
             if l[0] == '-':
-                # This is a separator between DICOM datasets
-                if len(current) > 0:
-                    answers.append(current)
-                    current = []
+                if isQuery:
+                    isQuery = False
+                else:
+                    # This is a separator between DICOM datasets
+                    if len(current) > 0:
+                        answers.append(current)
+                        current = []
 
             else:
-                tag = l[1:10].lower()
-                if not tag in ignoreTags:
-                    current.append(l)
+                if not isQuery:
+                    tag = l[1:10].lower()
+                    if not tag in ignoreTags:
+                        current.append(l)
 
         if len(current) > 0:
             answers.append(current)
