@@ -29,6 +29,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from shutil import copyfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
 from Toolbox import *
@@ -92,10 +93,16 @@ def ClearDatabase():
         if f != 'lockfile':
             os.remove(os.path.join(WORKING, f))
 
-def AddToDatabase(source):
-    subprocess.check_call([ 'dump2dcm', '--write-xfer-little',
-                            os.path.join(DATABASE, source),
-                            os.path.join(WORKING, os.path.basename(source) + '.wl') ])
+def AddToDatabase(worklist):
+    extension = os.path.splitext(worklist)[1].lower()
+    source = os.path.join(DATABASE, worklist)
+    target = os.path.join(WORKING, os.path.basename(worklist) + '.wl')
+
+    if extension == '.dump':
+        subprocess.check_call([ 'dump2dcm', '--write-xfer-little', source, target ])
+    else:
+        copyfile(source, target)
+        
 
 def RunQuery(source, ignoreTags):
     with tempfile.NamedTemporaryFile() as f:
@@ -273,8 +280,21 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(encoded, tags['0010,0010'])
 
 
+    def test_bitbucket_issue_49(self):
+        def Check(encoding, expectedEncoding, expectedContent):
+            DoPut(ORTHANC, '/tools/default-encoding', encoding)
+            result = RunQuery('Encodings/issue49-latin1.query', [])
+            self.assertEqual(1, len(result))
+            self.assertEqual(2, len(result[0]))
+            tags = ParseTopLevelTags(result[0])
+            self.assertEqual(expectedEncoding, tags['0008,0005'])
+            self.assertEqual(expectedContent, tags['0010,0010'])
 
-
+        AddToDatabase('Encodings/issue49-latin1.wl')
+        Check('Ascii', 'ISO_IR 6', r'VANILL^LAURA^^^Mme')
+        Check('Utf8', 'ISO_IR 192', r'VANILLÉ^LAURA^^^Mme')
+        Check('Latin1', 'ISO_IR 100', u'VANILLÉ^LAURA^^^Mme'.encode('latin-1', 'ignore'))
+        
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
