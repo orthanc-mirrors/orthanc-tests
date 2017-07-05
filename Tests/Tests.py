@@ -3182,3 +3182,15 @@ class Orthanc(unittest.TestCase):
         # This is the key image, with MONOCHROME2. Raw background is
         # white (255), should be rendered as white (255)
         self.assertEqual(255, im.getpixel((0,0)))
+
+
+    def test_bitbucket_issue_42(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/42/fails-to-modify-a-dicom-video-file
+        # This test fails on DCMTK 3.6.0, but succeeds in DCMTK 3.6.1 snapshots
+        UploadInstance(_REMOTE, 'Issue42.dcm')['ID']
+        modified = DoPost(_REMOTE,
+                          '/patients/da128605-e040d0c4-310615d2-3475da63-df2d1ef4/modify',
+                          '{"Replace":{"PatientID":"Hello","PatientName":"Sample patient name"}}',
+                          'application/json')
+        self.assertTrue('PatientID' in modified)
+        
