@@ -3193,4 +3193,72 @@ class Orthanc(unittest.TestCase):
                           '{"Replace":{"PatientID":"Hello","PatientName":"Sample patient name"}}',
                           'application/json')
         self.assertTrue('PatientID' in modified)
+
+
+    def test_rest_find_limit(self):
+        # Check the "Since" and "Limit" parameters in URI "/tools/find"
+        # Related to issue 53: https://bitbucket.org/sjodogne/orthanc/issues/53
         
+        # Upload 6 instances
+        brainix = []
+        knee = []
+        for i in range(2):
+            brainix.append(UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+            brainix.append(UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+            knee.append(UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+
+        # Check using BRAINIX
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 10 })
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 4 })
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Since' : 2,
+                                             'Limit' : 4 })
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 3 })
+        self.assertEqual(3, len(a))
+
+        b = []
+        for i in range(4):
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 'PatientName' : 'B*' },
+                                                 'Limit' : 1,
+                                                 'Since' : i })
+            self.assertEqual(1, len(a))
+            b.append(a[0])
+
+        # Check whether the two sets are equal through symmetric difference
+        self.assertEqual(0, len(set(b) ^ set(brainix)))
+
+        # Check using KNEE
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'K*' },
+                                             'Limit' : 10 })
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'K*' },
+                                             'Limit' : 2 })
+        self.assertEqual(2, len(a))
+
+        b = []
+        for i in range(2):
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 'PatientName' : 'K*' },
+                                                 'Limit' : 1,
+                                                 'Since' : i })
+            self.assertEqual(1, len(a))
+            b.append(a[0])
+
+        self.assertEqual(0, len(set(b) ^ set(knee)))
