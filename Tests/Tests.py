@@ -3262,3 +3262,59 @@ class Orthanc(unittest.TestCase):
             b.append(a[0])
 
         self.assertEqual(0, len(set(b) ^ set(knee)))
+
+
+    def test_bitbucket_issue_46(self):
+        # "PHI remaining after anonymization"
+        # https://bitbucket.org/sjodogne/orthanc/issues/46
+
+        def GetAnonymizedTags(study, version):
+            anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
+                                { 'DicomVersion' : version },
+                                'application/json') ['ID']
+            a = DoGet(_REMOTE, '/studies/%s/instances' % anonymized)
+            self.assertEqual(1, len(a))
+
+            instance = a[0]['ID']
+            
+            return (instance, DoGet(_REMOTE, '/instances/%s/tags' % instance))
+
+        # Use a sample DICOM image that already contains the 0010,1060
+        # (RequestingService) tag
+        UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
+        origStudy = '6068a14b-d4df27af-9ec22145-538772d8-74f228ff'
+
+        # Add the 0032,1033 (Requesting Service) and the 0010,1060
+        # (Patient's Mother's Birth Name) tags
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % origStudy,
+                          '{"Replace":{"0010,1060":"OSIMIS","0032,1033":"MOTHER"}}',
+                          'application/json')['ID']
+
+        # Use Table E.1-1 from PS 3.15-2008
+        # https://raw.githubusercontent.com/jodogne/dicom-specification/master/2008/08_15pu.pdf
+        (instance, tags) = GetAnonymizedTags(newStudy, "2008")
+        self.assertTrue('0032,1033' in tags)
+        self.assertTrue('0010,1060' in tags)
+
+        # Use Table E.1-1 from PS 3.15-2011 (only if Orthanc >= 1.2.1)
+        # https://raw.githubusercontent.com/jodogne/dicom-specification/master/2008/08_15pu.pdf
+        (instance, tags) = GetAnonymizedTags(newStudy, "2017c")
+        self.assertFalse('0032,1033' in tags)
+        self.assertFalse('0010,1060' in tags)
+
+        t = {}
+        for (key, value) in tags.iteritems():
+            t[value['Name']] = value['Value']
+
+        self.assertEqual('', t['StudyDate'])  # Type 1 tag => cleared
+        self.assertEqual('', t['StudyTime'])  # Type 1 tag => cleared
+        self.assertEqual('', t['PatientSex']) # Type 1 tag => cleared
+        self.assertFalse('SeriesDate' in t)   # Type 3 tag => null
+        self.assertFalse('SeriesTime' in t)   # Type 3 tag => null
+
+        with tempfile.NamedTemporaryFile(delete = True) as f:
+            # Run "dciodvfy" on the anonymized file to be sure it is still valid
+            f.write(DoGet(_REMOTE, '/instances/%s/file' % instance))
+            f.flush()
+            subprocess.check_output([ FindExecutable('dciodvfy'), f.name ],
+                                    stderr = subprocess.STDOUT).split('\n')
