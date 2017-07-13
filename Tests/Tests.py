@@ -1251,8 +1251,10 @@ class Orthanc(unittest.TestCase):
             pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
         DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000 ])
-        DoPut(_REMOTE, '/modalities/tata', [ "STORESCP", "localhost", 2000, 'MedInria' ])
-        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000, 'MedInriaaa' ]))
+        DoPut(_REMOTE, '/modalities/tata', [ "STORESCP", "localhost", 2000, 'MedInria' ]) # check backward compatiblity with obsolete manufacturer
+        DoDelete(_REMOTE, '/modalities/tata')
+        DoPut(_REMOTE, '/modalities/tata', [ "STORESCP", "localhost", 2000, 'GenericNoWildcards' ])
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000, 'InvalidManufacturerName' ]))
         self.assertTrue('store' in DoGet(_REMOTE, '/modalities/toto'))
         self.assertTrue('store' in DoGet(_REMOTE, '/modalities/tata'))
         DoDelete(_REMOTE, '/modalities/toto')
