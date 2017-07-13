@@ -278,6 +278,33 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(t['Instances']))
 
         
+    def test_bitbucket_issue_53(self):
+        # DICOMWeb plugin support for "limit" and "offset" parameters in QIDO-RS
+        # https://bitbucket.org/sjodogne/orthanc/issues/53
+        
+        UploadInstance(ORTHANC, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
+
+        brainix = '2.16.840.1.113669.632.20.1211.10000357775'
+        knee = '2.16.840.1.113669.632.20.121711.10000160881'
+
+        a = DoGet(ORTHANC, '/dicom-web/studies',
+                  headers = { 'accept' : 'application/json' })
+        self.assertEqual(2, len(a))
+
+        b = []
+        a = DoGet(ORTHANC, '/dicom-web/studies?limit=1',
+                  headers = { 'accept' : 'application/json' })
+        self.assertEqual(1, len(a))
+        b.append(a[0]['0020000D']['Value'][0])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?limit=1&offset=1',
+                  headers = { 'accept' : 'application/json' })
+        self.assertEqual(1, len(a))
+        b.append(a[0]['0020000D']['Value'][0])
+
+        self.assertTrue(brainix in b)
+        self.assertTrue(knee in b)
 
 
 try:

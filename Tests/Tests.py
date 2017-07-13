@@ -3195,4 +3195,128 @@ class Orthanc(unittest.TestCase):
                           '{"Replace":{"PatientID":"Hello","PatientName":"Sample patient name"}}',
                           'application/json')
         self.assertTrue('PatientID' in modified)
+
+
+    def test_rest_find_limit(self):
+        # Check the "Since" and "Limit" parameters in URI "/tools/find"
+        # Related to issue 53: https://bitbucket.org/sjodogne/orthanc/issues/53
         
+        # Upload 6 instances
+        brainix = []
+        knee = []
+        for i in range(2):
+            brainix.append(UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+            brainix.append(UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+            knee.append(UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
+
+        # Check using BRAINIX
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 10 })
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 4 })
+        self.assertEqual(4, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Since' : 2,
+                                             'Limit' : 4 })
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 3 })
+        self.assertEqual(3, len(a))
+
+        b = []
+        for i in range(4):
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 'PatientName' : 'B*' },
+                                                 'Limit' : 1,
+                                                 'Since' : i })
+            self.assertEqual(1, len(a))
+            b.append(a[0])
+
+        # Check whether the two sets are equal through symmetric difference
+        self.assertEqual(0, len(set(b) ^ set(brainix)))
+
+        # Check using KNEE
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'K*' },
+                                             'Limit' : 10 })
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'K*' },
+                                             'Limit' : 2 })
+        self.assertEqual(2, len(a))
+
+        b = []
+        for i in range(2):
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 'PatientName' : 'K*' },
+                                                 'Limit' : 1,
+                                                 'Since' : i })
+            self.assertEqual(1, len(a))
+            b.append(a[0])
+
+        self.assertEqual(0, len(set(b) ^ set(knee)))
+
+
+    def test_bitbucket_issue_46(self):
+        # "PHI remaining after anonymization"
+        # https://bitbucket.org/sjodogne/orthanc/issues/46
+
+        def GetAnonymizedTags(study, version):
+            anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
+                                { 'DicomVersion' : version },
+                                'application/json') ['ID']
+            a = DoGet(_REMOTE, '/studies/%s/instances' % anonymized)
+            self.assertEqual(1, len(a))
+
+            instance = a[0]['ID']
+            
+            return (instance, DoGet(_REMOTE, '/instances/%s/tags' % instance))
+
+        # Use a sample DICOM image that already contains the 0010,1060
+        # (RequestingService) tag
+        UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
+        origStudy = '6068a14b-d4df27af-9ec22145-538772d8-74f228ff'
+
+        # Add the 0032,1033 (Requesting Service) and the 0010,1060
+        # (Patient's Mother's Birth Name) tags
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % origStudy,
+                          '{"Replace":{"0010,1060":"OSIMIS","0032,1033":"MOTHER"}}',
+                          'application/json')['ID']
+
+        # Use Table E.1-1 from PS 3.15-2008
+        # https://raw.githubusercontent.com/jodogne/dicom-specification/master/2008/08_15pu.pdf
+        (instance, tags) = GetAnonymizedTags(newStudy, "2008")
+        self.assertTrue('0032,1033' in tags)
+        self.assertTrue('0010,1060' in tags)
+
+        # Use Table E.1-1 from PS 3.15-2011 (only if Orthanc >= 1.2.1)
+        # https://raw.githubusercontent.com/jodogne/dicom-specification/master/2008/08_15pu.pdf
+        (instance, tags) = GetAnonymizedTags(newStudy, "2017c")
+        self.assertFalse('0032,1033' in tags)
+        self.assertFalse('0010,1060' in tags)
+
+        t = {}
+        for (key, value) in tags.iteritems():
+            t[value['Name']] = value['Value']
+
+        self.assertEqual('', t['StudyDate'])  # Type 1 tag => cleared
+        self.assertEqual('', t['StudyTime'])  # Type 1 tag => cleared
+        self.assertEqual('', t['PatientSex']) # Type 1 tag => cleared
+        self.assertFalse('SeriesDate' in t)   # Type 3 tag => null
+        self.assertFalse('SeriesTime' in t)   # Type 3 tag => null
+
+        with tempfile.NamedTemporaryFile(delete = True) as f:
+            # Run "dciodvfy" on the anonymized file to be sure it is still valid
+            f.write(DoGet(_REMOTE, '/instances/%s/file' % instance))
+            f.flush()
+            subprocess.check_output([ FindExecutable('dciodvfy'), f.name ],
+                                    stderr = subprocess.STDOUT).split('\n')
