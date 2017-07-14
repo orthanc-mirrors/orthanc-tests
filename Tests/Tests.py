@@ -1634,7 +1634,10 @@ class Orthanc(unittest.TestCase):
 
     def test_shanon(self):
         def Anonymize(instance, replacements = {}):
-            return DoPost(_REMOTE, '/instances/%s/anonymize' % instance, { 'Replace' : replacements }, 'application/json')
+            return DoPost(_REMOTE, '/instances/%s/anonymize' % instance, {
+                'Replace' : replacements,
+                'Force' : True,
+            }, 'application/json')
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
@@ -1684,7 +1687,10 @@ class Orthanc(unittest.TestCase):
 
     def test_shanon_2(self):
         def Modify(instance, replacements = {}):
-            return DoPost(_REMOTE, '/instances/%s/modify' % instance, { 'Replace' : replacements }, 'application/json')
+            return DoPost(_REMOTE, '/instances/%s/modify' % instance, {
+                'Replace' : replacements,
+                'Force': True,
+            }, 'application/json')
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
@@ -3115,7 +3121,8 @@ class Orthanc(unittest.TestCase):
                 "SOPClassUID" : "test",
                 "SOPInstanceUID" : "myid",
             },
-            "Keep" : [ "StudyInstanceUID", "SeriesInstanceUID" ]
+            "Keep" : [ "StudyInstanceUID", "SeriesInstanceUID" ],
+            "Force" : True
         })
 
         instances = DoGet(_REMOTE, '/instances/')
@@ -3192,7 +3199,7 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Issue42.dcm')['ID']
         modified = DoPost(_REMOTE,
                           '/patients/da128605-e040d0c4-310615d2-3475da63-df2d1ef4/modify',
-                          '{"Replace":{"PatientID":"Hello","PatientName":"Sample patient name"}}',
+                          '{"Replace":{"PatientID":"Hello","PatientName":"Sample patient name"},"Force":true}',
                           'application/json')
         self.assertTrue('PatientID' in modified)
 
