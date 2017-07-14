@@ -3359,3 +3359,44 @@ class Orthanc(unittest.TestCase):
         Run(False, { "Replace" : { "SeriesInstanceUID" : "world" } })
         Run(False, { "Replace" : { "SOPInstanceUID" : "world" } })
 
+
+    def test_bitbucket_issue_56(self):
+        # Case-insensitive matching over accents. This test assumes
+        # that the "CaseSensitivePN" configuration option of Orthanc
+        # is set to "false" (default value).
+        # https://bitbucket.org/sjodogne/orthanc/issues/56
+
+        def Check(name, expected, expectedSensitive):
+            a = CallFindScu([ '-k', '0008,0005=ISO_IR 192',  # Use UTF-8
+                              '-k', '0008,0052=PATIENT',
+                              '-k', 'PatientName=%s' % name ])
+            patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', a)
+            self.assertEqual(expected, len(patientNames))
+
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                                 'CaseSensitive' : False,
+                                                 'Query' : { 'PatientName' : name }})
+            self.assertEqual(expected, len(a))
+
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                                 'CaseSensitive' : True,
+                                                 'Query' : { 'PatientName' : name }})
+            self.assertEqual(expectedSensitive, len(a))
+
+        UploadInstance(_REMOTE, 'Encodings/Lena-latin1.dcm')
+
+        # WildcardConstraint
+        Check('TeSt*', 1, 0)
+        Check('TeSt-a*', 0, 0)
+        Check('TeSt-É*', 1, 0)
+        Check('TeSt-é*', 1, 0)
+        Check('Test-é*', 1, 1)
+
+        # ListConstraint
+        Check('Test-éüäöò\\nope', 1, 1)
+        Check('Test-ÉÜÄÖÒ\\nope', 1, 0)
+
+        # ValueConstraint
+        Check('Test-éüäöò', 1, 1)
+        Check('Test-ÉÜÄÖÒ', 1, 0)
+
