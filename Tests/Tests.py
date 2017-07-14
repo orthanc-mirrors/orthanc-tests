@@ -530,7 +530,7 @@ class Orthanc(unittest.TestCase):
                         #"PatientID" : "world"
                         },
                     "Remove" : [ "StationName" ],
-                    "RemovePrivateTags" : None
+                    "RemovePrivateTags" : True
                     }),
                           'application/json')
         j = DoPost(_REMOTE, '/instances', modified, 'application/dicom')['ID']
@@ -1891,7 +1891,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b).startswith('Hello'))
 
         # Examples from the Wiki
-        b = AnonymizeAndUpload(a, '{"Replace":{"PatientName":"hello","0010-0020":"world"},"Keep":["StudyDescription", "SeriesDescription"],"KeepPrivateTags": null}')
+        b = AnonymizeAndUpload(a, '{"Replace":{"PatientName":"hello","0010-0020":"world"},"Keep":["StudyDescription", "SeriesDescription"],"KeepPrivateTags": true,"Force":true}')
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
         self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
         self.assertEqual(s3, DoGet(_REMOTE, '/instances/%s/content/0008,1030' % b))
@@ -1901,7 +1901,7 @@ class Orthanc(unittest.TestCase):
         DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % a)
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % b))
 
-        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"},"Remove":["InstitutionName"],"RemovePrivateTags": null}')
+        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"},"Remove":["InstitutionName"],"RemovePrivateTags": true,"Force":true}')
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
         self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
         self.assertEqual(s3, DoGet(_REMOTE, '/instances/%s/content/0008,1030' % b))
@@ -1909,7 +1909,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/00e1-10c2' % b))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/content/InstitutionName' % b))
 
-        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"}}')
+        b = ModifyAndUpload(a, '{"Replace":{"PatientName":"hello","PatientID":"world"},"Force":true}')
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % b).strip())
         self.assertEqual('world', DoGet(_REMOTE, '/instances/%s/content/PatientID' % b).strip())
         self.assertEqual(s2, DoGet(_REMOTE, '/instances/%s/content/00e1,10c2' % b))
@@ -3281,8 +3281,6 @@ class Orthanc(unittest.TestCase):
             
             return (instance, DoGet(_REMOTE, '/instances/%s/tags' % instance))
 
-        # Use a sample DICOM image that already contains the 0010,1060
-        # (RequestingService) tag
         UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
         origStudy = '6068a14b-d4df27af-9ec22145-538772d8-74f228ff'
 
@@ -3320,3 +3318,37 @@ class Orthanc(unittest.TestCase):
             f.flush()
             subprocess.check_output([ FindExecutable('dciodvfy'), f.name ],
                                     stderr = subprocess.STDOUT).split('\n')
+
+
+    def test_bitbucket_issue_55(self):
+        def Run(modify, query):
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+            operation = 'modify' if modify else 'anonymize'
+            
+            self.assertRaises(Exception, lambda: DoPost(
+                _REMOTE, '/studies/%s/%s' % (study, operation), query))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+            query["Force"] = True
+            a = DoPost(_REMOTE, '/studies/%s/%s' % (study, operation), query)['Path']
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+            DoDelete(_REMOTE, a)
+                         
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        study = 'b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0'
+
+        Run(True, { "Replace" : { "StudyInstanceUID" : "world" } })
+        Run(True, { "Replace" : { "SeriesInstanceUID" : "world" } })
+        Run(True, { "Replace" : { "SOPInstanceUID" : "world" } })
+
+        Run(False, { "Keep" : [ "StudyInstanceUID" ]})
+        Run(False, { "Keep" : [ "SeriesInstanceUID" ]})
+        Run(False, { "Keep" : [ "SOPInstanceUID" ]})
+
+        Run(False, { "Replace" : { "StudyInstanceUID" : "world" } })
+        Run(False, { "Replace" : { "SeriesInstanceUID" : "world" } })
+        Run(False, { "Replace" : { "SOPInstanceUID" : "world" } })
+
