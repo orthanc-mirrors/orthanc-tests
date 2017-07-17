@@ -85,7 +85,11 @@ def CompareTags(a, b, tagsToIgnore):
         if i in b:
             del b[i]
 
-    return a == b
+    if a.keys() == b.keys():
+        return True
+    else:
+        print('Mismatch in tags: %s' % str(set(a.keys()) ^ set(b.keys())))
+        return False
 
 
 def CallFindScu(args):
@@ -2604,6 +2608,10 @@ class Orthanc(unittest.TestCase):
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
         with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
             self.assertTrue(CompareTags(t, json.loads(f.read()), [
+                # Tags for compatibility with DCMTK 3.6.0
+                'RETIRED_OtherPatientIDs',
+                'OtherPatientIDs',
+                'ACR_NEMA_2C_VariablePixelDataGroupLength',
             ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % i)
@@ -3190,7 +3198,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_42(self):
         # https://bitbucket.org/sjodogne/orthanc/issues/42/fails-to-modify-a-dicom-video-file
-        # This test fails on DCMTK 3.6.0, but succeeds in DCMTK 3.6.1 snapshots
+        # This test fails on DCMTK 3.6.0, but succeeds in DCMTK 3.6.1 snapshots and DCMTK 3.6.2
         UploadInstance(_REMOTE, 'Issue42.dcm')['ID']
         modified = DoPost(_REMOTE,
                           '/patients/da128605-e040d0c4-310615d2-3475da63-df2d1ef4/modify',
