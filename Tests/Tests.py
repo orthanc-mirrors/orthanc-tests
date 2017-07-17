@@ -2604,18 +2604,11 @@ class Orthanc(unittest.TestCase):
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
         with open(GetDatabasePath('PrivateMDNTagsSimplify.json'), 'r') as f:
             self.assertTrue(CompareTags(t, json.loads(f.read()), [
-                'ACR_NEMA_2C_VariablePixelDataGroupLength', 
-                'GenericGroupLength',
-                'Original Image Filename',
-                'PET-CT Multi Modality Name'
             ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags' % i)
         with open(GetDatabasePath('PrivateMDNTagsFull.json'), 'r') as f:
             self.assertTrue(CompareTags(t, json.loads(f.read()), [ 
-                '7fe0,0000',
-                '00e1,10c2',
-                '7053,1003'
             ]))
 
         t = DoGet(_REMOTE, '/instances/%s/tags?simplify' % j)
