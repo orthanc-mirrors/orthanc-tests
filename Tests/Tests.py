@@ -3403,3 +3403,11 @@ class Orthanc(unittest.TestCase):
         Check('Test-éüäöò', 1, 1)
         Check('Test-ÉÜÄÖÒ', 1, 0)
 
+        
+    def test_gbk_alias(self):
+        # https://groups.google.com/d/msg/orthanc-users/WMM8LMbjpUc/02-1f_yFCgAJ
+        # This test fails on Orthanc <= 1.3.0
+        i = UploadInstance(_REMOTE, '2017-09-19-GBK-Tumashu.dcm')['ID']
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual(tags['PatientName'], u'徐浩凯')
+        self.assertEqual(tags['InstitutionName'], u'灌云县疾病预防控制中心')
