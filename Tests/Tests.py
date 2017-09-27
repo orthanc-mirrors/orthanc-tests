@@ -3411,3 +3411,52 @@ class Orthanc(unittest.TestCase):
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
         self.assertEqual(tags['PatientName'], u'徐浩凯')
         self.assertEqual(tags['InstitutionName'], u'灌云县疾病预防控制中心')
+
+        
+    def test_long_tag(self):
+        i = UploadInstance(_REMOTE, 'DummyCTWithLongTag.dcm')['ID']
+        series = 'f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe'
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags' % i)
+        self.assertTrue('0018,1020' in tags)
+        self.assertEqual('SoftwareVersions', tags['0018,1020']['Name'])
+        self.assertEqual('TooLong', tags['0018,1020']['Type'])
+        self.assertEqual(None, tags['0018,1020']['Value'])
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?ignore-length=0018-1020' % i)
+        self.assertTrue('0018,1020' in tags)
+        self.assertEqual('SoftwareVersions', tags['0018,1020']['Name'])
+        self.assertEqual('String', tags['0018,1020']['Type'])
+        self.assertTrue(tags['0018,1020']['Value'].startswith('Lorem ipsum dolor sit amet'))
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertTrue('SoftwareVersions' in tags)
+        self.assertEqual(None, tags['SoftwareVersions'])
+        self.assertTrue('HeartRate' in tags)
+        self.assertEqual(474, int(tags['HeartRate']))
+
+        tags = DoGet(_REMOTE, '/instances/%s/simplified-tags' % i)
+        self.assertTrue('SoftwareVersions' in tags)
+        self.assertEqual(None, tags['SoftwareVersions'])
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify&ignore-length=0018-1020' % i)
+        self.assertTrue('SoftwareVersions' in tags)
+        self.assertTrue(tags['SoftwareVersions'].startswith('Lorem ipsum dolor sit amet'))
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify&ignore-length=SoftwareVersions' % i)
+        self.assertTrue('SoftwareVersions' in tags)
+        self.assertTrue(tags['SoftwareVersions'].startswith('Lorem ipsum dolor sit amet'))
+
+        tags = DoGet(_REMOTE, '/series/%s/instances-tags' % series)
+        self.assertEqual(1, len(tags))
+        self.assertTrue(i in tags.keys())
+        self.assertTrue('0018,1020' in tags[i])
+        self.assertEqual('TooLong', tags[i]['0018,1020']['Type'])
+
+        tags = DoGet(_REMOTE, '/series/%s/instances-tags?ignore-length=SoftwareVersions' % series)
+        self.assertEqual(1, len(tags))
+        self.assertTrue(i in tags.keys())
+        self.assertTrue('0018,1020' in tags[i])
+        self.assertEqual('String', tags[i]['0018,1020']['Type'])
+        self.assertTrue(tags[i]['0018,1020']['Value'].startswith('Lorem ipsum dolor sit amet'))
+
