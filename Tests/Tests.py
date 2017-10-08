@@ -3460,3 +3460,42 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('String', tags[i]['0018,1020']['Type'])
         self.assertTrue(tags[i]['0018,1020']['Value'].startswith('Lorem ipsum dolor sit amet'))
 
+
+    def test_extended_media(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+
+        z = GetArchive(_REMOTE, '/patients/%s/media?extended' % DoGet(_REMOTE, '/patients')[0])
+        self.assertEqual(2, len(z.namelist()))
+        self.assertTrue('IMAGES/IM0' in z.namelist())
+        self.assertTrue('DICOMDIR' in z.namelist())
+
+        try:
+            os.remove('/tmp/DICOMDIR')
+        except:
+            # The file does not exist
+            pass
+
+        z.extract('DICOMDIR', '/tmp')
+        a = subprocess.check_output([ FindExecutable('dciodvfy'), '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+        self.assertEqual(5, len(a))
+        self.assertTrue(a[0].startswith('Warning'))
+        self.assertEqual('BasicDirectory', a[1])
+        self.assertTrue('not present in standard DICOM IOD' in a[2])
+        self.assertTrue('not present in standard DICOM IOD' in a[3])
+        self.assertEqual('', a[4])
+
+        a = subprocess.check_output([ FindExecutable('dcentvfy'), '/tmp/DICOMDIR' ],
+                                    stderr = subprocess.STDOUT).split('\n')
+        self.assertEqual(1, len(a))
+        self.assertEqual('', a[0])
+
+        a = subprocess.check_output([ FindExecutable('dcm2xml'), '/tmp/DICOMDIR' ])
+        self.assertTrue(re.search('1.3.46.670589.11.17521.5.0.3124.2008081908590448738', a) != None)
+
+        # Check the presence of the series description (extended tag)
+        self.assertTrue(re.search('T1W_aTSE', a) != None)
+
+        os.remove('/tmp/DICOMDIR')
+
+
