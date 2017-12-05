@@ -191,6 +191,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/servers')))
         self.assertTrue('sample' in DoGet(ORTHANC, '/dicom-web/servers'))
 
+        serversReadback = DoGet(ORTHANC, '/dicom-web/servers?expand')
+        self.assertEqual('http://localhost:8042/dicom-web/', serversReadback['sample']['Url'])
+        self.assertEqual('alice', serversReadback['sample']['Username'])
+
         sample = DoGet(ORTHANC, '/dicom-web/servers/sample')
         self.assertEqual(3, len(sample))
         self.assertTrue('stow' in sample)
