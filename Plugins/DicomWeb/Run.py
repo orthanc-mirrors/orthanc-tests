@@ -202,15 +202,33 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('get' in sample)
 
         # application/dicom+xml
-        self.assertEqual(2, len(re.findall('^--', DoGet(ORTHANC, '/dicom-web/studies'), re.MULTILINE)))
-        self.assertEqual(2, len(re.findall('^--', DoPost(ORTHANC, '/dicom-web/servers/sample/get',
-                                                         { 'Uri' : '/studies' }), re.MULTILINE)))
+        self.assertEqual(2, len(re.findall('^--', DoGet(ORTHANC, '/dicom-web/studies',
+                                                        headers = { 'Accept' : 'application/dicom+xml' }),
+                                           re.MULTILINE)))
+        self.assertEqual(2, len(re.findall('^--', DoPost
+                                           (ORTHANC, '/dicom-web/servers/sample/get',
+                                            { 'Uri' : '/studies',
+                                              'HttpHeaders' : { 'Accept' : 'application/dicom+xml' }
+                                            }), re.MULTILINE)))
 
         # application/dicom+json
-        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies', headers = { 'Accept' : 'application/json' })))
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies',
+                                      headers = { 'Accept' : 'application/dicom+json' })))
+        self.assertEqual(1, len(DoPost(ORTHANC, '/dicom-web/servers/sample/get',
+                                       { 'Uri' : '/studies',
+                                         'HttpHeaders' : { 'Accept' : 'application/dicom+json' }})))
+
+        # application/json
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies',
+                                      headers = { 'Accept' : 'application/json' })))
         self.assertEqual(1, len(DoPost(ORTHANC, '/dicom-web/servers/sample/get',
                                        { 'Uri' : '/studies',
                                          'HttpHeaders' : { 'Accept' : 'application/json' }})))
+
+        # application/dicom+json is the default as of OrthancDicomWeb-0.5
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies')))
+        self.assertEqual(1, len(DoPost(ORTHANC, '/dicom-web/servers/sample/get',
+                                       { 'Uri' : '/studies' })))
 
 
     def test_server_stow(self):
