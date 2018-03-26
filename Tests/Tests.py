@@ -3510,3 +3510,95 @@ class Orthanc(unittest.TestCase):
         os.remove('/tmp/DICOMDIR')
 
 
+    def test_anonymize_relationships_1(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')['ID']
+        study = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+        
+        anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
+                            '{}',
+                            'application/json')['ID']
+        
+        a = DoGet(_REMOTE, '/studies/%s/instances' % study)
+        self.assertEqual(2, len(a))
+        a1 = a[0]['ID']
+        a2 = a[1]['ID']
+        
+        b = DoGet(_REMOTE, '/studies/%s/instances' % anonymized)
+        self.assertEqual(2, len(b))
+        b1 = b[0]['ID']
+        b2 = b[1]['ID']
+        
+        SEQUENCE = '/instances/%s/content/ReferencedImageSequence'
+        SOP = '/instances/%s/content/ReferencedImageSequence/%d/ReferencedSOPInstanceUID'
+        CLASS = '/instances/%s/content/ReferencedImageSequence/%d/ReferencedSOPClassUID'
+        FRAME = '/instances/%s/content/FrameOfReferenceUID'
+
+        self.assertEqual(DoGet(_REMOTE, FRAME % a1), 
+                         DoGet(_REMOTE, FRAME % a2))
+        self.assertEqual(DoGet(_REMOTE, FRAME % b1), 
+                         DoGet(_REMOTE, FRAME % b2))
+        self.assertNotEqual(DoGet(_REMOTE, FRAME % a1),
+                            DoGet(_REMOTE, FRAME % b1))
+        self.assertNotEqual(DoGet(_REMOTE, FRAME % a2),
+                            DoGet(_REMOTE, FRAME % b2))
+
+        self.assertEqual(3, len(DoGet(_REMOTE, SEQUENCE % a1)))
+        self.assertEqual(3, len(DoGet(_REMOTE, SEQUENCE % a2)))
+        self.assertEqual(3, len(DoGet(_REMOTE, SEQUENCE % b1)))
+        self.assertEqual(3, len(DoGet(_REMOTE, SEQUENCE % b2)))
+
+        for i in range(3):
+            self.assertEqual(DoGet(_REMOTE, SOP % (a1, i)),
+                             DoGet(_REMOTE, SOP % (a2, i)))
+            self.assertEqual(DoGet(_REMOTE, SOP % (b1, i)),
+                             DoGet(_REMOTE, SOP % (b2, i)))
+            self.assertNotEqual(DoGet(_REMOTE, SOP % (a1, i)),
+                                DoGet(_REMOTE, SOP % (b1, i)))
+            self.assertNotEqual(DoGet(_REMOTE, SOP % (a2, i)),
+                                DoGet(_REMOTE, SOP % (b2, i)))
+            self.assertEqual(DoGet(_REMOTE, CLASS % (a1, i)),
+                             DoGet(_REMOTE, CLASS % (b1, i)))
+            self.assertEqual(DoGet(_REMOTE, CLASS % (a2, i)),
+                             DoGet(_REMOTE, CLASS % (b2, i)))
+
+
+    def test_anonymize_relationships_2(self):
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')['ID']
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0002.dcm')['ID']
+        study = '6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf'
+        
+        anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
+                            '{}',
+                            'application/json')['ID']
+        
+        a = DoGet(_REMOTE, '/studies/%s/instances' % study)
+        self.assertEqual(2, len(a))
+        a1 = a[0]['ID']
+        a2 = a[1]['ID']
+        
+        b = DoGet(_REMOTE, '/studies/%s/instances' % anonymized)
+        self.assertEqual(2, len(b))
+        b1 = b[0]['ID']
+        b2 = b[1]['ID']
+        
+        SEQUENCE = '/instances/%s/content/SourceImageSequence'
+        SOP = '/instances/%s/content/SourceImageSequence/%d/ReferencedSOPInstanceUID'
+        CLASS = '/instances/%s/content/SourceImageSequence/%d/ReferencedSOPClassUID'
+
+        self.assertEqual(1, len(DoGet(_REMOTE, SEQUENCE % a1)))
+        self.assertEqual(1, len(DoGet(_REMOTE, SEQUENCE % a2)))
+        self.assertEqual(1, len(DoGet(_REMOTE, SEQUENCE % b1)))
+        self.assertEqual(1, len(DoGet(_REMOTE, SEQUENCE % b2)))
+        self.assertEqual(DoGet(_REMOTE, SOP % (a1, 0)),
+                         DoGet(_REMOTE, SOP % (a2, 0)))
+        self.assertEqual(DoGet(_REMOTE, SOP % (b1, 0)),
+                         DoGet(_REMOTE, SOP % (b2, 0)))
+        self.assertNotEqual(DoGet(_REMOTE, SOP % (a1, 0)),
+                            DoGet(_REMOTE, SOP % (b1, 0)))
+        self.assertNotEqual(DoGet(_REMOTE, SOP % (a2, 0)),
+                            DoGet(_REMOTE, SOP % (b2, 0)))
+        self.assertEqual(DoGet(_REMOTE, CLASS % (a1, 0)),
+                         DoGet(_REMOTE, CLASS % (b1, 0)))
+        self.assertEqual(DoGet(_REMOTE, CLASS % (a2, 0)),
+                         DoGet(_REMOTE, CLASS % (b2, 0)))
