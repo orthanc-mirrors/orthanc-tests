@@ -60,6 +60,7 @@ Here is the source of each set of sample images:
 - ColorTestMalaterre.dcm : From Mathieu Malaterre <mathieu.malaterre@gmail.com>, Debian bug #698417
 - Comunix/* : From OsiriX, "COMUNIX" (sample of PET/CT study).
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
+- HierarchicalAnonymization/StructuredReports/* : Courtesy of Collective Minds Radiology AB
 - Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
 - Issue22.dcm : From Emsy Chan on Google Code (Error decoding multi-frame instances)

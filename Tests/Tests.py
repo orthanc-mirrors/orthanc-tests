@@ -3511,8 +3511,8 @@ class Orthanc(unittest.TestCase):
 
 
     def test_anonymize_relationships_1(self):
-        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
-        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')['ID']
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')
         study = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
         
         anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
@@ -3564,8 +3564,8 @@ class Orthanc(unittest.TestCase):
 
 
     def test_anonymize_relationships_2(self):
-        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')['ID']
-        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0002.dcm')['ID']
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0002.dcm')
         study = '6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf'
         
         anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
@@ -3602,3 +3602,60 @@ class Orthanc(unittest.TestCase):
                          DoGet(_REMOTE, CLASS % (b1, 0)))
         self.assertEqual(DoGet(_REMOTE, CLASS % (a2, 0)),
                          DoGet(_REMOTE, CLASS % (b2, 0)))
+
+
+    def test_anonymize_relationships_3(self):
+        sr1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/StructuredReports/IM0')['ID']
+        mr1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/StructuredReports/IM631')['ID']
+        study = 'ef351eb2-c1147229-062736b8-35a151e3-e32d526b'
+        
+        anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
+                            { "Keep" : [ "ContentSequence" ] }) ['ID']
+                
+        a = DoGet(_REMOTE, '/studies/%s/instances' % anonymized)
+        self.assertEqual(2, len(a))
+
+        if DoGet(_REMOTE, '/instances/%s/content/Modality' % a[0]['ID']) == 'SR':
+            sr2 = a[0]['ID']
+            mr2 = a[1]['ID']
+        else:
+            sr2 = a[1]['ID']
+            mr2 = a[0]['ID']
+            
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/content/Modality' % sr1),
+                         DoGet(_REMOTE, '/instances/%s/content/Modality' % sr2))
+        self.assertEqual(DoGet(_REMOTE, '/instances/%s/content/Modality' % mr1),
+                         DoGet(_REMOTE, '/instances/%s/content/Modality' % mr2))
+
+        mrUid1 = DoGet(_REMOTE, '/instances/%s' % mr1)['MainDicomTags']['SOPInstanceUID']
+        mrUid2 = DoGet(_REMOTE, '/instances/%s' % mr2)['MainDicomTags']['SOPInstanceUID']
+        mrSeries1 = DoGet(_REMOTE, '/instances/%s/content/SeriesInstanceUID' % mr1).strip('\x00')
+        mrSeries2 = DoGet(_REMOTE, '/instances/%s/content/SeriesInstanceUID' % mr2).strip('\x00')
+        mrStudy1 = DoGet(_REMOTE, '/instances/%s/content/StudyInstanceUID' % mr1).strip('\x00')
+        mrStudy2 = DoGet(_REMOTE, '/instances/%s/content/StudyInstanceUID' % mr2).strip('\x00')
+
+        PATH1 = '/instances/%s/content/CurrentRequestedProcedureEvidenceSequence'
+        PATH2 = PATH1 + '/0/ReferencedSeriesSequence'
+        PATH3 = PATH2 + '/0/ReferencedSOPSequence'
+        PATH4 = PATH3 + '/0/ReferencedSOPInstanceUID'
+        PATH5 = PATH3 + '/0/ReferencedSOPClassUID'
+
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH1 % sr1)))
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH2 % sr1)))
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH3 % sr1)))
+        self.assertEqual(DoGet(_REMOTE, PATH4 % sr1), mrUid1)
+        self.assertEqual(mrSeries1, DoGet(_REMOTE, (PATH2 + '/0/SeriesInstanceUID') % sr1).strip('\x00'))
+        self.assertEqual(mrStudy1, DoGet(_REMOTE, (PATH1 + '/0/StudyInstanceUID') % sr1).strip('\x00'))
+
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH1 % sr2)))
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH2 % sr2)))
+        self.assertEqual(1, len(DoGet(_REMOTE, PATH3 % sr2)))
+        self.assertEqual(DoGet(_REMOTE, PATH5 % sr1), DoGet(_REMOTE, PATH5 % sr2))
+
+        self.assertEqual(mrUid2, DoGet(_REMOTE, PATH4 % sr2).strip('\x00'))
+        self.assertEqual(mrSeries2, DoGet(_REMOTE, (PATH2 + '/0/SeriesInstanceUID') % sr2).strip('\x00'))
+        self.assertEqual(mrStudy2, DoGet(_REMOTE, (PATH1 + '/0/StudyInstanceUID') % sr2).strip('\x00'))
+
+        content1 = DoGet(_REMOTE, '/instances/%s/tags?simplify' % sr1) ['ContentSequence']
+        content2 = DoGet(_REMOTE, '/instances/%s/tags?simplify' % sr2) ['ContentSequence']
+        self.assertEqual(str(content1), str(content2))
