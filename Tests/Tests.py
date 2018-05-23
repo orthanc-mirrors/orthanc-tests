@@ -193,6 +193,8 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
         self.assertEqual('TWINOW', DoGet(_REMOTE, '/instances/%s/simplified-tags' % i)['StationName'])
         self.assertEqual('TWINOW', DoGet(_REMOTE, '/instances/%s/tags' % i)['0008,1010']['Value'])
+        self.assertEqual('TWINOW', DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)['StationName'])
+        self.assertEqual('TWINOW', DoGet(_REMOTE, '/instances/%s/tags?short' % i)['0008,1010'])
 
 
     def test_images(self):
@@ -1356,6 +1358,12 @@ class Orthanc(unittest.TestCase):
         
         self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
         self.assertTrue('PatientName' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/shared-tags?short' % p))
+
+        self.assertEqual('KNEE', DoGet(_REMOTE, '/patients/%s/shared-tags' % p)['0010,0010']['Value'])
+        self.assertEqual('KNEE', DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p)['PatientName'])
+        self.assertEqual('KNEE', DoGet(_REMOTE, '/patients/%s/shared-tags?short' % p)['0010,0010'])
+        
         self.assertTrue('0008,1030' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
         self.assertTrue('StudyDescription' in DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % p))
         self.assertTrue('0008,103e' in DoGet(_REMOTE, '/patients/%s/shared-tags' % p))
@@ -1787,6 +1795,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
 
+        i = DoGet(_REMOTE, '/patients/%s/instances-tags?short' % DoGet(_REMOTE, '/series')[1])
+        self.assertEqual(1, len(i))
+        self.assertEqual('887', i[i.keys()[0]]['0010,0020'])
+
 
     def test_lookup(self):
         a = DoPost(_REMOTE, '/tools/lookup', 'ozp00SjY2xG')
@@ -1990,7 +2002,9 @@ class Orthanc(unittest.TestCase):
         i = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')['ID']
 
         # This is JPEG lossless
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header' % i)['0002,0010']['Value'])
         self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?simplify' % i)['TransferSyntaxUID'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?short' % i)['0002,0010'])
 
         UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
         UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0003.dcm')
