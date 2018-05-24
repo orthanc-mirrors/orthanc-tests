@@ -212,6 +212,17 @@ def WaitEmpty(orthanc):
             return
         time.sleep(0.1)
 
+def WaitJobDone(orthanc, job):
+    while True:
+        s = DoGet(orthanc, '/jobs/%s' % job) ['State']
+
+        if s == 'Success':
+            return True
+        elif s == 'Failure':
+            return False
+        
+        time.sleep(0.1)
+
 def GetDockerHostAddress():
     route = subprocess.check_output([ '/sbin/ip', 'route' ])
     m = re.search(r'default via ([0-9.]+)', route)

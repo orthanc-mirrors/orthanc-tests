@@ -1123,11 +1123,21 @@ class Orthanc(unittest.TestCase):
 
     def test_incoming_movescu(self):
         UploadInstance(_REMOTE, 'Multiframe.dcm')
-        
+
+        # No matching patient, so no job is created
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
-        CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=none' ])
+        CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=none' ])        
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+
+        # 1 Matching patient, track the job
+        a = set(DoGet(_REMOTE, '/jobs'))
         CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=12345678' ])
+        b = set(DoGet(_REMOTE, '/jobs'))
+        
+        diff = list(b - a)
+        self.assertEqual(1, len(diff))
+        self.assertTrue(WaitJobDone(_REMOTE, diff[0]))
+
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
 
 
@@ -2617,12 +2627,22 @@ class Orthanc(unittest.TestCase):
     def test_incoming_movescu_accession(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         
+        # No matching patient, so no job is created
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
         CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=nope' ])
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
         CallMoveScu([ '--study', '-k', '0008,0052=PATIENT', '-k', 'AccessionNumber=A10003245599' ])
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
+
+        # 1 Matching patient, track the job
+        a = set(DoGet(_REMOTE, '/jobs'))
         CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=A10003245599' ])
+        b = set(DoGet(_REMOTE, '/jobs'))
+        
+        diff = list(b - a)
+        self.assertEqual(1, len(diff))
+        self.assertTrue(WaitJobDone(_REMOTE, diff[0]))
+
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
 
 
