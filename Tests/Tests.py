@@ -1130,14 +1130,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
 
         # 1 Matching patient, track the job
-        a = set(DoGet(_REMOTE, '/jobs'))
-        CallMoveScu([ '--patient', '-k', '0008,0052=PATIENT', '-k', 'PatientID=12345678' ])
-        b = set(DoGet(_REMOTE, '/jobs'))
-        
-        diff = list(b - a)
-        self.assertEqual(1, len(diff))
-        self.assertTrue(WaitJobDone(_REMOTE, diff[0]))
-
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--patient',
+            '-k', '0008,0052=PATIENT',
+            '-k', 'PatientID=12345678'
+        ])))
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
 
 
@@ -2635,14 +2632,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_LOCAL, '/patients')))
 
         # 1 Matching patient, track the job
-        a = set(DoGet(_REMOTE, '/jobs'))
-        CallMoveScu([ '--study', '-k', '0008,0052=STUDY', '-k', 'AccessionNumber=A10003245599' ])
-        b = set(DoGet(_REMOTE, '/jobs'))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', '0008,0052=STUDY',
+            '-k', 'AccessionNumber=A10003245599'
+        ])))
         
-        diff = list(b - a)
-        self.assertEqual(1, len(diff))
-        self.assertTrue(WaitJobDone(_REMOTE, diff[0]))
-
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
 
 
