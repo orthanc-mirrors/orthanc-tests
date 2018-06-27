@@ -107,6 +107,7 @@ config['DicomAssociationCloseDelay'] = 0
 config['DicomModalities'] = { 'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ] }
 config['DicomPort'] = args.dicom
 config['HttpCompressionEnabled'] = False
+config['LogExportedResources'] = True
 config['OrthancPeers'] = { 'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ] }
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
