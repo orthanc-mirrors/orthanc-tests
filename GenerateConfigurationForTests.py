@@ -142,6 +142,17 @@ config['PostgreSQL'] = {
     'Password' : 'postgres'
 }
 
+config['MySQL'] = {
+    'EnableIndex' : True,
+    'EnableStorage' : True,
+    'Host' : 'localhost',
+    'Port' : 3306,
+    'Database' : 'orthanctest',
+    'Username' : 'root',
+    'Password' : 'root',
+    'UnixSocket' : '/var/run/mysqld/mysqld.sock',
+}
+
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
