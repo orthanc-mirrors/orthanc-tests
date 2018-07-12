@@ -3723,21 +3723,46 @@ class Orthanc(unittest.TestCase):
 
     def test_metadata_origin(self):
         # Upload using the REST API
-        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        i = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')['ID']
         self.assertEqual('RestApi', DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i))
         self.assertEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i))
         self.assertNotEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteIP' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/CalledAET' % i))
         self.assertEqual('alice', DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i))
 
+        m = DoGet(_REMOTE, '/instances/%s/metadata?expand' % i)
+        self.assertEqual('RestApi', m['Origin'])
+        self.assertEqual('', m['RemoteAET'])
+        self.assertNotEqual('', m['RemoteIP'])
+        self.assertFalse('CalledAET' in m)
+        self.assertEqual('alice', m['HttpUsername'])
+
+        self.assertEqual('1.2.840.10008.1.2.4.91', m['TransferSyntax'])
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', m['SopClassUid'])
+        self.assertEqual('1', m['IndexInSeries'])
+        self.assertTrue('ReceptionDate' in m)
+
         DoDelete(_REMOTE, '/instances/%s' % i)
 
         # Upload using the DICOM protocol
         subprocess.check_call([ FindExecutable('storescu'),
                                 _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                GetDatabasePath('DummyCT.dcm') ])
+                                GetDatabasePath('Knee/T1/IM-0001-0001.dcm'),
+                                '-xw' ])  # Propose JPEG2000
         self.assertEqual('DicomProtocol', DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i))
         self.assertEqual('STORESCU', DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i))
         self.assertNotEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteIP' % i))
         self.assertEqual('ANY-SCP', DoGet(_REMOTE, '/instances/%s/metadata/CalledAET' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i))
+
+        m = DoGet(_REMOTE, '/instances/%s/metadata?expand' % i)
+        self.assertEqual('DicomProtocol', m['Origin'])
+        self.assertEqual('STORESCU', m['RemoteAET'])
+        self.assertNotEqual('', m['RemoteIP'])
+        self.assertEqual('ANY-SCP', m['CalledAET'])
+        self.assertFalse('HttpUsername' in m)
+
+        self.assertEqual('1.2.840.10008.1.2.4.91', m['TransferSyntax'])
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', m['SopClassUid'])
+        self.assertEqual('1', m['IndexInSeries'])
+        self.assertTrue('ReceptionDate' in m)
