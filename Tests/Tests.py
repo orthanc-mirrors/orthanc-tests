@@ -100,12 +100,18 @@ def CallFindScu(args):
     return p.communicate()[1]
 
 
+def GetMoveScuCommand():
+    return [ 
+        FindExecutable('movescu'), 
+        '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
+        '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
+        '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
+        _REMOTE['Server'], 
+        str(_REMOTE['DicomPort'])  
+        ]
+
 def CallMoveScu(args):
-    subprocess.check_call([ FindExecutable('movescu'), 
-                            '--move', _LOCAL['DicomAet'],      # Target AET (i.e. storescp)
-                            '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
-                            '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
-                            _REMOTE['Server'], str(_REMOTE['DicomPort'])  ] + args,
+    subprocess.check_call(GetMoveScuCommand() + args,
                           stderr=subprocess.PIPE)
 
 
