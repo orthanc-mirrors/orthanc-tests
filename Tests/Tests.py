@@ -3719,3 +3719,25 @@ class Orthanc(unittest.TestCase):
         
         self.assertEqual(a, b)     # Modified DICOM
         self.assertNotEqual(a, c)  # Anonymized DICOM
+
+
+    def test_metadata_origin(self):
+        # Upload using the REST API
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual('RestApi', DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i))
+        self.assertEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i))
+        self.assertNotEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteIP' % i))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/CalledAET' % i))
+        self.assertEqual('alice', DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i))
+
+        DoDelete(_REMOTE, '/instances/%s' % i)
+
+        # Upload using the DICOM protocol
+        subprocess.check_call([ FindExecutable('storescu'),
+                                _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                GetDatabasePath('DummyCT.dcm') ])
+        self.assertEqual('DicomProtocol', DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i))
+        self.assertEqual('STORESCU', DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i))
+        self.assertNotEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteIP' % i))
+        self.assertEqual('ANY-SCP', DoGet(_REMOTE, '/instances/%s/metadata/CalledAET' % i))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i))
