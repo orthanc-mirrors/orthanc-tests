@@ -3688,3 +3688,28 @@ class Orthanc(unittest.TestCase):
         content1 = DoGet(_REMOTE, '/instances/%s/tags?simplify' % sr1) ['ContentSequence']
         content2 = DoGet(_REMOTE, '/instances/%s/tags?simplify' % sr2) ['ContentSequence']
         self.assertEqual(str(content1), str(content2))
+
+
+    def test_bitbucket_issue_94(self):
+        # "a simple instance modification should not modify FrameOfReferenceUID + ..."
+        # https://bitbucket.org/sjodogne/orthanc/issues/94
+        i = UploadInstance(_REMOTE, 'Issue94.dcm')['ID']
+
+        source = DoGet(_REMOTE, '/instances/%s/attachments/dicom/data' % i)
+
+        modified = DoPost(_REMOTE, '/instances/%s/modify' % i,
+                          { "Replace" : {"PatientID" : "toto"}, "Force": True})
+
+        anonymized = DoPost(_REMOTE, '/instances/%s/anonymize' % i)
+
+        a = ExtractDicomTags(source, [ 'FrameOfReferenceUID' ])
+        self.assertEqual(1, len(a))
+        
+        b = ExtractDicomTags(modified, [ 'FrameOfReferenceUID' ])
+        self.assertEqual(1, len(b))
+        
+        c = ExtractDicomTags(anonymized, [ 'FrameOfReferenceUID' ])
+        self.assertEqual(1, len(c))
+        
+        self.assertEqual(a, b)     # Modified DICOM
+        self.assertNotEqual(a, c)  # Anonymized DICOM
