@@ -3770,3 +3770,27 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', m['SopClassUid'])
         self.assertEqual('1', m['IndexInSeries'])
         self.assertTrue('ReceptionDate' in m)
+
+
+    def test_lua_deadlock(self):
+        # Rana Asim Wajid (2018-07-14): "It does seem that the issue
+        # is with the lua script I'm using for conversion of images to
+        # JPEG2000. When the script is used with 1.4.0 the first
+        # instance appears to be stored and then everything just
+        # halts, ie Orthanc wont respond to anything after that."
+        # https://groups.google.com/d/msg/orthanc-users/Rc-Beb42xc8/JUgdzrmCAgAJ
+        InstallLuaScript('Lua/Jpeg2000Conversion.lua')
+
+        subprocess.check_call([ FindExecutable('storescu'),
+                                _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                GetDatabasePath('Brainix/Flair/IM-0001-0001.dcm'),
+                                GetDatabasePath('Brainix/Flair/IM-0001-0002.dcm'),
+                                ])
+
+        instances = DoGet(_REMOTE, '/instances')
+        self.assertEqual(2, len(instances))
+
+        t1 = DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % instances[0])
+        t2 = DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % instances[1])
+        self.assertEqual('1.2.840.10008.1.2.4.90', t1)
+        self.assertEqual(t1, t2);
