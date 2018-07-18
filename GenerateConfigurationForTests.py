@@ -150,7 +150,7 @@ config['MySQL'] = {
     'Database' : 'orthanctest',
     'Username' : 'root',
     'Password' : 'root',
-    'UnixSocket' : '/var/run/mysqld/mysqld.sock',
+    'UnixSocket' : '',
 }
 
 
