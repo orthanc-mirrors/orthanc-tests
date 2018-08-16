@@ -3794,3 +3794,12 @@ class Orthanc(unittest.TestCase):
         t2 = DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % instances[1])
         self.assertEqual('1.2.840.10008.1.2.4.90', t1)
         self.assertEqual(t1, t2);
+
+
+    def test_find_group_length(self):
+        # Orthanc <= 1.4.1 fails to answer C-FIND queries that contain
+        # one of the Generic Group Length tags (*, 0x0000)
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        result = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0008,0000=80' ])
+        self.assertFalse('UnableToProcess' in result)
+        self.assertFalse('E:' in result)
