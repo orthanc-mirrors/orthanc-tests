@@ -23,21 +23,17 @@ class TestConfig:
 
         self._dbSize = dbSize
         self._dbServer = dbServer
-        self._label = label
+        self.label = label
         self._port = None
-        self._name = "unknown"
         self._orthancProcess = None
         self._repeatCount = 10
 
         if dbServer is not None:
             self._dbType = dbServer.dbType
-            self._dbServer.setLabel(self._label)
+            self._dbServer.setLabel(self.label)
             self._port = dbServer.port
         else:
             self._dbType = dbType
-        
-    def setName(self, name: str):
-        self._name = name
         
     def setRepeatCount(self, repeatCount: int):
         self._repeatCount = repeatCount
@@ -57,7 +53,7 @@ class TestConfig:
         print("Launching Orthanc")
         self._orthancProcess = subprocess.Popen([
             os.path.join(orthancPath, "Orthanc"), 
-            os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self._name + ".json"), 
+            os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self.label + ".json"), 
         ])
        
         print("Waiting for Orthanc to start")
@@ -74,19 +70,10 @@ class TestConfig:
         dbPopulator = DbPopulator(orthanc=OrthancClient("http://127.0.0.1:8042"), dbSize=self._dbSize)
         dbPopulator.populate()
 
-    def runTests(self) -> typing.List[TestResult]:
-        allTests = [
-            TestStatistics(),
-            TestFindStudyByStudyDescription1Result(),
-            TestFindStudyByPatientId1Result(),
-            TestFindStudyByStudyDescription0Results(),
-            TestFindStudyByPatientId0Results(),
-            TestFindStudyByPatientId5Results(),
-            TestUploadFile(),
-        ]
+    def runTests(self, tests: typing.List[Test]) -> typing.List[TestResult]:
 
         results = []
-        for test in allTests:
+        for test in tests:
             test.setOrthancClient(OrthancClient("http://127.0.0.1:8042"))
             test.setRepeatCount(self._repeatCount)
             result = test.run()
@@ -100,14 +87,14 @@ class TestConfig:
             self._dbServer.clear()
         
         # clear storage (in case of Sqlite DB, it will also clear the DB)
-        shutil.rmtree(os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self._name)), ignore_errors=True)
+        shutil.rmtree(os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self.label)), ignore_errors=True)
 
     def generateOrthancConfigurationFile(self, pluginsPath: str):
         
         ConfigFileBuilder.generate(
-            outputPath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles/{name}.json".format(name=self._name)), 
+            outputPath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles/{name}.json".format(name=self.label)), 
             pluginsPath=pluginsPath,
-            storagePath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self._name)),
+            storagePath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self.label)),
             dbType=self._dbType,
             dbSize=self._dbSize,
             port=self._port

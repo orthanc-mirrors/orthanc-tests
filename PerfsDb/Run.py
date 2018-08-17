@@ -1,43 +1,58 @@
 import argparse
+import fnmatch
+
 from ConfigFileBuilder import ConfigFileBuilder
 from TestConfig import TestConfig
+from Tests import *
 from DbServer import DbServer
 from DbType import DbType
 from DbSize import DbSize
 
-testConfigs = {
-    "mysql-small" : TestConfig(label= "mysql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MySQL, port=2000)),
-    "pg9-small": TestConfig(label= "pg9-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2001)),
-    "pg10-small": TestConfig(label= "pg10-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG10, port=2002)),
-    "pg11-small": TestConfig(label= "pg11-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG11, port=2003)),
-    "mssql-small" : TestConfig(label= "mssql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MSSQL, port=2004)),
-    "sqlite-small": TestConfig(label= "sqlite-small", dbSize=DbSize.Small, dbType=DbType.Sqlite),
-    "sqliteplugin-small": TestConfig(label= "sqliteplugin-small", dbSize=DbSize.Small, dbType=DbType.SqlitePlugin),
 
-    "mysql-tiny" : TestConfig(label= "mysql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MySQL, port=3000)),
-    "pg9-tiny": TestConfig(label= "pg9-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG9, port=3001)),
-    "pg10-tiny": TestConfig(label= "pg10-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG10, port=3002)),
-    "pg11-tiny": TestConfig(label= "pg11-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG11, port=3003)),
-    "mssql-tiny" : TestConfig(label= "mssql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MSSQL, port=3004)),
-    "sqlite-tiny": TestConfig(label= "sqlite-tiny", dbSize=DbSize.Tiny, dbType=DbType.Sqlite),
-    "sqliteplugin-tiny": TestConfig(label= "sqliteplugin-tiny", dbSize=DbSize.Tiny, dbType=DbType.SqlitePlugin),
+allTestConfigs = [
+    TestConfig(label= "mysql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MySQL, port=2000)),
+    TestConfig(label= "pg9-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2001)),
+    TestConfig(label= "pg10-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG10, port=2002)),
+    TestConfig(label= "pg11-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG11, port=2003)),
+    TestConfig(label= "mssql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MSSQL, port=2004)),
+    TestConfig(label= "sqlite-small", dbSize=DbSize.Small, dbType=DbType.Sqlite),
+    TestConfig(label= "sqliteplugin-small", dbSize=DbSize.Small, dbType=DbType.SqlitePlugin),
 
-    "mysql-medium" : TestConfig(label= "mysql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MySQL, port=4000)),
-    "pg9-medium": TestConfig(label= "pg9-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG9, port=4001)),
-    "pg10-medium": TestConfig(label= "pg10-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG10, port=4002)),
-    "pg11-medium": TestConfig(label= "pg11-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG11, port=4003)),
-    "mssql-medium" : TestConfig(label= "mssql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MSSQL, port=4004)),
-    "sqlite-medium": TestConfig(label= "sqlite-medium", dbSize=DbSize.Medium, dbType=DbType.Sqlite),
-    "sqliteplugin-medium": TestConfig(label= "sqliteplugin-medium", dbSize=DbSize.Medium, dbType=DbType.SqlitePlugin),
-}
+    TestConfig(label= "mysql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MySQL, port=3000)),
+    TestConfig(label= "pg9-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG9, port=3001)),
+    TestConfig(label= "pg10-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG10, port=3002)),
+    TestConfig(label= "pg11-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG11, port=3003)),
+    TestConfig(label= "mssql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MSSQL, port=3004)),
+    TestConfig(label= "sqlite-tiny", dbSize=DbSize.Tiny, dbType=DbType.Sqlite),
+    TestConfig(label= "sqliteplugin-tiny", dbSize=DbSize.Tiny, dbType=DbType.SqlitePlugin),
+
+    TestConfig(label= "mysql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MySQL, port=4000)),
+    TestConfig(label= "pg9-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG9, port=4001)),
+    TestConfig(label= "pg10-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG10, port=4002)),
+    TestConfig(label= "pg11-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG11, port=4003)),
+    TestConfig(label= "mssql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MSSQL, port=4004)),
+    TestConfig(label= "sqlite-medium", dbSize=DbSize.Medium, dbType=DbType.Sqlite),
+    TestConfig(label= "sqliteplugin-medium", dbSize=DbSize.Medium, dbType=DbType.SqlitePlugin),
+]
+
+allTests = [
+    TestStatistics(),
+    TestFindStudyByStudyDescription1Result(),
+    TestFindStudyByPatientId1Result(),
+    TestFindStudyByStudyDescription0Results(),
+    TestFindStudyByPatientId0Results(),
+    TestFindStudyByPatientId5Results(),
+    TestUploadFile(),
+]
 
 selectedTestConfigs = []
+selectedTests = []
 
 parser = argparse.ArgumentParser(description = "Initializes/Runs/Clears PerfsDb setup.")
 
 # create a cli option for each config
-for testConfigName in testConfigs.keys():
-    parser.add_argument("--" + testConfigName, action = "store_true")
+for testConfig in allTestConfigs:
+    parser.add_argument("--" + testConfig.label, action = "store_true")
 
 parser.add_argument("--init", help = "initializes DBs", action = "store_true")
 parser.add_argument("--run", help = "runs tests", action = "store_true")
@@ -46,18 +61,26 @@ parser.add_argument("--clear", help = "clear DBs", action = "store_true")
 parser.add_argument("--orthanc-path", help = "path to the folder containing Orthanc executable", default=".")
 parser.add_argument("--plugins-path", help = "path to the folder containing Orthanc executable", default=".")
 parser.add_argument("--repeat", help = "number of times to repeat each test to average timings", type=int, default=50)
+parser.add_argument("--test-filter", help = "filter tests by names (wildcards are allowed)", default="*")
 
 args = parser.parse_args()
 
-for testConfigName in testConfigs.keys():
-    if args.__dict__[testConfigName.replace("-", "_")]:
-        selectedTestConfigs.append(testConfigName)
+for testConfig in allTestConfigs:
+    if args.__dict__[testConfig.label.replace("-", "_")]:
+        selectedTestConfigs.append(testConfig)
 
 # if no test config specified, take them all
 if len(selectedTestConfigs) == 0:
-    selectedTestConfigs = testConfigs.keys()
+    selectedTestConfigs = allTestConfigs
 
-selectedTestConfigs = sorted(selectedTestConfigs)
+selectedTestConfigs.sort(key=lambda x: x.label)
+
+# filter tests
+for test in allTests:
+    if fnmatch.fnmatch(test.name, args.test_filter):
+        selectedTests.append(test)
+
+selectedTests.sort(key=lambda x: x.name)
 
 # if no action specified, it means only run
 if not (args.init | args.run | args.clear):
@@ -70,12 +93,10 @@ print("path    :", args.orthanc_path)
 
 results = {}
 
-for configName in selectedTestConfigs:
-    testConfig = testConfigs[configName]
-    testConfig.setName(configName)
+for testConfig in selectedTestConfigs:
     testConfig.setRepeatCount(args.repeat)
     
-    print("======= " + configName + " ========")
+    print("======= " + testConfig.label + " ========")
 
     if args.clear:
         print("** Clearing Db")
@@ -99,7 +120,7 @@ for configName in selectedTestConfigs:
 
     if args.run:
         print("** Runnnig tests")
-        results[configName] = testConfig.runTests()
+        results[testConfig.label] = testConfig.runTests(selectedTests)
     
     print("** Stopping Orthanc")
     testConfig.stopOrthanc()
@@ -115,15 +136,15 @@ for configName, configResult in results.items():
         resultsByTestName[result.name][configName] = result
 
 headerLine = "{empty:<40}|".format(empty="")
-for configName in selectedTestConfigs:
-    headerLine += "{configName:^15}|".format(configName=configName)
+for testConfig in selectedTestConfigs:
+    headerLine += "{configName:^15}|".format(configName=testConfig.label)
 
 print(headerLine)
 
 for testName in sorted(testNames):
     resultLine = "{name:<40}|".format(name=testName)
-    for configName in selectedTestConfigs:
-        resultLine += "{avg:>11.2f} ms |".format(avg = resultsByTestName[testName][configName].averageTimeInMs)
+    for testConfig in selectedTestConfigs:
+        resultLine += "{avg:>11.2f} ms |".format(avg = resultsByTestName[testName][testConfig.label].averageTimeInMs)
     print(resultLine)
 
 print("** Done")

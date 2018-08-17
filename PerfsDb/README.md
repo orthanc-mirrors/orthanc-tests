@@ -69,8 +69,17 @@ Runing tests on multiple DBs
 -----------------
 
 ```bash
+on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/orthanc-build-release/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
 
+on benchmark VM:
 python Run.py --orthanc-path=/data/orthanc-binaries/ --plugins-path=/data/orthanc-binaries/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
+
+```
+
+Filtering tests
+---------------
+```bash
+python Run.py --orthanc-path=/.../ --plugins-path=/.../ --run --pg9-tiny test-filter=*ByPatient*
 
 ```
