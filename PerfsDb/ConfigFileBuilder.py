@@ -1,6 +1,7 @@
 import typing
 import json
 import os
+import platform
 
 from DbType import DbType
 
@@ -52,7 +53,12 @@ class ConfigFileBuilder:
             config["Plugins"] = [os.path.join(pluginsPath, "libOrthancMsSqlIndex.so")]
             dbConfig["EnableStorage"] = False
 
-            dbConfig["ConnectionString"] = "Driver={ODBC Driver 13 for SQL Server};Server=tcp:127.0.0.1," + str(port) + ";Database=master;Uid=sa;Pwd=MyStrOngPa55word!;Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30"
+            if platform.node() == "benchmark":   # the benchmark VM on Azure is a 18.04 -> it has version 17
+                odbcVersion = 17
+            else:
+                odbcVersion = 13
+
+            dbConfig["ConnectionString"] = "Driver={ODBC Driver " + str(odbcVersion) + " for SQL Server};Server=tcp:127.0.0.1," + str(port) + ";Database=master;Uid=sa;Pwd=MyStrOngPa55word!;Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30"
             dbConfig["LicenseString"] = "1abaamBcReVXv6EtE_X___demo-orthanc%osimis.io___HHHnqVHYvEkR3jGs2Y3EvpbxZgTt7yaCniJa2Bz7hFWTMa" # note: this is a trial license expiring on 2018-09-30, replace with your license code
 
             config["MSSQL"] = dbConfig

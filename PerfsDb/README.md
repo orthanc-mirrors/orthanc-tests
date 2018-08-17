@@ -22,6 +22,11 @@ we'll mainly use very small DICOM files (without pixels data).
 Prerequisites
 -------------
 
+- install standard tools
+```bash
+sudo apt-get install -y mercurial wget curl
+```
+
 - install python3, pip3 and pipenv
 
 ```bash
@@ -29,7 +34,6 @@ sudo apt-get install -y python3 python3-pip python3-venv
 ```
 
 - [install Docker-CE](https://docs.docker.com/install/linux/docker-ce/ubuntu/#set-up-the-repository)
-- [install docker-compose](https://docs.docker.com/compose/install/)
 - have access to docker without typing `sudo`.  This is done by typing: `sudo groupadd docker` and `sudo usermod -aG docker $USER`
 - have Orthanc and its DB plugins natively installed or compiled on your host system
 
@@ -66,4 +70,7 @@ Runing tests on multiple DBs
 
 ```bash
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/orthanc-build-release/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
+
+python Run.py --orthanc-path=/data/orthanc-binaries/ --plugins-path=/data/orthanc-binaries/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
+
 ```
