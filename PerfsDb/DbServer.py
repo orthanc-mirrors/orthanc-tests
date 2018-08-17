@@ -26,16 +26,19 @@ class DbServer:
     def setLabel(self, label: str):
         self._label = label
 
-    def launch(self):
-        dockerDefinition = self.getDockerDefinition()
-
-        # check if the container is already running
+    def isRunning(self) -> bool:
         ret = subprocess.call([
             "docker",
             "top",
             self._label
         ])            
-        if ret == 0:
+        return ret == 0
+
+    def launch(self):
+        dockerDefinition = self.getDockerDefinition()
+
+        # check if the container is already running
+        if self.isRunning():
             print("DbServer is already running")
             return
 
@@ -85,12 +88,14 @@ class DbServer:
             raise TimeoutError
 
     def stop(self):
-        subprocess.check_call([
-            "docker",
-            "stop",
-            self._label
-        ])
-        subprocess.check_call([
+        if self.isRunning():
+            subprocess.check_call([
+                "docker",
+                "stop",
+                self._label
+            ])
+
+        subprocess.call([
             "docker",
             "rm",
             self._label
@@ -99,7 +104,7 @@ class DbServer:
     def clear(self):
         # remove the volume
         self.stop()        
-        subprocess.check_call([
+        subprocess.call([
             "docker",
             "volume",
             "rm",
@@ -131,11 +136,13 @@ class DbServer:
                 },
                 storagePath="/var/opt/mssql/data"
             )
-        elif self.dbType == DbType.PG9 or self.dbType == DbType.PG10:
+        elif self.dbType == DbType.PG9 or self.dbType == DbType.PG10 or self.dbType == DbType.PG11:
             if self.dbType == DbType.PG9:
                 image = "postgres:9"
             elif self.dbType == DbType.PG10:
                 image = "postgres:10"
+            elif self.dbType == DbType.PG11:
+                image = "postgres:11"
             return DbServer.DockerDefinition(
                 image=image, 
                 internalPort=5432,

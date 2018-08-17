@@ -1,6 +1,7 @@
 import typing
 import subprocess
 import os
+import shutil
 from orthancRestApi import OrthancClient
 
 from DbSize import DbSize
@@ -45,23 +46,24 @@ class TestConfig:
         if self._dbServer is not None:
             self._dbServer.launch()
 
-    def launchOrthanc(self, orthancPath):
+    def launchOrthanc(self, orthancPath) -> bool:
         orthanc = OrthancClient("http://127.0.0.1:8042")
         
         print("Checking if Orthanc is already running")
         if orthanc.isAlive():
             print("Orthanc is already running")
-            return
+            return False
         
         print("Launching Orthanc")
         self._orthancProcess = subprocess.Popen([
             os.path.join(orthancPath, "Orthanc"), 
-            os.path.join("ConfigFiles", self._name + ".json"), 
+            os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self._name + ".json"), 
         ])
        
         print("Waiting for Orthanc to start")
         orthanc.waitStarted(timeout=30)
         print("Orthanc has started")
+        return True
 
     def stopOrthanc(self):
         if self._orthancProcess is not None:
@@ -74,12 +76,13 @@ class TestConfig:
 
     def runTests(self) -> typing.List[TestResult]:
         allTests = [
+            TestStatistics(),
             TestFindStudyByStudyDescription1Result(),
             TestFindStudyByPatientId1Result(),
             TestFindStudyByStudyDescription0Results(),
             TestFindStudyByPatientId0Results(),
             TestFindStudyByPatientId5Results(),
-            TestUploadFile()
+            TestUploadFile(),
         ]
 
         results = []
@@ -95,13 +98,16 @@ class TestConfig:
     def clearDb(self):
         if self._dbServer is not None:
             self._dbServer.clear()
+        
+        # clear storage (in case of Sqlite DB, it will also clear the DB)
+        shutil.rmtree(os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self._name)), ignore_errors=True)
 
     def generateOrthancConfigurationFile(self, pluginsPath: str):
         
         ConfigFileBuilder.generate(
-            outputPath="ConfigFiles/{name}.json".format(name=self._name), 
-            plugins=[pluginsPath],
-            storagePath="Storages/{name}".format(name=self._name),
+            outputPath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles/{name}.json".format(name=self._name)), 
+            pluginsPath=pluginsPath,
+            storagePath=os.path.join(os.path.abspath(os.path.dirname(__file__)), "Storages/{name}".format(name=self._name)),
             dbType=self._dbType,
             dbSize=self._dbSize,
             port=self._port

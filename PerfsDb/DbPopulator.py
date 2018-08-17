@@ -13,16 +13,30 @@ class DbPopulator:
     def populate(self):
         self._sourceInstanceId = self._orthanc.uploadDicomFile("../Database/DummyCT.dcm")
 
-        if self._dbSize == DbSize.Small:
-            patientCount = 3
+        if self._dbSize == DbSize.Tiny:
+            patientCount = 1
             smallStudiesPerPatient = 2
             largeStudiesPerPatient = 1
-        else:
-            patientCount = 100
+            instancesPerLargeSeries = 5
+        elif self._dbSize == DbSize.Small:
+            patientCount = 20
+            smallStudiesPerPatient = 2
+            largeStudiesPerPatient = 1
+            instancesPerLargeSeries = 300
+        elif self._dbSize == DbSize.Medium:
+            patientCount = 1000
+            smallStudiesPerPatient = 2
+            largeStudiesPerPatient = 1
+            instancesPerLargeSeries = 500
+        elif self._dbSize == DbSize.Large:
+            patientCount = 20000
             smallStudiesPerPatient = 4
             largeStudiesPerPatient = 8
+            instancesPerLargeSeries = 500
+        else:
+            raise NotImplementedError
 
-        # data that are the same in small and large DBs (and that can be used in tests for comparing the same things !!)
+        # first add data that are the same in small and large DBs (and that can be used in tests for comparing the same things !!)
 
         # used in TestFindStudyByPatientId5Results
         self.createStudy(studyIndex=99994, patientIndex=99998, seriesCount=1, instancesPerSeries=1)
@@ -35,20 +49,18 @@ class DbPopulator:
         # used in TestFindStudyByPatientId1Result
         self.createStudy(studyIndex=99999, patientIndex=99999, seriesCount=1, instancesPerSeries=1)
 
-        # data to make the DB "large" or "small"
+        # then, add data to make the DB "large" or "small"
         for patientIndex in range(0, patientCount):
             studyIndex=0
             print("Generating data for patient " + str(patientIndex))
             for i in range(0, smallStudiesPerPatient):
                 print("Generating small study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=2, instancesPerSeries=2)
+                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=2, instancesPerSeries=instancesPerLargeSeries)
                 studyIndex+=1
             for i in range(0, largeStudiesPerPatient):
                 print("Generating large study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=4, instancesPerSeries=500)
+                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=4, instancesPerSeries=instancesPerLargeSeries)
                 studyIndex+=1
-
-
 
         print("Generation completed")    
 

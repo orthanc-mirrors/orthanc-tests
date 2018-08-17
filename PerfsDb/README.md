@@ -51,19 +51,19 @@ Initializing a DB before tests
 -----------------
 
 ```bash
-python run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --init --mysql-small
+python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --init --mysql-tiny
 ```
 
 Clearing a DB
 -----------------
 
 ```bash
-python run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --clear --mysql-small
+python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --clear --mysql-tiny
 ```
 
-Runing tests on two DBs
+Runing tests on multiple DBs
 -----------------
 
 ```bash
-python run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --run --mysql-large --mysql-small 
+python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/orthanc-build-release/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
 ```

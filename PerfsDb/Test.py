@@ -17,9 +17,17 @@ class Test:
     def setRepeatCount(self, repeatCount: int):
         self.repeatCount = repeatCount
 
-    def prepare(self):
+    def beforeAll(self):
         """
-        Code to execute before the execution of a test; i.e: upload a file (not including in timings)
+        Code to execute before the execution of all repetitions of a test; i.e: upload a file.
+        This code is not included in timings
+        """
+        pass
+
+    def beforeEach(self):
+        """
+        Code to execute before the execution of each repetition of a test.
+        This code is not included in timings
         """
         pass
 
@@ -29,24 +37,35 @@ class Test:
         """
         pass
 
-    def cleanup(self):
+    def afterEach(self):
         """
-        Code to execute after the execution of a test; i.e: remove an instance (not including in timings)
+        Code to execute after the execution of each repetition of a test.
+        This code is not included in timings
+        """
+        pass
+
+    def afterAll(self):
+        """
+        Code to execute after the execution of all repetitions of a test.
+        This code is not included in timings
         """
         pass
 
     def run(self) -> TestResult:
         result = TestResult(self.name)
 
+        self.beforeAll()
+
         for i in range(0, self.repeatCount):
-            self.prepare()
+            self.beforeEach()
             startTime = time.time()
             self.test()
             endTime = time.time()
-            self.cleanup()
+            self.afterEach()
 
             result.add((endTime - startTime) * 1000)
 
+        self.afterAll()
         result.compute()
         return result
 

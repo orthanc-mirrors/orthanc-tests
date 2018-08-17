@@ -7,9 +7,28 @@ from DbSize import DbSize
 
 testConfigs = {
     "mysql-small" : TestConfig(label= "mysql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MySQL, port=2000)),
-    "mysql-large" : TestConfig(label= "mysql-large", dbSize=DbSize.Large, dbServer=DbServer(dbType=DbType.MySQL, port=2001)),
+    "pg9-small": TestConfig(label= "pg9-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2001)),
+    "pg10-small": TestConfig(label= "pg10-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG10, port=2002)),
+    "pg11-small": TestConfig(label= "pg11-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG11, port=2003)),
+    "mssql-small" : TestConfig(label= "mssql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MSSQL, port=2004)),
     "sqlite-small": TestConfig(label= "sqlite-small", dbSize=DbSize.Small, dbType=DbType.Sqlite),
-    "pg9-small": TestConfig(label= "pg9-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2002)),
+    "sqliteplugin-small": TestConfig(label= "sqliteplugin-small", dbSize=DbSize.Small, dbType=DbType.SqlitePlugin),
+
+    "mysql-tiny" : TestConfig(label= "mysql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MySQL, port=3000)),
+    "pg9-tiny": TestConfig(label= "pg9-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG9, port=3001)),
+    "pg10-tiny": TestConfig(label= "pg10-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG10, port=3002)),
+    "pg11-tiny": TestConfig(label= "pg11-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG11, port=3003)),
+    "mssql-tiny" : TestConfig(label= "mssql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MSSQL, port=3004)),
+    "sqlite-tiny": TestConfig(label= "sqlite-tiny", dbSize=DbSize.Tiny, dbType=DbType.Sqlite),
+    "sqliteplugin-tiny": TestConfig(label= "sqliteplugin-tiny", dbSize=DbSize.Tiny, dbType=DbType.SqlitePlugin),
+
+    "mysql-medium" : TestConfig(label= "mysql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MySQL, port=4000)),
+    "pg9-medium": TestConfig(label= "pg9-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG9, port=4001)),
+    "pg10-medium": TestConfig(label= "pg10-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG10, port=4002)),
+    "pg11-medium": TestConfig(label= "pg11-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.PG11, port=4003)),
+    "mssql-medium" : TestConfig(label= "mssql-medium", dbSize=DbSize.Medium, dbServer=DbServer(dbType=DbType.MSSQL, port=4004)),
+    "sqlite-medium": TestConfig(label= "sqlite-medium", dbSize=DbSize.Medium, dbType=DbType.Sqlite),
+    "sqliteplugin-medium": TestConfig(label= "sqliteplugin-medium", dbSize=DbSize.Medium, dbType=DbType.SqlitePlugin),
 }
 
 selectedTestConfigs = []
@@ -38,6 +57,8 @@ for testConfigName in testConfigs.keys():
 if len(selectedTestConfigs) == 0:
     selectedTestConfigs = testConfigs.keys()
 
+selectedTestConfigs = sorted(selectedTestConfigs)
+
 # if no action specified, it means only run
 if not (args.init | args.run | args.clear):
     args.init = False
@@ -46,13 +67,6 @@ if not (args.init | args.run | args.clear):
 
 print("***** Orthanc *******")
 print("path    :", args.orthanc_path)
-
-
-# libOrthancMySQLIndex.so
-# libOrthancMySQLStorage.so
-# libOrthancPostgreSQLIndex.so
-# libOrthancPostgreSQLStorage.so
-# libOrthancMSSQLIndex.so
 
 results = {}
 
@@ -75,7 +89,10 @@ for configName in selectedTestConfigs:
         testConfig.launchDbServer()
         
         print("** Launching Orthanc")
-        testConfig.launchOrthanc(args.orthanc_path)
+        orthancWasAlreadyRunning = not testConfig.launchOrthanc(args.orthanc_path)
+        if orthancWasAlreadyRunning and len(selectedTestConfigs) > 1:
+            print("Error: Can't execute multiple configuration on already running Orthanc.  Exit Orthanc and let this script start Orthanc instances")
+            exit(-1)
 
     if args.init:
         testConfig.initializeDb()
@@ -83,8 +100,9 @@ for configName in selectedTestConfigs:
     if args.run:
         print("** Runnnig tests")
         results[configName] = testConfig.runTests()
-        print("** Stoping Orthanc")
-        testConfig.stopOrthanc()
+    
+    print("** Stopping Orthanc")
+    testConfig.stopOrthanc()
     
 print("++++++++++++++ results summary +++++++++++++++")
 testNames = set()
