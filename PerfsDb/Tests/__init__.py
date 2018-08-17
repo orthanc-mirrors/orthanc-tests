@@ -1,3 +1,3 @@
-from .UploadFile import TestUploadFile
+from .UploadFile import *
 from .FindStudy import *
 from .Statistics import *

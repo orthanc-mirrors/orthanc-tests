@@ -58,9 +58,11 @@ class Test:
 
         for i in range(0, self.repeatCount):
             self.beforeEach()
+            
             startTime = time.time()
             self.test()
             endTime = time.time()
+            
             self.afterEach()
 
             result.add((endTime - startTime) * 1000)

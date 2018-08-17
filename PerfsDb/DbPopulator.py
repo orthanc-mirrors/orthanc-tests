@@ -1,6 +1,7 @@
 import typing
+import time
 from orthancRestApi import OrthancClient
-
+from TestResult import TestResult
 from DbSize import DbSize
 
 class DbPopulator:
@@ -9,7 +10,8 @@ class DbPopulator:
         self._orthanc = orthanc
         self._dbSize = dbSize
         self._sourceInstanceId = None
-
+        self._fileCounter = 0
+    
     def populate(self):
         self._sourceInstanceId = self._orthanc.uploadDicomFile("../Database/DummyCT.dcm")
 
@@ -17,25 +19,43 @@ class DbPopulator:
             patientCount = 1
             smallStudiesPerPatient = 2
             largeStudiesPerPatient = 1
+            seriesPerSmallStudy = 1
+            seriesPerLargeStudy = 2
+            instancesPerSmallSeries = 1
             instancesPerLargeSeries = 5
         elif self._dbSize == DbSize.Small:
-            patientCount = 20
+            patientCount = 100
             smallStudiesPerPatient = 2
             largeStudiesPerPatient = 1
-            instancesPerLargeSeries = 300
+            seriesPerSmallStudy = 1
+            seriesPerLargeStudy = 2
+            instancesPerSmallSeries = 1
+            instancesPerLargeSeries = 30
         elif self._dbSize == DbSize.Medium:
             patientCount = 1000
             smallStudiesPerPatient = 2
-            largeStudiesPerPatient = 1
-            instancesPerLargeSeries = 500
+            largeStudiesPerPatient = 2
+            seriesPerSmallStudy = 1
+            seriesPerLargeStudy = 2
+            instancesPerSmallSeries = 1
+            instancesPerLargeSeries = 300
         elif self._dbSize == DbSize.Large:
-            patientCount = 20000
-            smallStudiesPerPatient = 4
-            largeStudiesPerPatient = 8
-            instancesPerLargeSeries = 500
+            patientCount = 10000
+            smallStudiesPerPatient = 2
+            largeStudiesPerPatient = 2
+            seriesPerSmallStudy = 1
+            seriesPerLargeStudy = 2
+            instancesPerSmallSeries = 1
+            instancesPerLargeSeries = 300
         else:
             raise NotImplementedError
 
+        print("Will generate data for (approximately):")
+        print("{n:>12} patients".format(n=patientCount))
+        print("{n:>12} studies".format(n=patientCount * (smallStudiesPerPatient + largeStudiesPerPatient)))
+        print("{n:>12} instances".format(n=patientCount * (smallStudiesPerPatient * seriesPerSmallStudy * instancesPerSmallSeries + largeStudiesPerPatient * seriesPerLargeStudy * instancesPerLargeSeries)))
+
+        startTime = time.time()
         # first add data that are the same in small and large DBs (and that can be used in tests for comparing the same things !!)
 
         # used in TestFindStudyByPatientId5Results
@@ -55,14 +75,16 @@ class DbPopulator:
             print("Generating data for patient " + str(patientIndex))
             for i in range(0, smallStudiesPerPatient):
                 print("Generating small study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=2, instancesPerSeries=instancesPerLargeSeries)
+                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerSmallStudy, instancesPerSeries=instancesPerSmallSeries)
                 studyIndex+=1
             for i in range(0, largeStudiesPerPatient):
                 print("Generating large study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=4, instancesPerSeries=instancesPerLargeSeries)
+                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerLargeStudy, instancesPerSeries=instancesPerLargeSeries)
                 studyIndex+=1
 
-        print("Generation completed")    
+        endTime = time.time()
+        print("Generation completed.  Elapsed time: {duration:.2f} sec".format(duration=endTime-startTime))    
+        print("Uploaded {n} files -> {p:.2f} files/sec".format(n=self._fileCounter, p=self._fileCounter/(endTime-startTime)))
 
     def createStudy(self, studyIndex: int, patientIndex: int, seriesCount: int, instancesPerSeries: int):
         for seriesIndex in range(0, seriesCount):
@@ -71,6 +93,7 @@ class DbPopulator:
                 self._orthanc.uploadDicom(dicomFile)
 
     def createDicomFile(self, patientIndex: int, studyIndex: int, seriesIndex: int, instanceIndex: int) -> object:
+        self._fileCounter += 1
         return self._orthanc.instances.modify(
             instanceId=self._sourceInstanceId,
             replaceTags={

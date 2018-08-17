@@ -42,7 +42,7 @@ class TestConfig:
         if self._dbServer is not None:
             self._dbServer.launch()
 
-    def launchOrthanc(self, orthancPath) -> bool:
+    def launchOrthanc(self, orthancPath, verboseEnabled: bool=False, traceEnabled: bool=False) -> bool:
         orthanc = OrthancClient("http://127.0.0.1:8042")
         
         print("Checking if Orthanc is already running")
@@ -51,10 +51,16 @@ class TestConfig:
             return False
         
         print("Launching Orthanc")
-        self._orthancProcess = subprocess.Popen([
+        runOrthancCommand = [
             os.path.join(orthancPath, "Orthanc"), 
             os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self.label + ".json"), 
-        ])
+        ]
+        if traceEnabled:
+            runOrthancCommand.append("--trace")
+        elif verboseEnabled:
+            runOrthancCommand.append("--verbose")
+
+        self._orthancProcess = subprocess.Popen(runOrthancCommand)
        
         print("Waiting for Orthanc to start")
         orthanc.waitStarted(timeout=30)
