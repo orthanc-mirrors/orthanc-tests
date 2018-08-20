@@ -5,4 +5,5 @@ IntegrationTestsConfiguration.json
 PerfsDb/.env/
 PerfsDb/Storages/
 PerfsDb/ConfigFiles/
+PerfsDb/Results/
 .vscode/

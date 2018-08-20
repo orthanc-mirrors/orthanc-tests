@@ -1,5 +1,7 @@
 import typing
 import time
+import csv
+import os
 from orthancRestApi import OrthancClient
 from TestResult import TestResult
 from DbSize import DbSize
@@ -12,7 +14,7 @@ class DbPopulator:
         self._sourceInstanceId = None
         self._fileCounter = 0
     
-    def populate(self):
+    def populate(self, label: str):
         self._sourceInstanceId = self._orthanc.uploadDicomFile("../Database/DummyCT.dcm")
 
         if self._dbSize == DbSize.Tiny:
@@ -70,18 +72,38 @@ class DbPopulator:
         # used in TestToolsFindStudyByStudyInstanceUID
         self.createStudy(studyIndex=99999, patientIndex=99999, seriesCount=1, instancesPerSeries=1)
 
-        # then, add data to make the DB "large" or "small"
-        for patientIndex in range(0, patientCount):
-            studyIndex=0
-            print("Generating data for patient " + str(patientIndex))
-            for i in range(0, smallStudiesPerPatient):
-                print("Generating small study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerSmallStudy, instancesPerSeries=instancesPerSmallSeries)
-                studyIndex+=1
-            for i in range(0, largeStudiesPerPatient):
-                print("Generating large study " + str(i))
-                self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerLargeStudy, instancesPerSeries=instancesPerLargeSeries)
-                studyIndex+=1
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "Results/db-init-" + label), 'w', newline='') as resultFile:
+            resultWriter = csv.writer(resultFile)
+            resultWriter.writerow(["patientCount", "filesCount", "duration", "files/sec"])
+            # then, add data to make the DB "large" or "small"
+            for patientIndex in range(0, patientCount):
+                studyIndex=0
+                print("Generating data for patient " + str(patientIndex))
+                fileCounterAtPatientStart = self._fileCounter
+                startTimePatient = time.time()
+
+                for i in range(0, smallStudiesPerPatient):
+                    print("Generating small study " + str(i))
+                    self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerSmallStudy, instancesPerSeries=instancesPerSmallSeries)
+                    studyIndex+=1
+                for i in range(0, largeStudiesPerPatient):
+                    print("Generating large study " + str(i))
+                    self.createStudy(studyIndex=studyIndex, patientIndex=patientIndex, seriesCount=seriesPerLargeStudy, instancesPerSeries=instancesPerLargeSeries)
+                    studyIndex+=1
+
+                endTimePatient = time.time()
+                print("STATS: uploaded {n} files in {s:.2f} seconds; {x:.2f} files/sec".format(
+                    n=self._fileCounter - fileCounterAtPatientStart,
+                    s=endTimePatient - startTimePatient,
+                    x=(self._fileCounter - fileCounterAtPatientStart)/(endTimePatient - startTimePatient)
+                ))
+                resultWriter.writerow([
+                    patientIndex, 
+                    self._fileCounter - fileCounterAtPatientStart, 
+                    endTimePatient - startTimePatient, 
+                    (self._fileCounter - fileCounterAtPatientStart)/(endTimePatient - startTimePatient)
+                    ])
+                resultFile.flush()
 
         endTime = time.time()
         print("Generation completed.  Elapsed time: {duration:.2f} sec".format(duration=endTime-startTime))    

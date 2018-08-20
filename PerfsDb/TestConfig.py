@@ -74,7 +74,7 @@ class TestConfig:
 
     def initializeDb(self):
         dbPopulator = DbPopulator(orthanc=OrthancClient("http://127.0.0.1:8042"), dbSize=self._dbSize)
-        dbPopulator.populate()
+        dbPopulator.populate(self.label)
 
     def runTests(self, tests: typing.List[Test]) -> typing.List[TestResult]:
 
