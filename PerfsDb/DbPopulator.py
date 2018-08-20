@@ -67,6 +67,7 @@ class DbPopulator:
 
         # used in TestFindStudyByStudyDescription1Result
         # used in TestFindStudyByPatientId1Result
+        # used in TestToolsFindStudyByStudyInstanceUID
         self.createStudy(studyIndex=99999, patientIndex=99999, seriesCount=1, instancesPerSeries=1)
 
         # then, add data to make the DB "large" or "small"

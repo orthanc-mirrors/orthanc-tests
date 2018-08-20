@@ -52,6 +52,9 @@ allTests = [
     TestFindStudyByPatientId5Results(),
     TestUploadNextPatientFile(),
     TestUploadFirstPatientFile(),
+    TestUploadLargeFile10MB(),
+    TestToolsFindStudyByStudyInstanceUID(),
+    TestToolsFindPatientByPatientID()
 ]
 
 selectedTestConfigs = []

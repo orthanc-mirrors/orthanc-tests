@@ -8,12 +8,13 @@ class DbServer:
 
     class DockerDefinition:
 
-        def __init__(self, image: str, internalPort: int, envVars: typing.Dict[str, str], storagePath: str, command: typing.List[str]=None):
+        def __init__(self, image: str, internalPort: int, envVars: typing.Dict[str, str], storagePath: str, command: typing.List[str]=None, extraInitTime: int=0):
             self.image = image
             self.internalPort = internalPort
             self.envVars = envVars
             self.storagePath = storagePath
             self.command = command
+            self.extraInitTime = extraInitTime
 
     def __init__(self, dbType: DbType, port: int):
 
@@ -34,6 +35,15 @@ class DbServer:
         ])            
         return ret == 0
 
+    def volumeExists(self) -> bool:
+        ret = subprocess.call([
+            "docker",
+            "volume",
+            "inspect",
+            self._label
+        ])
+        return ret == 0
+
     def launch(self):
         dockerDefinition = self.getDockerDefinition()
 
@@ -42,13 +52,15 @@ class DbServer:
             print("DbServer is already running")
             return
 
-        # create a volume (if it already exists, it wont be modified)
-        subprocess.check_call([
-            "docker", 
-            "volume", 
-            "create", 
-            "--name=" + self._label
-        ])
+        volumeCreatedThisTime = False
+        if not self.volumeExists():
+            subprocess.check_call([
+                "docker", 
+                "volume", 
+                "create", 
+                "--name=" + self._label
+            ])
+            volumeCreatedThisTime = True
         
         dockerRunCommand = [
             "docker",
@@ -87,6 +99,9 @@ class DbServer:
             print("DbServer still not ready after 30 sec")
             raise TimeoutError
 
+        if dockerDefinition.extraInitTime > 0 and volumeCreatedThisTime:
+            time.sleep(dockerDefinition.extraInitTime)
+
     def stop(self):
         if self.isRunning():
             subprocess.check_call([
@@ -124,7 +139,8 @@ class DbServer:
                     "MYSQL_ROOT_PASSWORD": "foo-root"       
                 },
                 storagePath="/var/lib/mysql",
-                command=["mysqld", "--default-authentication-plugin=mysql_native_password", "--log-bin-trust-function-creators=1"]
+                command=["mysqld", "--default-authentication-plugin=mysql_native_password", "--log-bin-trust-function-creators=1"],
+                extraInitTime=30
             )
         elif self.dbType == DbType.MSSQL:
             return DbServer.DockerDefinition(
@@ -134,7 +150,8 @@ class DbServer:
                     "ACCEPT_EULA": "Y",
                     "SA_PASSWORD": "MyStrOngPa55word!"
                 },
-                storagePath="/var/opt/mssql/data"
+                storagePath="/var/opt/mssql/data",
+                extraInitTime=10
             )
         elif self.dbType == DbType.PG9 or self.dbType == DbType.PG10 or self.dbType == DbType.PG11:
             if self.dbType == DbType.PG9:
