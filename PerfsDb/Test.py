@@ -9,7 +9,7 @@ class Test:
     def __init__(self, name: str):
         self.name = name
         self._orthanc = None
-        self.repeatCount = 10
+        self.repeatCount = 20
         
     def setOrthancClient(self, orthanc: OrthancClient):
         self._orthanc = orthanc

@@ -26,7 +26,7 @@ class TestConfig:
         self.label = label
         self._port = None
         self._orthancProcess = None
-        self._repeatCount = 10
+        self._repeatCount = 20
 
         if dbServer is not None:
             self._dbType = dbServer.dbType

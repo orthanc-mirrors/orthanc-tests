@@ -1,5 +1,8 @@
 import argparse
 import fnmatch
+import csv
+import datetime
+import os
 
 from ConfigFileBuilder import ConfigFileBuilder
 from TestConfig import TestConfig
@@ -149,16 +152,30 @@ for configName, configResult in results.items():
             resultsByTestName[result.name] = {}
         resultsByTestName[result.name][configName] = result
 
-headerLine = "{empty:<40}|".format(empty="")
-for testConfig in selectedTestConfigs:
-    headerLine += "{configName:^15}|".format(configName=testConfig.label)
+resultFileName = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Results/run-" + datetime.datetime.now().strftime("%Y.%m.%d.%H.%M.%S"))
 
-print(headerLine)
+with open(resultFileName, 'w', newline='') as resultFile:
+    resultWriter = csv.writer(resultFile)
+    resultHeaderRow = [""]
 
-for testName in sorted(testNames):
-    resultLine = "{name:<40}|".format(name=testName)
+    headerLine = "{empty:<40}|".format(empty="")
+
     for testConfig in selectedTestConfigs:
-        resultLine += "{avg:>11.2f} ms |".format(avg = resultsByTestName[testName][testConfig.label].averageTimeInMs)
-    print(resultLine)
+        headerLine += "{configName:^15}|".format(configName=testConfig.label)
+        resultHeaderRow.append(configName)
 
-print("** Done")
+    print(headerLine)
+    resultWriter.writerow(resultHeaderRow)
+
+    for testName in sorted(testNames):
+        resultLine = "{name:<40}|".format(name=testName)
+        resultRow=[testName]
+        
+        for testConfig in selectedTestConfigs:
+            resultLine += "{avg:>11.2f} ms |".format(avg = resultsByTestName[testName][testConfig.label].averageTimeInMs)
+            resultRow.append(resultsByTestName[testName][testConfig.label].averageTimeInMs)
+        
+        print(resultLine)
+        resultWriter.writerow(resultRow)
+
+print("** Done; results saved in " + resultFileName)

@@ -23,6 +23,7 @@ Prerequisites
 -------------
 
 - install standard tools
+
 ```bash
 sudo apt-get install -y mercurial wget curl
 ```
@@ -77,9 +78,19 @@ python Run.py --orthanc-path=/data/orthanc-binaries/ --plugins-path=/data/orthan
 
 ```
 
-Filtering tests
----------------
-```bash
-python Run.py --orthanc-path=/.../ --plugins-path=/.../ --run --pg9-tiny test-filter=*ByPatient*
+Command line options
+--------------------
 
+```bash
+--clear                          to clear the DB
+--init                           to initialize the DB
+--run                            to run the tests
+
+--config                         to include the config in the test run/init/clear
+
+--orthanc-path                   path to the folder where the Orthanc execuble lies
+--plugins-path                   path to the folder where the Orthanc plugins lie
+
+--test-filter=*ByPatient*        to filter the tests to execute
+--repeat=20                      to repeate each test N times (default is 20)
 ```
