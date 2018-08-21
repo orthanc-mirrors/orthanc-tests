@@ -53,6 +53,7 @@ allTests = [
     TestFindStudyByStudyDescription0Results(),
     TestFindStudyByPatientId0Results(),
     TestFindStudyByPatientId5Results(),
+    TestFindStudyByPatientId100Results(),
     TestUploadNextPatientFile(),
     TestUploadFirstPatientFile(),
     TestUploadLargeFile10MB(),

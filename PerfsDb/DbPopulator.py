@@ -60,6 +60,10 @@ class DbPopulator:
         startTime = time.time()
         # first add data that are the same in small and large DBs (and that can be used in tests for comparing the same things !!)
 
+        # used in TestFindStudyByPatientId100Results
+        for i in range(100):
+            self.createStudy(studyIndex=199000+i, patientIndex=99997, seriesCount=1, instancesPerSeries=1)
+
         # used in TestFindStudyByPatientId5Results
         self.createStudy(studyIndex=99994, patientIndex=99998, seriesCount=1, instancesPerSeries=1)
         self.createStudy(studyIndex=99995, patientIndex=99998, seriesCount=1, instancesPerSeries=1)
@@ -72,9 +76,9 @@ class DbPopulator:
         # used in TestToolsFindStudyByStudyInstanceUID
         self.createStudy(studyIndex=99999, patientIndex=99999, seriesCount=1, instancesPerSeries=1)
 
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "Results/db-init-" + label), 'w', newline='') as resultFile:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "Results/db-init-" + label + ".csv"), 'w', newline='') as resultFile:
             resultWriter = csv.writer(resultFile)
-            resultWriter.writerow(["patientCount", "filesCount", "duration", "files/sec"])
+            resultWriter.writerow(["#patientCount", "filesCount", "files/sec"])
             # then, add data to make the DB "large" or "small"
             for patientIndex in range(0, patientCount):
                 studyIndex=0
@@ -99,8 +103,7 @@ class DbPopulator:
                 ))
                 resultWriter.writerow([
                     patientIndex, 
-                    self._fileCounter - fileCounterAtPatientStart, 
-                    endTimePatient - startTimePatient, 
+                    self._fileCounter, 
                     (self._fileCounter - fileCounterAtPatientStart)/(endTimePatient - startTimePatient)
                     ])
                 resultFile.flush()

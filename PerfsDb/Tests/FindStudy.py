@@ -49,3 +49,13 @@ class TestFindStudyByPatientId5Results(Test):
         self._orthanc.studies.query(
             query = {"PatientID": "99998"}
         )        
+
+class TestFindStudyByPatientId100Results(Test):
+
+    def __init__(self, name:str = "FindStudyByPatientId100Results"):
+        super().__init__(name)
+
+    def test(self):
+        self._orthanc.studies.query(
+            query = {"PatientID": "99997"}
+        )        
