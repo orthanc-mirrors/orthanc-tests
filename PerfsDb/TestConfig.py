@@ -2,6 +2,8 @@ import typing
 import subprocess
 import os
 import shutil
+import time
+from osimis_timer import TimeOut
 from orthancRestApi import OrthancClient
 
 from DbSize import DbSize
@@ -27,6 +29,7 @@ class TestConfig:
         self._port = None
         self._orthancProcess = None
         self._repeatCount = 20
+        self._results = []
 
         if dbServer is not None:
             self._dbType = dbServer.dbType
@@ -60,10 +63,20 @@ class TestConfig:
         elif verboseEnabled:
             runOrthancCommand.append("--verbose")
 
+        startupTimeResult = TestResult("Startup time")
+        startTime = time.time()
+
         self._orthancProcess = subprocess.Popen(runOrthancCommand)
        
         print("Waiting for Orthanc to start")
-        orthanc.waitStarted(timeout=30)
+        if not TimeOut.waitUntilCondition(lambda: orthanc.isAlive(), 3000, evaluateInterval = 0.1):
+            print("Orthanc failed to start")
+            exit(-2)
+        endTime = time.time()
+            
+        startupTimeResult.add((endTime - startTime) * 1000)
+        startupTimeResult.compute()
+        self._results.append(startupTimeResult)
         print("Orthanc has started")
         return True
 
@@ -78,15 +91,14 @@ class TestConfig:
 
     def runTests(self, tests: typing.List[Test]) -> typing.List[TestResult]:
 
-        results = []
         for test in tests:
             test.setOrthancClient(OrthancClient("http://127.0.0.1:8042"))
             test.setRepeatCount(self._repeatCount)
             result = test.run()
             print(str(result))
 
-            results.append(result)
-        return results
+            self._results.append(result)
+        return self._results
 
     def clearDb(self):
         if self._dbServer is not None:
