@@ -69,7 +69,7 @@ class TestConfig:
         self._orthancProcess = subprocess.Popen(runOrthancCommand)
        
         print("Waiting for Orthanc to start")
-        if not TimeOut.waitUntilCondition(lambda: orthanc.isAlive(), 3000, evaluateInterval = 0.1):
+        if not TimeOut.waitUntilCondition(lambda: orthanc.isAlive(), 5000, evaluateInterval = 0.1):
             print("Orthanc failed to start")
             exit(-2)
         endTime = time.time()
