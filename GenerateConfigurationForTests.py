@@ -111,6 +111,7 @@ config['LogExportedResources'] = True
 config['OrthancPeers'] = { 'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ] }
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
+config['OverwriteInstances'] = True
 
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],

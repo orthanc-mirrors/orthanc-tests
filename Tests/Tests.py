@@ -156,23 +156,70 @@ class Orthanc(unittest.TestCase):
 
 
     def test_system(self):
+        self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 8, 6))
+        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 8, 7))
+        self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 7, 6))
+        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
+        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
         self.assertTrue('Version' in DoGet(_REMOTE, '/system'))
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
 
     def test_upload(self):
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+        sizeDummyCT = 2472
+        sizeOverwrite = 2476
+        instance = '66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d'
+
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
         self.assertEqual('Success', u['Status'])
+
+        j = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+        s = sizeDummyCT + j
+        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
-        self.assertEqual('AlreadyStored', u['Status'])
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+        i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % instance)
+        self.assertEqual('20070101', i['StudyDate'])
+        self.assertEqual('KNIX', i['PatientName'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 4, 2):
+            # Overwriting
+            self.assertEqual('Success', u['Status'])
+        else:
+            self.assertEqual('AlreadyStored', u['Status'])
+
+        u = UploadInstance(_REMOTE, 'DummyCT-overwrite.dcm')
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
 
-        i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % u['ID'])
-        self.assertEqual('20070101', i['StudyDate'])
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 4, 2):
+            # Overwriting
+            self.assertEqual('Success', u['Status'])
+            j2 = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+            s2 = sizeOverwrite + j2
+            self.assertNotEqual(s, s2)
+            self.assertNotEqual(j, j2)
+            self.assertEqual('%d' % s2, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+            self.assertEqual('%d' % s2, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+            i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % instance)
+            self.assertEqual('ANOTHER', i['PatientName'])
+        else:
+            self.assertEqual('AlreadyStored', u['Status'])
+            self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+            self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
 
     def test_upload_2(self):
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
