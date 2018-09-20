@@ -56,16 +56,6 @@ def ExtractDicomTags(rawDicom, tags):
     return result
 
 
-def InstallLuaScript(path):
-    with open(GetDatabasePath(path), 'r') as f:
-        DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
-    
-
-def UninstallLuaCallbacks():
-    DoPost(_REMOTE, '/tools/execute-script', 'function OnStoredInstance() end', 'application/lua')
-    InstallLuaScript('Lua/TransferSyntaxEnable.lua')
-
-
 def CompareLists(a, b):
     if len(a) != len(b):
         return False
@@ -147,7 +137,7 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
-        UninstallLuaCallbacks()
+        UninstallLuaCallbacks(_REMOTE)
         #print "In test", self._testMethodName
         
     def AssertSameImages(self, truth, url):
@@ -1913,30 +1903,30 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(_REMOTE)
         DropOrthanc(_LOCAL)
-        InstallLuaScript('Lua/Autorouting.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/Autorouting.lua')
         UploadInstance(_REMOTE, knee1)
         UploadInstance(_REMOTE, knee2)
         UploadInstance(_REMOTE, other)
         WaitEmpty(_REMOTE)
-        UninstallLuaCallbacks()
+        UninstallLuaCallbacks(_REMOTE)
         self.assertEqual(3, len(DoGet(_LOCAL, '/instances')))
 
         DropOrthanc(_REMOTE)
         DropOrthanc(_LOCAL)
-        InstallLuaScript('Lua/AutoroutingConditional.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/AutoroutingConditional.lua')
         UploadInstance(_REMOTE, knee1)
         UploadInstance(_REMOTE, knee2)
         UploadInstance(_REMOTE, other)
         WaitEmpty(_REMOTE)
-        UninstallLuaCallbacks()
+        UninstallLuaCallbacks(_REMOTE)
         self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
         
         DropOrthanc(_REMOTE)
         DropOrthanc(_LOCAL)
-        InstallLuaScript('Lua/AutoroutingModification.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/AutoroutingModification.lua')
         UploadInstance(_REMOTE, knee1)
         WaitEmpty(_REMOTE)
-        UninstallLuaCallbacks()
+        UninstallLuaCallbacks(_REMOTE)
         i = DoGet(_LOCAL, '/instances')
         self.assertEqual(1, len(i))
         
@@ -2048,11 +2038,11 @@ class Orthanc(unittest.TestCase):
                                       stderr = FNULL)
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        InstallLuaScript('Lua/TransferSyntaxDisable.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxDisable.lua')
         self.assertRaises(Exception, lambda: storescu('Knix/Loc/IM-0001-0001.dcm', False))
         self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        InstallLuaScript('Lua/TransferSyntaxEnable.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxEnable.lua')
         DoPost(_REMOTE, '/tools/execute-script', "print('All special transfer syntaxes are now accepted')")
         storescu('Knix/Loc/IM-0001-0001.dcm', False)
         storescu('UnknownSopClassUid.dcm', True)
@@ -2264,7 +2254,7 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_REMOTE)        
         DropOrthanc(_LOCAL)        
 
-        InstallLuaScript('Lua/AutoroutingChangeAet.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/AutoroutingChangeAet.lua')
         DoPost(_REMOTE, '/tools/execute-script', 'aet = "HELLO"', 'application/lua')
 
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
@@ -3826,7 +3816,7 @@ class Orthanc(unittest.TestCase):
         # instance appears to be stored and then everything just
         # halts, ie Orthanc wont respond to anything after that."
         # https://groups.google.com/d/msg/orthanc-users/Rc-Beb42xc8/JUgdzrmCAgAJ
-        InstallLuaScript('Lua/Jpeg2000Conversion.lua')
+        InstallLuaScriptFromPath(_REMOTE, 'Lua/Jpeg2000Conversion.lua')
 
         subprocess.check_call([ FindExecutable('storescu'),
                                 _REMOTE['Server'], str(_REMOTE['DicomPort']),

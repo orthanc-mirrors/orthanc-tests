@@ -14,6 +14,14 @@ various platforms supported by Orthanc.
 General information about Orthanc can be found on its official
 Website: http://www.orthanc-server.com/
 
+Prerequisites:
+=============
+
+You need Python2.7 installed with the following package
+# pip2 install httplib2 Pillow
+
+You also need DCMTK and Dicom3Tools
+# sudo apt-get install -y dicom3tools DCMTK
 
 Quick-start: Running tests on the localhost 
 ===========================================
@@ -25,6 +33,18 @@ run the instructions that follow:
 1. In the first command shell:
 
 # python ./GenerateConfigurationForTests.py --force
+# Orthanc IntegrationTestsConfiguration.json
+
+2. In the second command shell:
+
+# python ./Tests/Run.py
+
+To test the worklist plugin
+---------------------------
+
+1. In the first command shell:
+
+# python ./GenerateConfigurationForTests.py --force --plugins /home/.../libModalityWorklists.so
 # Orthanc IntegrationTestsConfiguration.json
 
 2. In the second command shell:

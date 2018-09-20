@@ -185,6 +185,7 @@ class Orthanc(unittest.TestCase):
             warnings.simplefilter("ignore", ResourceWarning)
 
         ClearDatabase()
+        DoPost(ORTHANC, '/tools/execute-script', 'function IncomingWorklistRequestFilter(query, origin) return query end', 'application/lua')
 
 
     def test_single(self):
@@ -241,6 +242,30 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(1, len(RunQuery('Sequences/Queries/7814.without.station.aet.dump', [])))
 
+    def test_filter_issuer_aet_from_lua(self):
+        AddToDatabase('Sequences/STATION_AET/orig.7814.dump')  # targeted at STATION_AET
+        AddToDatabase('Sequences/STATION_AET/orig.7814.other.station.dump') # targeted at ORTHANC_TEST
+
+        self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.station.aet.dump', []))) # query is not targeting any station -> match all
+        InstallLuaScript(ORTHANC, "\
+            function IncomingWorklistRequestFilter(query, origin)\
+                query['0040,0100'][1]['0040,0001'] = origin['RemoteAet']\
+                return query\
+            end");
+
+        self.assertEqual(1, len(RunQuery('Sequences/Queries/7814.without.station.aet.dump', []))) # now, query is targeting ORTHANCTEST -> match one
+
+
+    def test_remove_aet_from_query(self):
+        AddToDatabase('Sequences/NO_STATION_AET/orig.7814.other.station.dump')  # targeted at ORTHANCTEST
+
+        self.assertEqual(0, len(RunQuery('Sequences/Queries/orig.7814.dump', []))) # query is targeting STATION_AET -> will not match
+        InstallLuaScript(ORTHANC, "\
+            function IncomingWorklistRequestFilter(query, origin)\
+                query['0040,0100'][1]['0040,0001'] = nil\
+                return query\
+            end");
+        self.assertEqual(1, len(RunQuery('Sequences/Queries/orig.7814.dump', []))) # query is targeting STATION_AET but, since we have removed this field, we should get 2 queries
 
     def test_encodings(self):
         # Check out ../../Database/Worklists/Encodings/database.dump

@@ -180,6 +180,18 @@ def DropOrthanc(orthanc):
     for s in DoGet(orthanc, '/patients'):
         DoDelete(orthanc, '/patients/%s' % s)
 
+def InstallLuaScriptFromPath(orthanc, path):
+    with open(GetDatabasePath(path), 'r') as f:
+        InstallLuaScript(orthanc, f.read())
+    
+def InstallLuaScript(orthanc, script):
+    DoPost(orthanc, '/tools/execute-script', script, 'application/lua')
+
+def UninstallLuaCallbacks(orthanc):
+    DoPost(orthanc, '/tools/execute-script', 'function OnStoredInstance() end', 'application/lua')
+    InstallLuaScriptFromPath(orthanc, 'Lua/TransferSyntaxEnable.lua')
+
+
 def ComputeMD5(data):
     m = hashlib.md5()
     m.update(data)
