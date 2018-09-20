@@ -2878,7 +2878,7 @@ class Orthanc(unittest.TestCase):
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'SOPClassesInStudy' ])
         s = re.findall('\(0008,0062\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
-        t = map(lambda x: x.strip(), s[0].split('\\'))
+        t = map(lambda x: x.strip('\x00'), s[0].split('\\'))
         self.assertTrue('1.2.840.10008.5.1.4.1.1.2' in t)
         self.assertTrue('1.2.840.10008.5.1.4.1.1.128' in t)
 

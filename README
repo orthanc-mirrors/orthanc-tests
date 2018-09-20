@@ -39,6 +39,10 @@ run the instructions that follow:
 
 # python ./Tests/Run.py
 
+to run a single test:
+
+# python Tests/Run.py Orthanc.test_findscu_counters
+
 To test the worklist plugin
 ---------------------------
 
