@@ -146,14 +146,20 @@ class Orthanc(unittest.TestCase):
 
 
     def test_system(self):
+        self.assertTrue('Version' in DoGet(_REMOTE, '/system'))
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+        systemInfo = DoGet(_REMOTE, '/system')
+        if systemInfo["Version"] == "mainline":
+            print "Skipping version checks since you're currently in mainline"
+            return
+
         self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 8, 6))
         self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 8, 7))
         self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 7, 6))
         self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
         self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
-        self.assertTrue('Version' in DoGet(_REMOTE, '/system'))
-        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
 
     def test_upload(self):
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
