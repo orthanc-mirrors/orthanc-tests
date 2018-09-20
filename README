@@ -21,7 +21,7 @@ You need Python2.7 installed with the following package
 # pip2 install httplib2 Pillow
 
 You also need DCMTK and Dicom3Tools
-# sudo apt-get install -y dicom3tools DCMTK
+# sudo apt-get install -y dicom3tools dcmtk libgdcm-tools 
 
 Quick-start: Running tests on the localhost 
 ===========================================

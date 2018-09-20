@@ -3829,7 +3829,7 @@ class Orthanc(unittest.TestCase):
 
         t1 = DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % instances[0])
         t2 = DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % instances[1])
-        self.assertEqual('1.2.840.10008.1.2.4.90', t1)
+        self.assertEqual('1.2.840.10008.1.2.4.90', t1)   # this will fail if libgdcm-tools is not installed
         self.assertEqual(t1, t2);
 
 
