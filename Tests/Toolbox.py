@@ -247,6 +247,21 @@ def MonitorJob(orthanc, func):  # "func" is a lambda
     else:
         return WaitJobDone(orthanc, diff[0])
 
+def MonitorJob2(orthanc, func):  # "func" is a lambda
+    a = set(DoGet(orthanc, '/jobs'))
+    func()
+    b = set(DoGet(orthanc, '/jobs'))
+        
+    diff = list(b - a)
+    if len(diff) != 1:
+        print('No job was created!')
+        return None
+    elif WaitJobDone(orthanc, diff[0]):
+        return diff[0]
+    else:
+        print('Error while executing the job')
+        return None
+
 def GetDockerHostAddress():
     route = subprocess.check_output([ '/sbin/ip', 'route' ])
     m = re.search(r'default via ([0-9.]+)', route)

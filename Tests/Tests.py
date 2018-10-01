@@ -3846,3 +3846,101 @@ class Orthanc(unittest.TestCase):
         result = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0008,0000=80' ])
         self.assertFalse('UnableToProcess' in result)
         self.assertFalse('E:' in result)
+
+
+    def test_split(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        study = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+        t1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+        t2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+
+        info = DoGet(_REMOTE, '/studies/%s' % study)
+        self.assertTrue('ReferringPhysicianName' in info['MainDicomTags'])
+            
+        job = MonitorJob2(_REMOTE, lambda: DoPost
+                          (_REMOTE, '/studies/%s/split' % study, {
+                              'Series' : [ t2 ],
+                              'Replace' : { 'PatientName' : 'Hello' },
+                              'Remove' : [ 'ReferringPhysicianName' ],
+                              'KeepSource' : False
+                          }))
+
+        self.assertNotEqual(None, job)
+
+        studies = set(DoGet(_REMOTE, '/studies'))
+        self.assertEqual(2, len(studies))
+
+        series = set(DoGet(_REMOTE, '/series'))
+        self.assertEqual(2, len(series))
+        self.assertTrue(t1 in series)
+
+        study2 = DoGet(_REMOTE, '/jobs/%s' % job)['Content']['TargetStudy']
+        self.assertTrue(study in studies)
+        self.assertTrue(study2 in studies)
+
+        info = DoGet(_REMOTE, '/studies/%s' % study2)
+        self.assertTrue('Hello', info['PatientMainDicomTags']['PatientName'])
+        self.assertFalse('ReferringPhysicianName' in info['MainDicomTags'])
+
+        
+    def test_merge(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        knee = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+        t1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+        brainix = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
+        flair = '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+
+        job = MonitorJob2(_REMOTE, lambda: DoPost
+                          (_REMOTE, '/studies/%s/merge' % knee, {
+                              'Resources' : [ brainix ],
+                              'KeepSource' : True
+                          }))
+
+        self.assertNotEqual(None, job)
+
+        studies = set(DoGet(_REMOTE, '/studies'))
+        self.assertEqual(2, len(studies))
+        self.assertTrue(knee in studies)
+        self.assertTrue(brainix in studies)
+
+        series = set(DoGet(_REMOTE, '/studies/%s' % knee)['Series'])
+        self.assertTrue(t1 in series)
+        series.remove(t1)
+        self.assertEqual(1, len(series))
+
+        instances = DoGet(_REMOTE, '/series/%s' % list(series)[0])['Instances']
+        self.assertEqual(1, len(instances))
+        merged = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instances[0])
+
+        instances = DoGet(_REMOTE, '/series/%s' % t1)['Instances']
+        self.assertEqual(1, len(instances))
+        a = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instances[0])
+
+        instances = DoGet(_REMOTE, '/series/%s' % flair)['Instances']
+        self.assertEqual(1, len(instances))
+        b = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instances[0])
+
+        tags = DoGet(_REMOTE, '/studies/%s' % knee)
+        
+        for key in tags['PatientMainDicomTags']:
+            self.assertEqual(a[key], merged[key])
+            if (key in b and key != 'PatientSex'):
+                self.assertNotEqual(a[key], b[key])
+        
+        for key in tags['MainDicomTags']:
+            # Not in the patient/study module
+            if (not key in [ 'InstitutionName',
+                             'RequestingPhysician',
+                             'RequestedProcedureDescription', ]):
+                self.assertEqual(a[key], merged[key])
+                if (key in b):
+                    self.assertNotEqual(a[key], b[key])
+ 
