@@ -3866,7 +3866,8 @@ class Orthanc(unittest.TestCase):
                               'Series' : [ t2 ],
                               'Replace' : { 'PatientName' : 'Hello' },
                               'Remove' : [ 'ReferringPhysicianName' ],
-                              'KeepSource' : False
+                              'KeepSource' : False,
+                              'Asynchronous' : True
                           }))
 
         self.assertNotEqual(None, job)
@@ -3901,7 +3902,8 @@ class Orthanc(unittest.TestCase):
         job = MonitorJob2(_REMOTE, lambda: DoPost
                           (_REMOTE, '/studies/%s/merge' % knee, {
                               'Resources' : [ brainix ],
-                              'KeepSource' : True
+                              'KeepSource' : True,
+                              'Synchronous' : False
                           }))
 
         self.assertNotEqual(None, job)

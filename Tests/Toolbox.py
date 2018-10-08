@@ -249,12 +249,16 @@ def MonitorJob(orthanc, func):  # "func" is a lambda
 
 def MonitorJob2(orthanc, func):  # "func" is a lambda
     a = set(DoGet(orthanc, '/jobs'))
-    func()
+    job = func()
     b = set(DoGet(orthanc, '/jobs'))
         
     diff = list(b - a)
     if len(diff) != 1:
         print('No job was created!')
+        return None
+    elif (not 'ID' in job or
+          diff[0] != job['ID']):
+        print('Mismatch in the job ID')
         return None
     elif WaitJobDone(orthanc, diff[0]):
         return diff[0]
