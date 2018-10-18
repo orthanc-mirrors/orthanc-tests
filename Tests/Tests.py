@@ -170,7 +170,14 @@ class Orthanc(unittest.TestCase):
         instance = '66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d'
 
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        self.assertEqual(instance, u['ID'])
         self.assertEqual('Success', u['Status'])
+
+        if True:
+            # New test for Orthanc 1.4.3
+            self.assertEqual('f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', u['ParentSeries'])
+            self.assertEqual('b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', u['ParentStudy'])
+            self.assertEqual('6816cb19-844d5aee-85245eba-28e841e6-2414fae2', u['ParentPatient'])
 
         j = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
         s = sizeDummyCT + j
