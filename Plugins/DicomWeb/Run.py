@@ -329,6 +329,27 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(knee in b)
 
 
+    def test_bitbucket_issue_111(self):
+        # According to the standard, section F.2.5
+        # (http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_F.2.5.html),
+        # null values behave as follows: If an attribute is present in
+        # DICOM but empty (i.e., Value Length is 0), it shall be
+        # preserved in the DICOM JSON attribute object containing no
+        # "Value", "BulkDataURI" or "InlineBinary".
+        # https://bitbucket.org/sjodogne/orthanc/issues/111/qido-rs-wrong-serialization-of-empty
+
+        UploadInstance(ORTHANC, 'ColorTestMalaterre.dcm')
+
+        a = DoGet(ORTHANC, '/dicom-web/studies',
+                  headers = { 'accept' : 'application/json' })
+
+        pprint.pprint(a)
+        
+        self.assertEqual(1, len(a))
+        self.assertTrue('00080050' in a[0])  # AccessionNumber is null
+        self.assertEqual(1, len(a[0]['00080050']))  # 'vr' is the only field to be present
+        self.assertEqual('SH', a[0]['00080050']['vr'])
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
