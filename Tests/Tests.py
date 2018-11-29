@@ -1690,6 +1690,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
 
+        # New in Orthanc 1.4.3
+        s = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
+        self.assertEqual(2, len(s))
+        for i in range(2):
+            self.assertEqual('SERIES', s[i]['QueryRetrieveLevel'])
+            self.assertEqual('887', s[i]['PatientID'])
+            self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s[i]['StudyInstanceUID'])
+        
         DoDelete(_REMOTE, '/queries/%s' % a)
         self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
 
