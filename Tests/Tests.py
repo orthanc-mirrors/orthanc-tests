@@ -3964,3 +3964,55 @@ class Orthanc(unittest.TestCase):
                 if (key in b):
                     self.assertNotEqual(a[key], b[key])
  
+
+    def test_async_archive(self):
+        # Testing the asynchronous generation of archives/medias (new
+        # in Orthanc 1.4.3)
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+        kneeT1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+        kneeT2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+
+        job = MonitorJob2(_REMOTE, lambda: DoPost
+                          (_REMOTE, '/studies/%s/archive' % kneeT1, {
+                              'Synchronous' : False
+                          }))
+
+        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        self.assertEqual(1, len(z.namelist()))
+        self.assertFalse('DICOMDIR' in z.namelist())
+
+        job2 = MonitorJob2(_REMOTE, lambda: DoPost
+                           (_REMOTE, '/studies/%s/media' % kneeT1, {
+                               'Synchronous' : False
+                           }))
+
+        # The archive from the first job has been replaced by the
+        # archive from second job (as MediaArchiveSize == 1)
+        self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
+
+        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job2)
+        self.assertEqual(2, len(z.namelist()))
+        self.assertTrue('DICOMDIR' in z.namelist())
+
+        job = MonitorJob2(_REMOTE, lambda: DoPost
+                          (_REMOTE, '/tools/create-archive', {
+                              'Synchronous' : False,
+                              'Resources' : [ kneeT1, kneeT2 ],
+                          }))
+
+        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        self.assertEqual(2, len(z.namelist()))
+        self.assertFalse('DICOMDIR' in z.namelist())
+        
+        job = MonitorJob2(_REMOTE, lambda: DoPost
+                          (_REMOTE, '/tools/create-media', {
+                              'Synchronous' : False,
+                              'Resources' : [ kneeT1, kneeT2 ],
+                          }))
+
+        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        self.assertEqual(3, len(z.namelist()))
+        self.assertTrue('DICOMDIR' in z.namelist())
+        
