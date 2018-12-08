@@ -104,7 +104,10 @@ config['AllowFindSopClassesInStudy'] = False
 config['AuthenticationEnabled'] = True
 config['DicomAet'] = 'ORTHANC'
 config['DicomAssociationCloseDelay'] = 0
-config['DicomModalities'] = { 'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ] }
+config['DicomModalities'] = {
+     'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ],
+     'self' : [ 'ORTHANC', '127.0.0.1', 4242 ]
+}
 config['DicomPort'] = args.dicom
 config['HttpCompressionEnabled'] = False
 config['LogExportedResources'] = True

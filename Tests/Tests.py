@@ -4015,4 +4015,102 @@ class Orthanc(unittest.TestCase):
         z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
         self.assertEqual(3, len(z.namelist()))
         self.assertTrue('DICOMDIR' in z.namelist())
+
         
+    def test_queries_hierarchy(self):
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+
+        tags = {
+            'NumberOfPatientRelatedInstances' : '',
+            'NumberOfPatientRelatedSeries' : '',
+            'NumberOfPatientRelatedStudies' : '',
+            'NumberOfStudyRelatedInstances' : '',
+            'NumberOfStudyRelatedSeries' : '',
+            'NumberOfSeriesRelatedInstances' : '',
+        }
+
+        patient = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Patient',
+            'Query' : tags
+        }) ['ID']
+
+        study = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Study',
+            'Query' : tags
+        }) ['ID']
+
+        series = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Series',
+            'Query' : tags
+        }) ['ID']
+
+        instance = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Instance',
+            'Query' : tags
+        }) ['ID']
+
+        p = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % patient)
+        self.assertEqual(1, len(p))
+        self.assertEqual('887', p[0]['PatientID'])
+        self.assertEqual('1', p[0]['NumberOfPatientRelatedInstances'])
+        self.assertEqual('1', p[0]['NumberOfPatientRelatedSeries'])
+        self.assertEqual('1', p[0]['NumberOfPatientRelatedStudies'])
+        self.assertFalse('NumberOfStudyRelatedInstances' in p[0])
+        self.assertFalse('NumberOfStudyRelatedSeries' in p[0])
+        self.assertFalse('NumberOfSeriesRelatedInstances' in p[0])
+        
+        p = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % study)
+        self.assertEqual(1, len(p))
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', p[0]['StudyInstanceUID'])
+        self.assertEqual('1', p[0]['NumberOfStudyRelatedInstances'])
+        self.assertEqual('1', p[0]['NumberOfStudyRelatedSeries'])
+        self.assertFalse('NumberOfPatientRelatedInstances' in p[0])
+        self.assertFalse('NumberOfPatientRelatedSeries' in p[0])
+        self.assertFalse('NumberOfPatientRelatedInstances' in p[0])
+        self.assertFalse('NumberOfSeriesRelatedInstances' in p[0])
+
+        p = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % series)
+        self.assertEqual(1, len(p))
+        self.assertEqual('1.3.46.670589.11.17521.5.0.3124.2008081908564160709', p[0]['SeriesInstanceUID'])
+        self.assertEqual('1', p[0]['NumberOfSeriesRelatedInstances'])
+        self.assertFalse('NumberOfPatientRelatedInstances' in p[0])
+        self.assertFalse('NumberOfPatientRelatedSeries' in p[0])
+        self.assertFalse('NumberOfPatientRelatedInstances' in p[0])
+        self.assertFalse('NumberOfStudyRelatedInstances' in p[0])
+        self.assertFalse('NumberOfStudyRelatedSeries' in p[0])
+
+        p = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % instance)
+        self.assertEqual(1, len(p))
+        self.assertEqual('1.3.46.670589.11.17521.5.0.3124.2008081908590448738', p[0]['SOPInstanceUID'])
+
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-studies' % patient,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % study))
+        
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-series' % patient,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % series))
+        
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-instances' % patient,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % instance))
+        
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-series' % study,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % series))
+        
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-instances' % study,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % instance))
+        
+        j = DoPost(_REMOTE, '/queries/%s/answers/0/query-instances' % series,
+                   { 'Query' : tags }) ['ID']
+        self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
+                         DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % instance))
+        
+
