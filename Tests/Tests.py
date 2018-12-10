@@ -24,6 +24,7 @@
 import tempfile
 import unittest
 import base64
+import copy
 
 from PIL import ImageChops
 from Toolbox import *
@@ -4019,6 +4020,7 @@ class Orthanc(unittest.TestCase):
         
     def test_queries_hierarchy(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
 
         tags = {
             'NumberOfPatientRelatedInstances' : '',
@@ -4029,24 +4031,27 @@ class Orthanc(unittest.TestCase):
             'NumberOfSeriesRelatedInstances' : '',
         }
 
+        tags2 = copy.copy(tags)
+        tags2['PatientID'] = '887'  # Only consider the "Knee" patient
+
         patient = DoPost(_REMOTE, '/modalities/self/query', {
             'Level' : 'Patient',
-            'Query' : tags
+            'Query' : tags2
         }) ['ID']
 
         study = DoPost(_REMOTE, '/modalities/self/query', {
             'Level' : 'Study',
-            'Query' : tags
+            'Query' : tags2
         }) ['ID']
 
         series = DoPost(_REMOTE, '/modalities/self/query', {
             'Level' : 'Series',
-            'Query' : tags
+            'Query' : tags2
         }) ['ID']
 
         instance = DoPost(_REMOTE, '/modalities/self/query', {
             'Level' : 'Instance',
-            'Query' : tags
+            'Query' : tags2
         }) ['ID']
 
         p = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % patient)
@@ -4087,7 +4092,7 @@ class Orthanc(unittest.TestCase):
                    { 'Query' : tags }) ['ID']
         self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
                          DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % study))
-        
+
         j = DoPost(_REMOTE, '/queries/%s/answers/0/query-series' % patient,
                    { 'Query' : tags }) ['ID']
         self.assertEqual(DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % j),
@@ -4114,3 +4119,22 @@ class Orthanc(unittest.TestCase):
                          DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % instance))
         
 
+    def test_dicom_disk_size(self):
+        dicomSize = 0
+
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        for i in range(2):
+            p = 'Knee/T%d/IM-0001-0001.dcm' % (i + 1)
+            UploadInstance(_REMOTE, p)
+            dicomSize += os.path.getsize(GetDatabasePath(p))
+
+        s = DoGet(_REMOTE, '/patients/ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17/statistics')  # Consider Knee patient
+        self.assertEqual(2, s['CountInstances'])
+        self.assertEqual(2, s['CountSeries'])
+        self.assertEqual(1, s['CountStudies'])
+        self.assertEqual(dicomSize, int(s['DicomDiskSize']))
+        self.assertEqual(dicomSize, int(s['DicomUncompressedSize']))
+        self.assertLess(dicomSize, int(s['UncompressedSize']))
+        self.assertEqual(s['UncompressedSize'], s['DiskSize'])
+        
