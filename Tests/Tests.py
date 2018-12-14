@@ -1161,11 +1161,6 @@ class Orthanc(unittest.TestCase):
         series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
 
-        # Test returning sequence values (only since Orthanc 0.9.5)
-        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
-        sequences = re.findall('\(0008,2112\)', i)
-        self.assertEqual(1, len(sequences))
-
         # Test range search (buggy if Orthanc <= 0.9.6)
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=19980312-' ])
         studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
@@ -1182,6 +1177,38 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('19980312' in studies)
         
 
+    def test_incoming_findscu_2(self):
+        # This test fails if "LookupMode_DatabaseOnly" is used
+        # (sequences are not available in this mode, and only main
+        # DICOM tags are returned)
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
+
+        # Test returning sequence values (only since Orthanc 0.9.5)
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
+        sequences = re.findall('\(0008,2112\)', i)
+        self.assertEqual(1, len(sequences))
+
+        # Test returning a non-main DICOM tag,
+        # "SecondaryCaptureDeviceID" (0018,1010), whose value is
+        # "MEDPC" in "ColorTestImageJ.dcm"
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0018,1010' ])
+        tags = re.findall('\(0018,1010\).*MEDPC', i)
+        self.assertEqual(1, len(tags))
+
+        
+    def test_incoming_findscu_3(self):
+        # This test fails if "LookupMode_DatabaseOnly" or
+        # "LookupMode_DiskOnAnswer" is used, as
+        # "SecondaryCaptureDeviceID" (0018,1010) is not a main DICOM
+        # tag, as thus a constraint cannot be applied to it
+        UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
+
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0018,1010=MEDPC' ])
+        sequences = re.findall('\(0018,1010\)', i)
+        self.assertEqual(1, len(sequences))
+
+        
     def test_incoming_movescu(self):
         UploadInstance(_REMOTE, 'Multiframe.dcm')
 
