@@ -487,8 +487,9 @@ class Orthanc(unittest.TestCase):
     def test_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        knee = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % DoGet(_REMOTE, '/patients')[0])
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % knee)
         self.assertEqual(2, len(z.namelist()))
 
         z = GetArchive(_REMOTE, '/studies/%s/archive' % DoGet(_REMOTE, '/studies')[0])
@@ -498,10 +499,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(z.namelist()))
 
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        brainix = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % DoGet(_REMOTE, '/patients')[0])
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % knee)
         self.assertEqual(2, len(z.namelist()))
-        
+
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ brainix, knee ]
+            })
+        self.assertEqual(3, len(z.namelist()))
+       
 
     def test_media_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')

@@ -214,6 +214,15 @@ def GetArchive(orthanc, uri):
     else:
         return zipfile.ZipFile(StringIO(s), "r")
 
+def PostArchive(orthanc, uri, body):
+    # http://stackoverflow.com/a/1313868/881731
+    s = DoPost(orthanc, uri, body)
+
+    if (sys.version_info >= (3, 0)):
+        return zipfile.ZipFile(BytesIO(s), "r")
+    else:
+        return zipfile.ZipFile(StringIO(s), "r")
+
 def IsDefinedInLua(orthanc, name):
     s = DoPost(orthanc, '/tools/execute-script', 'print(type(%s))' % name, 'application/lua')
     return (s.strip() != 'nil')
