@@ -1611,6 +1611,16 @@ class Orthanc(unittest.TestCase):
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
                                              'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : False,
                                              'Query' : { 'PatientName' : '*n*' }})
         self.assertEqual(2, len(a))
 
@@ -1658,6 +1668,59 @@ class Orthanc(unittest.TestCase):
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance', 'Query' : { }})
         self.assertEqual(8, len(a))
 
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20061201-20061201' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20061201-20091201' }})
+        self.assertEqual(2, len(a))
+        for i in range(2):
+            self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'StudyDate' : '20061202-20061202' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '-20061201' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '-20051201' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20061201-' }})
+        self.assertEqual(2, len(a))
+        for i in range(2):
+            self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20061202-' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20080819-' }})
+        self.assertEqual(1, len(a))
+        self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand' : True,
+                                             'Query' : { 'StudyDate' : '20080820-' }})
+        self.assertEqual(0, len(a))
+        
+        
 
     def test_rest_query_retrieve(self):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
