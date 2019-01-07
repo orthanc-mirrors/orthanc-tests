@@ -60,7 +60,7 @@ on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --init --mysql-tiny
 
 on benchmark VM:
-python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --init --pg9-tiny
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --init --pg9bis-tiny
 ```
 
 Clearing a DB
@@ -71,7 +71,7 @@ on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --clear --mysql-tiny
 
 on benchmark VM:
-python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --clear --pg9-tiny
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --clear --pg9bis-tiny
 ```
 
 Runing tests on multiple DBs
