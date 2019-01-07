@@ -56,14 +56,22 @@ Initializing a DB before tests
 -----------------
 
 ```bash
+on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --init --mysql-tiny
+
+on benchmark VM:
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --init --pg9-tiny
 ```
 
 Clearing a DB
 -----------------
 
 ```bash
+on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --clear --mysql-tiny
+
+on benchmark VM:
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --clear --pg9-tiny
 ```
 
 Runing tests on multiple DBs
@@ -74,7 +82,7 @@ on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/orthanc-build-release/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
 
 on benchmark VM:
-python Run.py --orthanc-path=/data/orthanc-binaries/ --plugins-path=/data/orthanc-binaries/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --run --pg9-tiny --pg10-tiny --pg11-tiny --mysql-tiny --sqlite-tiny --mssql-tiny
 
 ```
 

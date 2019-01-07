@@ -15,6 +15,7 @@ from DbSize import DbSize
 allTestConfigs = [
     TestConfig(label= "mysql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MySQL, port=2000)),
     TestConfig(label= "pg9-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2001)),
+    TestConfig(label= "pg9bis-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG9, port=2011)),
     TestConfig(label= "pg10-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG10, port=2002)),
     TestConfig(label= "pg11-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.PG11, port=2003)),
     TestConfig(label= "mssql-small", dbSize=DbSize.Small, dbServer=DbServer(dbType=DbType.MSSQL, port=2004)),
@@ -23,6 +24,7 @@ allTestConfigs = [
 
     TestConfig(label= "mysql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MySQL, port=3000)),
     TestConfig(label= "pg9-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG9, port=3001)),
+    TestConfig(label= "pg9bis-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG9, port=3011)),
     TestConfig(label= "pg10-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG10, port=3002)),
     TestConfig(label= "pg11-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.PG11, port=3003)),
     TestConfig(label= "mssql-tiny", dbSize=DbSize.Tiny, dbServer=DbServer(dbType=DbType.MSSQL, port=3004)),
