@@ -1,3 +1,4 @@
+import os
 import time
 import statistics
 from orthancRestApi import OrthancClient
@@ -58,7 +59,13 @@ class Test:
 
         for i in range(0, self.repeatCount):
             self.beforeEach()
-            
+
+            try:
+                with open('/proc/sys/vm/drop_caches', 'w') as f:
+                    f.write('3')
+            except:
+                print('Please run this script as root to be able to flush the disk cache, and have reproducible runtimes')
+
             startTime = time.time()
             self.test()
             endTime = time.time()
