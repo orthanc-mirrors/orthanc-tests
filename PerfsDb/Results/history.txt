@@ -19,21 +19,19 @@ UploadNextPatientFile                   |      12.67 ms |      44.21 ms |       
 
 
 
-
 on 2019-01-08 with Orthanc "db-changes".  Executed on Azure benchmark VM:
-
 ++++++++++++++ results summary +++++++++++++++
-                                        |   pg9-large   |
-FindStudyByPatientId0Results            |       3.51 ms |
-FindStudyByPatientId100Results          |     381.67 ms |
-FindStudyByPatientId1Result             |       7.50 ms |
-FindStudyByPatientId5Results            |      22.51 ms |
-FindStudyByStudyDescription0Results     |       3.49 ms |
-FindStudyByStudyDescription1Result      |       7.36 ms |
-Startup time                            |     106.51 ms |
-Statistics                              |       3.36 ms |
-ToolsFindPatientByPatientID             |       5.11 ms |
-ToolsFindStudyByStudyInstanceUID        |       5.34 ms |
-UploadFirstPatientFile                  |      19.66 ms |
-UploadLargeFile10MB                     |      49.07 ms |
-UploadNextPatientFile                   |       9.07 ms |
+                                                                        |   pg9-large                                                   |  pg9-medium   |   pg9-small   |   pg9-tiny    |
+FindStudyByPatientId0Results                                            |       3.51 ms                                                 |       3.55 ms |       3.78 ms |       3.58 ms |
+FindStudyByPatientId100Results                                          |     373.50 ms                                                 |     356.89 ms |     345.48 ms |     358.61 ms |
+FindStudyByPatientId1Result                                             |       7.62 ms                                                 |       7.95 ms |       7.16 ms |       7.51 ms |
+FindStudyByPatientId5Results                                            |      22.50 ms                                                 |      22.73 ms |      20.87 ms |      21.22 ms |
+FindStudyByStudyDescription0Results                                     |       3.48 ms                                                 |       3.71 ms |       3.55 ms |       3.42 ms |
+FindStudyByStudyDescription1Result                                      |       7.21 ms                                                 |       8.01 ms |       7.18 ms |       7.30 ms |
+Startup time                                                            |     106.33 ms                                                 |     107.11 ms |     107.70 ms |     107.97 ms |
+Statistics                                                              |       3.34 ms                                                 |       3.80 ms |       3.20 ms |       3.45 ms |
+ToolsFindPatientByPatientID                                             |       5.29 ms                                                 |       5.45 ms |       4.95 ms |       5.04 ms |
+ToolsFindStudyByStudyInstanceUID                                        |       5.38 ms                                                 |       5.39 ms |       5.28 ms |       5.14 ms |
+UploadFirstPatientFile                                                  |      19.47 ms                                                 |      19.35 ms |      18.24 ms |      18.46 ms |
+UploadLargeFile10MB                                                     |      46.70 ms                                                 |      45.28 ms |      44.93 ms |      44.36 ms |
+UploadNextPatientFile                                                   |       8.58 ms                                                 |       6.81 ms |       6.73 ms |       6.18 ms |
