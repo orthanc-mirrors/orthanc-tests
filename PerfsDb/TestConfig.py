@@ -56,7 +56,8 @@ class TestConfig:
         print("Launching Orthanc")
         runOrthancCommand = [
             os.path.join(orthancPath, "Orthanc"), 
-            os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self.label + ".json"), 
+            os.path.join(os.path.abspath(os.path.dirname(__file__)), "ConfigFiles", self.label + ".json"),
+            '--no-jobs',
         ]
         if traceEnabled:
             runOrthancCommand.append("--trace")
