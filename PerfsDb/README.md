@@ -46,9 +46,10 @@ source .env/bin/activate
 pip install -r requirements.txt
 ```
 
-To enter the virtual-env the next times:
+To enter the virtual-env the next times (on benchmark VM):
 
 ```bash
+cd /data-hdd-3g/orthanc-tests/PerfsDb
 source .env/bin/activate
 ```
 
@@ -60,7 +61,7 @@ on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --init --mysql-tiny
 
 on benchmark VM:
-python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --init --pg9bis-tiny
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --init --pg9bis-small
 ```
 
 Clearing a DB
@@ -71,7 +72,7 @@ on amazy PC:
 python Run.py --orthanc-path=/home/amazy/builds/orthanc-build-release/ --plugins-path=/home/amazy/builds/mysql-release/ --clear --mysql-tiny
 
 on benchmark VM:
-python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --clear --pg9bis-tiny
+python Run.py --orthanc-path=/data-hdd-3g/orthanc-binaries/ --plugins-path=/data-hdd-3g/orthanc-binaries/ --clear --pg9bis-small
 ```
 
 Runing tests on multiple DBs

@@ -1,4 +1,4 @@
-on 31-08-2018 with Orthanc 1.4.1.  Executed on Azure benchmark VM:
+on 2018-08-31 with Orthanc 1.4.1.  Executed on Azure benchmark VM:
 
 ++++++++++++++ results summary +++++++++++++++
                                         |  mssql-large  | sqlite-large  |   pg9-large   | mysql-medium  |  mysql-small  |  mysql-tiny   |  pg9-medium   |   pg9-small   |   pg9-tiny    | sqlite-medium | sqlite-small  |  sqlite-tiny  |
@@ -16,3 +16,24 @@ UploadFirstPatientFile                  |      57.37 ms |      40.04 ms |      3
 UploadLargeFile10MB                     |      58.58 ms |      92.87 ms |      55.91 ms |      76.39 ms |      58.80 ms |      59.44 ms |      68.63 ms |      53.09 ms |      54.68 ms |      60.89 ms |      52.75 ms |      50.79 ms |
 UploadNextPatientFile                   |      12.67 ms |      44.21 ms |       7.59 ms |      23.68 ms |      11.70 ms |      11.41 ms |      17.64 ms |       6.23 ms |       6.31 ms |      13.98 ms |       4.91 ms |       3.18 ms |
 
+
+
+
+
+on 2019-01-08 with Orthanc "db-changes".  Executed on Azure benchmark VM:
+
+++++++++++++++ results summary +++++++++++++++
+                                        |   pg9-large   |
+FindStudyByPatientId0Results            |       3.51 ms |
+FindStudyByPatientId100Results          |     381.67 ms |
+FindStudyByPatientId1Result             |       7.50 ms |
+FindStudyByPatientId5Results            |      22.51 ms |
+FindStudyByStudyDescription0Results     |       3.49 ms |
+FindStudyByStudyDescription1Result      |       7.36 ms |
+Startup time                            |     106.51 ms |
+Statistics                              |       3.36 ms |
+ToolsFindPatientByPatientID             |       5.11 ms |
+ToolsFindStudyByStudyInstanceUID        |       5.34 ms |
+UploadFirstPatientFile                  |      19.66 ms |
+UploadLargeFile10MB                     |      49.07 ms |
+UploadNextPatientFile                   |       9.07 ms |
