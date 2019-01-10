@@ -21,10 +21,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-import tempfile
-import unittest
 import base64
 import copy
+import pprint
+import tempfile
+import unittest
 
 from PIL import ImageChops
 from Toolbox import *
@@ -409,11 +410,11 @@ class Orthanc(unittest.TestCase):
         # Check emptiness
         c = DoGet(_REMOTE, '/changes')
         self.assertEqual(0, len(c['Changes']))
-        self.assertEqual(0, c['Last'])
+        #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
         self.assertTrue(c['Done'])
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(0, len(c['Changes']))
-        self.assertEqual(0, c['Last'])
+        #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
         self.assertTrue(c['Done'])
 
         # Add 1 instance
@@ -4235,3 +4236,76 @@ class Orthanc(unittest.TestCase):
         self.assertLess(dicomSize, int(s['UncompressedSize']))
         self.assertEqual(s['UncompressedSize'], s['DiskSize'])
         
+
+    def test_changes_2(self):
+        # More consistent behavior since Orthanc 1.5.2
+        # https://groups.google.com/d/msg/orthanc-users/QhzB6vxYeZ0/YxabgqpfBAAJ
+
+        # Make sure that this is not the first change
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        a = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/instances/%s' % a)        
+
+        # No more instance, but there were previous changes
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        
+        c = DoGet(_REMOTE, '/changes')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        seq = c['Last']
+
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq, c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?since=%d' % (seq + 1000))
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq, c['Last'])
+
+        # Add one instance
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        c = DoGet(_REMOTE, '/changes')
+        self.assertEqual(4, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(1, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?since=%d' % (seq + 1000))
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+
+        # Remove the uploaded instance
+        DoDelete(_REMOTE, '/instances/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        c = DoGet(_REMOTE, '/changes')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+
+        c = DoGet(_REMOTE, '/changes?since=%d' % (seq + 1000))
+        self.assertEqual(0, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 4, c['Last'])
+        
+
+    def test_bitbucket_issue_124(self):
+        a = UploadInstance(_REMOTE, 'Issue124.dcm')['ID']
+
+        z = GetArchive(_REMOTE, '/patients/%s/media' % a)
+        self.assertEqual(2, len(z.namelist()))
