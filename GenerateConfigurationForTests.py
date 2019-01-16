@@ -118,6 +118,7 @@ config['OverwriteInstances'] = True
 config['JobsHistorySize'] = 1000
 config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
+config['KeepAlive'] = False
 
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
