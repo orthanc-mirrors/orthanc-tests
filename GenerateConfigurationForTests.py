@@ -81,7 +81,7 @@ ip = socket.gethostbyname(socket.gethostname())
 
 # Download the content of the default configuration file
 with open(args.target, 'w') as f:
-    url = 'https://bitbucket.org/sjodogne/orthanc/raw/Orthanc-1.2.0/Resources/Configuration.json'
+    url = 'https://bitbucket.org/sjodogne/orthanc/raw/default/Resources/Configuration.json'
     http = urllib.urlopen(url)
     if http.getcode() != 200:
         raise Exception('Cannot download: %s' % url)
@@ -118,7 +118,7 @@ config['OverwriteInstances'] = True
 config['JobsHistorySize'] = 1000
 config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
-config['KeepAlive'] = False
+del config['KeepAlive']
 
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
