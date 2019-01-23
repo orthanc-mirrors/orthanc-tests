@@ -4309,3 +4309,9 @@ class Orthanc(unittest.TestCase):
 
         z = GetArchive(_REMOTE, '/patients/%s/media' % a)
         self.assertEqual(2, len(z.namelist()))
+
+
+    def test_invalid_findscp(self):
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        findscu = CallFindScu([ '-S', '-k', '8,52=IMAGE', '-k', '8,16', '-k', '2,2' ])
+        self.assertEqual(0, len(re.findall('\(0002,0002\)', findscu)))
