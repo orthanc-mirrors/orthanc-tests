@@ -4315,3 +4315,37 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'DummyCT.dcm')
         findscu = CallFindScu([ '-S', '-k', '8,52=IMAGE', '-k', '8,16', '-k', '2,2' ])
         self.assertEqual(0, len(re.findall('\(0002,0002\)', findscu)))
+
+
+    def test_bitbucket_issue_90(self):
+        def CountDicomResults(sex):
+            a = CallFindScu([ '-S', '-k', '8,52=STUDY', '-k', sex ])
+            return len(re.findall('\(0010,0040\)', a))
+
+        def CountRestResults(sex):
+            a = DoPost(_REMOTE, '/tools/find',
+                       { 'Level' : 'Study', 'Query' : { 'PatientSex' : sex } })
+            return len(a)
+
+        # Just like the "CR000000.dcm" of the issue, the test image
+        # "DummyCT.dcm" has the tag PatientSex (0010,0040) unset
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        # Test that the behavior of DICOM vs. REST API is consistent on missing tags
+
+        # In wildcard constraints, the patient sex must be set for a match to occur
+        self.assertEqual(0, CountDicomResults('PatientSex=*'))
+        self.assertEqual(0, CountRestResults('*'))
+
+        # In single-valued constraints, the patient sex must be set
+        self.assertEqual(0, CountDicomResults('PatientSex=F'))
+        self.assertEqual(0, CountDicomResults('PatientSex=M'))
+        self.assertEqual(0, CountRestResults('F'))
+        self.assertEqual(0, CountRestResults('M'))
+
+        # Empty constraints are only used to ask the actual value of
+        # the tag to be added to the *answer*. The tag should not used
+        # as a filter in such a situation.
+        self.assertEqual(1, CountDicomResults('PatientSex'))
+        self.assertEqual(1, CountDicomResults('PatientSex='))
+        self.assertEqual(1, CountRestResults(''))   # This check fails on Orthanc <= 1.5.2 (issue 90)
