@@ -4349,3 +4349,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, CountDicomResults('PatientSex'))
         self.assertEqual(1, CountDicomResults('PatientSex='))
         self.assertEqual(1, CountRestResults(''))   # This check fails on Orthanc <= 1.5.2 (issue 90)
+
+
+    def test_rest_modalities_in_study(self):
+        # Tests a regression that is present in Orthanc 1.5.2 and 1.5.3
+        # https://groups.google.com/d/msg/orthanc-users/7lZyG3wpx-M/uOXzAzVCFwAJ
+        UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'ModalitiesInStudy' : 'US' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'ModalitiesInStudy' : 'US\\CT' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'ModalitiesInStudy' : 'CT' }})
+        self.assertEqual(1, len(a))
