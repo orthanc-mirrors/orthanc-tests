@@ -348,6 +348,7 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual(patient, study['ParentPatient'])
                 for series in DoGet(_REMOTE, '/studies/%s/series' % study['ID']):
                     self.assertEqual(study['ID'], series['ParentStudy'])
+                    self.assertEqual('Unknown', series['Status'])
                     for instance in DoGet(_REMOTE, '/series/%s/instances' % series['ID']):
                         self.assertEqual(series['ID'], instance['ParentSeries'])
 
@@ -4367,3 +4368,36 @@ class Orthanc(unittest.TestCase):
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
                                              'Query' : { 'ModalitiesInStudy' : 'CT' }})
         self.assertEqual(1, len(a))
+
+
+    def test_series_status(self):
+        def HasCompletedInChanges():
+            for c in DoGet(_REMOTE, '/changes?limit=1000&since=0')['Changes']:
+                if c['ChangeType'] == 'CompletedSeries':
+                    return True;
+
+            return False
+        
+        UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')
+        series = '8ea120d7-5057d919-837dfbcc-ccd04e0f-7f3a94aa'
+        self.assertEqual('Unknown', DoGet(_REMOTE, '/series/%s' % series)['Status'])
+        self.assertFalse(HasCompletedInChanges())
+
+        series = 'ce25ecb6-ed79d004-5ae43ca7-3fc89bc5-67511614'
+
+        for i in range(3):
+            UploadInstance(_REMOTE, 'Series/Lena-%d.dcm' % (i + 1))
+            self.assertEqual('Missing', DoGet(_REMOTE, '/series/%s' % series)['Status'])
+            self.assertFalse(HasCompletedInChanges())
+
+        UploadInstance(_REMOTE, 'Series/Lena-4.dcm')
+        self.assertEqual('Complete', DoGet(_REMOTE, '/series/%s' % series)['Status'])
+        self.assertTrue(HasCompletedInChanges())
+
+        DoDelete(_REMOTE, '/changes')
+        self.assertFalse(HasCompletedInChanges())
+
+        UploadInstance(_REMOTE, 'Series/Lena-5.dcm')
+        self.assertEqual('Inconsistent', DoGet(_REMOTE, '/series/%s' % series)['Status'])
+        self.assertFalse(HasCompletedInChanges())
+            
