@@ -118,6 +118,7 @@ config['OverwriteInstances'] = True
 config['JobsHistorySize'] = 1000
 config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
+config['SaveJobs'] = False
 del config['KeepAlive']
 
 config['Dictionary'] = {
