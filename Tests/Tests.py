@@ -1409,16 +1409,28 @@ class Orthanc(unittest.TestCase):
             pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
         DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/' ])
-        DoPut(_REMOTE, '/peers/tata', [ 'http://localhost:8042/', 'user', 'pass' ])
+        DoPut(_REMOTE, '/peers/tata', { 'Url': 'http://localhost:8042/',
+                                        'Username': 'user',
+                                        'Password' : 'pass',
+                                        'RemoteSelf' : 'self' })
         self.assertTrue('tata' in DoGet(_REMOTE, '/peers'))
         peersReadback = DoGet(_REMOTE, '/peers?expand')
         self.assertEqual('http://localhost:8042/', peersReadback['tata']['Url'])
         self.assertEqual('user', peersReadback['tata']['Username'])
-        self.assertFalse('Password' in peersReadback['tata']) # make sure no sensitive data is included
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 5, 4):
+            self.assertEqual(None, peersReadback['tata']['Password']) # make sure no sensitive data is included
+            self.assertFalse(peersReadback['tata']['Pkcs11']) # make sure no sensitive data is included
+            self.assertEqual('self', peersReadback['tata']['RemoteSelf'])
+        else:
+            self.assertFalse('Password' in peersReadback['tata']) # make sure no sensitive data is included
+            self.assertFalse('Pkcs11' in peersReadback['tata']) # make sure no sensitive data is included
+            self.assertFalse('RemoteSelf' in peersReadback['tata'])
+
         self.assertFalse('CertificateFile' in peersReadback['tata']) # make sure no sensitive data is included
         self.assertFalse('CertificateKeyFile' in peersReadback['tata']) # make sure no sensitive data is included
         self.assertFalse('CertificateKeyPassword' in peersReadback['tata']) # make sure no sensitive data is included
-        self.assertFalse('Pkcs11' in peersReadback['tata']) # make sure no sensitive data is included
+
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/', 'a' ]))
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/', 'a', 'b', 'c' ]))
         self.assertTrue('store' in DoGet(_REMOTE, '/peers/toto'))
