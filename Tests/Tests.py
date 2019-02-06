@@ -4430,3 +4430,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Inconsistent', DoGet(_REMOTE, '/series/%s' % series)['Status'])
         self.assertFalse(HasCompletedInChanges())
             
+
+    def test_dicomweb(self):
+        def Compare(dicom, reference):
+            a = UploadInstance(_REMOTE, dicom) ['ID']
+            b = DoGet(_REMOTE, '/instances/%s/file' % a,
+                      headers = { 'Accept' : 'application/dicom+json' })
+            with open(GetDatabasePath(reference), 'rb') as c:
+                d = json.load(c)
+                self.assertEqual(d, b)
+                    
+        Compare('DummyCT.dcm', 'DummyCT.json')
+        Compare('MarekLatin2.dcm', 'MarekLatin2.json')
+        Compare('HierarchicalAnonymization/StructuredReports/IM0',
+                'HierarchicalAnonymization/StructuredReports/IM0.json')
