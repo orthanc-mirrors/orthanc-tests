@@ -4444,3 +4444,60 @@ class Orthanc(unittest.TestCase):
         Compare('MarekLatin2.dcm', 'MarekLatin2.json')
         Compare('HierarchicalAnonymization/StructuredReports/IM0',
                 'HierarchicalAnonymization/StructuredReports/IM0.json')
+
+
+    def test_issue_95_encodings(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/95/server-cant-support-chinese
+        # Check out image: "../Database/Encodings/DavidClunie/charsettests.screenshot.png"
+
+        # Very useful tool: "file2" from package "file-kanji"
+
+        def GetPatientName(dicom):
+            i = UploadInstance(_REMOTE, dicom) ['ID']
+            j = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+            return j['PatientName']
+        
+        def ComparePatientName(name, dicom):
+            self.assertEqual(name, GetPatientName(dicom))
+
+        # gdcmraw -t 10,10 -i SCSFREN -o /tmp/tag && uconv -f ISO-IR-100 -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Buc^Jérôme', 'Encodings/DavidClunie/SCSFREN')
+
+        # gdcmraw -t 10,10 -i SCSI2 -o /tmp/tag && uconv -f KOREAN -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Hong^Gildong=洪^吉洞=홍^길동', 'Encodings/DavidClunie/SCSI2')  # Since Orthanc 1.5.5
+        
+        # gdcmraw -t 10,10 -i SCSX2 -o /tmp/tag && uconv -f GB18030 -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Wang^XiaoDong=王^小东=', 'Encodings/DavidClunie/SCSX2')
+
+        # gdcmraw -t 10,10 -i SCSX1 -o /tmp/tag && cat /tmp/tag && echo
+        ComparePatientName(u'Wang^XiaoDong=王^小東=', 'Encodings/DavidClunie/SCSX1')
+
+        # gdcmraw -t 10,10 -i SCSH31 -o /tmp/tag && uconv -f JIS -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Yamada^Tarou=山田^太郎=やまだ^たろう', 'Encodings/DavidClunie/SCSH31')
+
+        # gdcmraw -t 10,10 -i SCSGERM -o /tmp/tag && uconv -f ISO-IR-100 -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Äneas^Rüdiger', 'Encodings/DavidClunie/SCSGERM')
+
+        # gdcmraw -t 10,10 -i SCSGREEK -o /tmp/tag && uconv -f ISO-IR-126 -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Διονυσιος', 'Encodings/DavidClunie/SCSGREEK')
+
+        # gdcmraw -t 10,10 -i SCSRUSS -o /tmp/tag && uconv -f ISO-IR-144 -t UTF-8 /tmp/tag && echo
+        ComparePatientName(u'Люкceмбypг', 'Encodings/DavidClunie/SCSRUSS')
+
+        # gdcmraw -t 10,10 -i SCSHBRW -o /tmp/tag && uconv -f ISO-IR-138 -t UTF-8 /tmp/tag && echo
+        # NB: Hebrew is a right-to-left encoding, copying/pasting from
+        # Linux console into Emacs automatically reverse the string
+        ComparePatientName(u'שרון^דבורה', 'Encodings/DavidClunie/SCSHBRW')
+
+        # gdcmraw -t 10,10 -i SCSARAB -o /tmp/tag && uconv -f ISO-IR-127 -t UTF-8 /tmp/tag && echo
+        # NB: Right-to-left as for Hebrew (SCSHBRW), and the Ubuntu console can't display such
+        # characters by default, but copy/paste works with Emacs
+        ComparePatientName(u'قباني^لنزار', 'Encodings/DavidClunie/SCSARAB')
+
+        # SCSH32: This SpecificCharacterSet is composed of 2
+        # codepages: "ISO 2022 IR 13" (i.e. "SHIFT_JIS") until the
+        # first equal, then "ISO 2022 IR 87" (i.e. "JIS") for the
+        # remainer. Orthanc only takes into consideration the first
+        # codepage: This is a limitation.
+        # gdcmraw -t 10,10 -i SCSH32 -o /tmp/tag && cut -d '=' -f 1 /tmp/tag | uconv -f SHIFT_JIS -t UTF-8
+        self.assertTrue(GetPatientName('Encodings/DavidClunie/SCSH32').startswith(u'ﾔﾏﾀﾞ^ﾀﾛｳ='))
