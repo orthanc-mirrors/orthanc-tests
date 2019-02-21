@@ -4501,3 +4501,22 @@ class Orthanc(unittest.TestCase):
         # codepage: This is a limitation.
         # gdcmraw -t 10,10 -i SCSH32 -o /tmp/tag && cut -d '=' -f 1 /tmp/tag | uconv -f SHIFT_JIS -t UTF-8
         self.assertTrue(GetPatientName('Encodings/DavidClunie/SCSH32').startswith(u'ﾔﾏﾀﾞ^ﾀﾛｳ='))
+
+
+    def test_findscu_missing_tags(self):
+        # dcmodify -e Rows DummyCTInvalidRows.dcm -gst -gse -gin
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        UploadInstance(_REMOTE, 'DummyCTInvalidRows.dcm')
+
+        i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'Rows', '-k', 'PatientName' ])
+
+        # We have 2 instances...
+        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(patientNames))
+        self.assertEqual('KNIX', patientNames[0])
+        self.assertEqual('KNIX', patientNames[1])
+        
+        # ...but only 1 value for the "Rows" tag
+        rows = re.findall('\(0028,0010\) US ([0-9]+)', i)
+        self.assertEqual(1, len(rows))
+        self.assertEqual('512', rows[0])
