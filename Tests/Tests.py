@@ -4520,3 +4520,76 @@ class Orthanc(unittest.TestCase):
         rows = re.findall('\(0028,0010\) US ([0-9]+)', i)
         self.assertEqual(1, len(rows))
         self.assertEqual('512', rows[0])
+
+
+
+    def test_bitbucket_issue_131(self):
+        # "Orthanc PACS silently fails to C-MOVE due to duplicate
+        # StudyInstanceUID in it's database."
+        # https://bitbucket.org/sjodogne/orthanc/issues/131/orthanc-pacs-silently-fails-to-c-move-due
+
+        # Insert 2 instances, with the same StudyInstanceUID, but with
+        # different patient IDs. Orthanc will create 2 distincts
+        # patients, and the hierarchy of resources above the two
+        # instances will be fully disjoint.
+        UploadInstance(_REMOTE, 'PatientIdsCollision/Issue131-a.dcm')
+        UploadInstance(_REMOTE, 'PatientIdsCollision/Issue131-b.dcm')
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Study',
+            'Query' : {"PatientID": "A" }})['ID']
+
+        # 1 study is matched
+        self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
+                                   (_REMOTE, '/queries/%s/retrieve' % a,
+                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+
+        # The two studies are matched, as we made the request at the
+        # Study level, thus the shared StudyInstanceUID is used as the key
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+
+
+        # Match the 2 studies
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Study',
+            'Query' : {"StudyInstanceUID": "2.25.123" }})['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+        DropOrthanc(_LOCAL)
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
+                                   (_REMOTE, '/queries/%s/retrieve' % a,
+                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+
+        
+        # Same test, at the patient level => only 1 instance is transfered
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Patient',
+            'Query' : {"PatientID": "A" }})['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+        DropOrthanc(_LOCAL)
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
+                                   (_REMOTE, '/queries/%s/retrieve' % a,
+                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        
+
+        # Same test, at the series level => only 1 instance is transfered
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Series',
+            'Query' : {"PatientID": "A" }})['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+        DropOrthanc(_LOCAL)
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
+                                   (_REMOTE, '/queries/%s/retrieve' % a,
+                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        
