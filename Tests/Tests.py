@@ -4438,7 +4438,7 @@ class Orthanc(unittest.TestCase):
                       headers = { 'Accept' : 'application/dicom+json' })
             with open(GetDatabasePath(reference), 'rb') as c:
                 d = json.load(c)
-                self.assertEqual(d, b)
+                AssertAlmostEqualRecursive(self, d, b)
                     
         Compare('DummyCT.dcm', 'DummyCT.json')
         Compare('MarekLatin2.dcm', 'MarekLatin2.json')
@@ -4546,9 +4546,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
 
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
-        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
-                                   (_REMOTE, '/queries/%s/retrieve' % a,
-                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        WaitAllNewJobsDone(_REMOTE, lambda: DoPost
+                           (_REMOTE, '/queries/%s/retrieve' % a,
+                            '{"TargetAet":"ORTHANCTEST","Synchronous":false}'))
 
         # The two studies are matched, as we made the request at the
         # Study level, thus the shared StudyInstanceUID is used as the key
@@ -4562,9 +4562,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
         DropOrthanc(_LOCAL)
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
-        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
-                                   (_REMOTE, '/queries/%s/retrieve' % a,
-                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        WaitAllNewJobsDone(_REMOTE, lambda: DoPost
+                           (_REMOTE, '/queries/%s/retrieve' % a,
+                            '{"TargetAet":"ORTHANCTEST","Synchronous":false}'))
         self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
 
         
@@ -4575,9 +4575,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
         DropOrthanc(_LOCAL)
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
-        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
-                                   (_REMOTE, '/queries/%s/retrieve' % a,
-                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        WaitAllNewJobsDone(_REMOTE, lambda: DoPost
+                           (_REMOTE, '/queries/%s/retrieve' % a,
+                            '{"TargetAet":"ORTHANCTEST","Synchronous":false}'))
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         
 
@@ -4588,8 +4588,8 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
         DropOrthanc(_LOCAL)
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
-        self.assertTrue(MonitorJob(_REMOTE, lambda: DoPost
-                                   (_REMOTE, '/queries/%s/retrieve' % a,
-                                    '{"TargetAet":"ORTHANCTEST","Synchronous":false}')))
+        WaitAllNewJobsDone(_REMOTE, lambda: DoPost
+                           (_REMOTE, '/queries/%s/retrieve' % a,
+                            '{"TargetAet":"ORTHANCTEST","Synchronous":false}'))
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         

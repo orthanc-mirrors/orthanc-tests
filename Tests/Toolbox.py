@@ -275,6 +275,30 @@ def MonitorJob2(orthanc, func):  # "func" is a lambda
         print('Error while executing the job')
         return None
 
+def WaitAllNewJobsDone(orthanc, func):  # "func" is a lambda
+    a = set(DoGet(orthanc, '/jobs'))
+    func()
+
+    first = True
+
+    while True:
+        b = set(DoGet(orthanc, '/jobs'))
+        
+        diff = list(b - a)
+        if len(diff) == 0:
+            if first:
+                raise Exception('No job was created')
+            else:
+                return  # We're done
+        else:
+            first = False
+
+            if WaitJobDone(orthanc, diff[0]):
+                a.add(diff[0])
+            else:
+                raise Exception('Error while executing the job')
+
+
 def GetDockerHostAddress():
     route = subprocess.check_output([ '/sbin/ip', 'route' ])
     m = re.search(r'default via ([0-9.]+)', route)
@@ -335,3 +359,20 @@ class ExternalCommandThread:
     def stop(self):
         self.thread_stop.set()
         self.thread.join()
+
+
+def AssertAlmostEqualRecursive(self, a, b, places = 7):
+    if type(a) is dict:
+        self.assertTrue(type(b) is dict)
+        self.assertEqual(a.keys(), b.keys())
+        for key, value in a.items():
+            AssertAlmostEqualRecursive(self, a[key], b[key], places)
+
+    elif type(a) is list:
+        self.assertTrue(type(b) is list)
+        self.assertEqual(len(a), len(b))
+        for i in range(len(a)):
+            AssertAlmostEqualRecursive(self, a[i], b[i], places)
+
+    else:
+        self.assertAlmostEqual(a, b, places = places)
