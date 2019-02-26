@@ -477,6 +477,25 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
 
 
+    def test_bitbucket_issue_96(self):
+        # WADO-RS RetrieveFrames rejects valid accept headers
+        # https://bitbucket.org/sjodogne/orthanc/issues/96
+        # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/5/
+        
+        UploadInstance(ORTHANC, 'LenaTwiceWithFragments.dcm')
+
+        a = DoGet(ORTHANC, '/dicom-web/instances')
+        self.assertEqual(1, len(a))
+        url = a[0]['00081190']['Value'][0]
+
+        prefix = 'http://localhost:8042'
+        self.assertTrue(url.startswith(prefix))
+        uri = url[len(prefix):]
+
+        b = DoGetRaw(ORTHANC, '%s/frames/1' % uri, headers = { 'Accept' : 'multipart/related; type=application/octet-stream' })
+        print b
+        
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
