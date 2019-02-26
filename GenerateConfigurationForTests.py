@@ -98,8 +98,7 @@ with open(args.target, 'r') as f:
 
     config = json.loads(nocomment)
 
-del config['DefaultEncoding']
-
+config['DefaultEncoding'] = 'Utf8'
 config['AllowFindSopClassesInStudy'] = False
 config['AuthenticationEnabled'] = True
 config['DicomAet'] = 'ORTHANC'

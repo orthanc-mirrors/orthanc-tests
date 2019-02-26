@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
@@ -445,6 +447,34 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(isinstance(b, (int, long)))
         self.assertEqual(1, b)
 
+
+    def test_bitbucket_issue_113(self):
+        # Wrong serialization of PN VR
+        # https://bitbucket.org/sjodogne/orthanc/issues/113
+        # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/2/
+        
+        UploadInstance(ORTHANC, 'Encodings/DavidClunie/SCSX1')
+        study = '1.3.6.1.4.1.5962.1.2.0.1175775771.5711.0'
+
+        # This is the WADO-RS testing
+        a = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)
+        self.assertEqual(1, len(a))
+
+        pn = a[0]['00100010']  # Patient name
+        self.assertEqual('PN', pn['vr'])
+        self.assertEqual(1, len(pn['Value']))
+        self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])
+        self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
+
+        # This is the QIDO-RS testing
+        a = DoGet(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(1, len(a))
+
+        pn = a[0]['00100010']  # Patient name
+        self.assertEqual('PN', pn['vr'])
+        self.assertEqual(1, len(pn['Value']))
+        self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])
+        self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
 
 
 try:
