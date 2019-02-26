@@ -66,3 +66,24 @@ def SendStow(orthanc, uri, dicom):
     }
 
     return DoPost(orthanc, uri, body, headers = headers)
+
+
+def DoGetMultipart(orthanc, uri, headers = {}):
+    answer = DoGetRaw(orthanc, uri, headers = headers)
+
+    header = ''
+    for i in answer[0]:
+        header += '%s: %s\r\n' % (i, answer[0][i])
+
+    msg = email.message_from_string(header + '\r\n' + answer[1])
+    if not msg.is_multipart():
+        raise Exception('Not a multipart message')
+    
+    result = []
+
+    for part in msg.walk():
+        payload = part.get_payload(decode=True)
+        if payload != None:
+            result.append(payload)
+
+    return result

@@ -361,12 +361,13 @@ class ExternalCommandThread:
         self.thread.join()
 
 
-def AssertAlmostEqualRecursive(self, a, b, places = 7):
+def AssertAlmostEqualRecursive(self, a, b, places = 7, ignoreKeys = []):
     if type(a) is dict:
         self.assertTrue(type(b) is dict)
         self.assertEqual(a.keys(), b.keys())
         for key, value in a.items():
-            AssertAlmostEqualRecursive(self, a[key], b[key], places)
+            if not key in ignoreKeys:
+                AssertAlmostEqualRecursive(self, a[key], b[key], places)
 
     elif type(a) is list:
         self.assertTrue(type(b) is list)

@@ -343,12 +343,99 @@ class Orthanc(unittest.TestCase):
         a = DoGet(ORTHANC, '/dicom-web/studies',
                   headers = { 'accept' : 'application/json' })
 
-        pprint.pprint(a)
-        
         self.assertEqual(1, len(a))
         self.assertTrue('00080050' in a[0])  # AccessionNumber is null
         self.assertEqual(1, len(a[0]['00080050']))  # 'vr' is the only field to be present
         self.assertEqual('SH', a[0]['00080050']['vr'])
+
+
+    def test_wado_hierarchy(self):
+        def CheckJson(uri, headers = {}):
+            with open(GetDatabasePath('DummyCT.json'), 'r') as f:
+                expected = json.loads(f.read())
+                actual = DoGet(ORTHANC, uri, headers)
+                self.assertEqual(1, len(actual))
+                AssertAlmostEqualRecursive(self, expected, actual[0])
+
+        UploadInstance(ORTHANC, 'DummyCT.dcm')
+        study = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+        series = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+        instance = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
+
+        URI = '/dicom-web/studies/%s/series/%s/instances/%s/metadata'
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, instance),
+                                                   headers = { 'accept' : 'application/nope' }))
+
+        CheckJson(URI % (study, series, instance), headers = { 'accept' : 'application/dicom+json' })
+        CheckJson('/dicom-web/studies/%s/series/%s/metadata' % (study, series))
+        CheckJson('/dicom-web/studies/%s/metadata' % study)
+
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % ('nope', series, instance)))
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, 'nope', instance)))
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, 'nope')))
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % ('nope', series)))
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % (study, 'nope')))
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % 'nope'))
+
+
+    def test_wado_bulk(self):
+        def CheckBulk(value, bulk):
+            self.assertEqual(2, len(value))
+            self.assertTrue('BulkDataURI' in value)
+            self.assertTrue('vr' in value)
+            self.assertEqual(value['BulkDataURI'], bulk)
+
+        orthanc = UploadInstance(ORTHANC, 'PrivateTags.dcm') ['ID']
+        study = '1.2.840.113619.2.115.147416.1094281639.0.29'
+        series = '1.2.840.113619.2.115.147416.1094281639.0.30'
+        sop = '1.2.840.113619.2.115.147416.1094281639.0.38'
+
+        a = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)
+        self.assertEqual(1, len(a))
+
+        BASE_URI = '/dicom-web/studies/%s/series/%s/instances/%s/bulk' % (study, series, sop)
+        BASE_URL = 'http://localhost:8042%s' % BASE_URI
+
+        self.assertEqual(2, len(a[0]['60031010']['Value']))
+        CheckBulk(a[0]['60031010']['Value'][0]['60031011'], '%s/60031010/1/60031011' % BASE_URL)
+        CheckBulk(a[0]['60031010']['Value'][1]['60031011'], '%s/60031010/2/60031011' % BASE_URL)
+        CheckBulk(a[0]['7FE00010'], '%s/7fe00010' % BASE_URL)
+
+        b = DoGetRaw(ORTHANC, '/instances/%s/content/6003-1010/0/6003-1011' % orthanc) [1]
+        c = DoGetMultipart(ORTHANC, '%s/60031010/1/60031011' % BASE_URI)
+
+        self.assertEqual(12288, len(b))
+        self.assertEqual(1, len(c))
+        self.assertEqual(b, c[0])
+
+
+    def test_bitbucket_issue_112(self):
+        # QIDO-RS: wrong serialization of number values
+        # https://bitbucket.org/sjodogne/orthanc/issues/112
+        # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/4/
+        
+        UploadInstance(ORTHANC, 'DummyCT.dcm')
+        study = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+
+        # This is the WADO-RS testing
+        a = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)
+        self.assertEqual(1, len(a))
+        self.assertEqual('IS', a[0]['00180091']['vr'])  # EchoTrainLength
+
+        b = a[0]['00180091']['Value'][0]
+        self.assertTrue(isinstance(b, (int, long)))
+        self.assertEqual(10, b)
+
+        # This is the QIDO-RS testing
+        a = DoGet(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(1, len(a))
+        self.assertEqual('IS', a[0]['00201208']['vr'])  # Number of Study Related Instances
+
+        b = a[0]['00201208']['Value'][0]
+        self.assertTrue(isinstance(b, (int, long)))
+        self.assertEqual(1, b)
+        
+
 
 try:
     print('\nStarting the tests...')
