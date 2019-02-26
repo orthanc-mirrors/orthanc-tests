@@ -75,14 +75,23 @@ def DoGetMultipart(orthanc, uri, headers = {}):
     for i in answer[0]:
         header += '%s: %s\r\n' % (i, answer[0][i])
 
-    msg = email.message_from_string(header + '\r\n' + answer[1])
+    b = bytearray()
+    b.extend(header.encode('ascii'))
+    b.extend(b'\r\n')
+    b.extend(answer[1])
+        
+    if (sys.version_info >= (3, 0)):
+        msg = email.message_from_bytes(b)
+    else:
+        msg = email.message_from_string(b)
+        
     if not msg.is_multipart():
         raise Exception('Not a multipart message')
     
     result = []
 
     for part in msg.walk():
-        payload = part.get_payload(decode=True)
+        payload = part.get_payload(decode = True)
         if payload != None:
             result.append(payload)
 

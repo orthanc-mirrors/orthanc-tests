@@ -434,8 +434,13 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         self.assertEqual('IS', a[0]['00180091']['vr'])  # EchoTrainLength
 
+        if (sys.version_info >= (3, 0)):
+            types = (int)
+        else:
+            types = (int, long)
+        
         b = a[0]['00180091']['Value'][0]
-        self.assertTrue(isinstance(b, (int, long)))
+        self.assertTrue(isinstance(b, types))
         self.assertEqual(10, b)
 
         # This is the QIDO-RS testing
@@ -444,7 +449,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('IS', a[0]['00201208']['vr'])  # Number of Study Related Instances
 
         b = a[0]['00201208']['Value'][0]
-        self.assertTrue(isinstance(b, (int, long)))
+        self.assertTrue(isinstance(b, types))
         self.assertEqual(1, b)
 
 
@@ -486,16 +491,41 @@ class Orthanc(unittest.TestCase):
 
         a = DoGet(ORTHANC, '/dicom-web/instances')
         self.assertEqual(1, len(a))
+        self.assertEqual(2, a[0]['00280008']['Value'][0])   # Number of frames
+        self.assertEqual(512, a[0]['00280010']['Value'][0]) # Rows
+        self.assertEqual(512, a[0]['00280011']['Value'][0]) # Columns
+        self.assertEqual(8, a[0]['00280100']['Value'][0])   # Bits allocated
+
         url = a[0]['00081190']['Value'][0]
 
         prefix = 'http://localhost:8042'
         self.assertTrue(url.startswith(prefix))
         uri = url[len(prefix):]
 
-        b = DoGetRaw(ORTHANC, '%s/frames/1' % uri, headers = { 'Accept' : 'multipart/related; type=application/octet-stream' })
-        print b
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 0)))
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 3)))
         
+        b = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1))
+        self.assertEqual(1, len(b))
+        self.assertEqual(512 * 512 * 3, len(b[0]))
+        
+        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2))
+        self.assertEqual(1, len(c))
+        self.assertEqual(512 * 512 * 3, len(c[0]))
 
+        self.assertEqual(b[0], c[0])
+
+        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2),
+                           headers = { 'Accept' : 'multipart/related; type=application/octet-stream' })
+        self.assertEqual(1, len(c))
+        self.assertEqual(b[0], c[0])
+
+        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2),
+                           headers = { 'Accept' : 'multipart/related; type="application/octet-stream"' })
+        self.assertEqual(1, len(c))
+        self.assertEqual(b[0], c[0])
+        
+        
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
