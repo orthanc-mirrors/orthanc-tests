@@ -330,6 +330,10 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_111(self):
+        # Wrong serialization of empty values
+        # https://bitbucket.org/sjodogne/orthanc/issues/111
+        # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/3/
+
         # According to the standard, section F.2.5
         # (http://dicom.nema.org/medical/dicom/current/output/chtml/part18/sect_F.2.5.html),
         # null values behave as follows: If an attribute is present in
@@ -338,11 +342,17 @@ class Orthanc(unittest.TestCase):
         # "Value", "BulkDataURI" or "InlineBinary".
         # https://bitbucket.org/sjodogne/orthanc/issues/111/qido-rs-wrong-serialization-of-empty
 
-        UploadInstance(ORTHANC, 'ColorTestMalaterre.dcm')
+        UploadInstance(ORTHANC, 'Issue111.dcm')
 
-        a = DoGet(ORTHANC, '/dicom-web/studies',
-                  headers = { 'accept' : 'application/json' })
+        # Test WADO-RS
+        a = DoGet(ORTHANC, '/dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.30185.1551199973.371589/metadata')
+        self.assertEqual(1, len(a))
+        self.assertTrue('00080050' in a[0])  # AccessionNumber is null
+        self.assertEqual(1, len(a[0]['00080050']))  # 'vr' is the only field to be present
+        self.assertEqual('SH', a[0]['00080050']['vr'])
 
+        # Test QIDO-RS
+        a = DoGet(ORTHANC, '/dicom-web/studies')
         self.assertEqual(1, len(a))
         self.assertTrue('00080050' in a[0])  # AccessionNumber is null
         self.assertEqual(1, len(a[0]['00080050']))  # 'vr' is the only field to be present
@@ -410,7 +420,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_112(self):
-        # QIDO-RS: wrong serialization of number values
+        # Wrong serialization of number values
         # https://bitbucket.org/sjodogne/orthanc/issues/112
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/4/
         
@@ -434,7 +444,7 @@ class Orthanc(unittest.TestCase):
         b = a[0]['00201208']['Value'][0]
         self.assertTrue(isinstance(b, (int, long)))
         self.assertEqual(1, b)
-        
+
 
 
 try:
