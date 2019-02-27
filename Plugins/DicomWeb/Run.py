@@ -435,10 +435,6 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(url.startswith(prefix))
 
         p = DoGetMultipart(ORTHANC, url[len(prefix):])
-        print(p)
-        print(len(p))
-        for i in len(p):
-            print(len(p[i]))
 
         self.assertEqual(2, len(p))  # There are 2 fragments in this image
         self.assertEqual(4, len(p[0]))
@@ -563,7 +559,6 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 0)))
         self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2)))
 
-        print('%s/frames/%d' % (uri, 1))
         b = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1))
         self.assertEqual(1, len(b))
         self.assertEqual(256 * 256 * 2, len(b[0]))
