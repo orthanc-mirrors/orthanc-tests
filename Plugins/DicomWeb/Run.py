@@ -417,7 +417,35 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % 'nope'))
 
 
-    def test_wado_bulk(self):
+    def test_wado_pixel_data(self):
+        orthanc = UploadInstance(ORTHANC, 'Issue29.dcm') ['ID']
+        a = DoGet(ORTHANC, '/dicom-web/instances')
+        self.assertEqual(1, len(a))
+        url = a[0]['00081190']['Value'][0]
+
+        prefix = 'http://localhost:8042'
+        self.assertTrue(url.startswith(prefix))
+
+        b = DoGet(ORTHANC, url[len(prefix):] + '/metadata')
+        self.assertEqual('OB', b[0]['7FE00010']['vr'])
+        self.assertEqual(2, len(b[0]['7FE00010']))
+        self.assertTrue('BulkDataURI' in b[0]['7FE00010'])
+
+        url = b[0]['7FE00010']['BulkDataURI']
+        self.assertTrue(url.startswith(prefix))
+
+        p = DoGetMultipart(ORTHANC, url[len(prefix):])
+        print(p)
+        print(len(p))
+        for i in len(p):
+            print(len(p[i]))
+
+        self.assertEqual(2, len(p))  # There are 2 fragments in this image
+        self.assertEqual(4, len(p[0]))
+        self.assertEqual(114486, len(p[1]))
+
+        
+    def test_wado_hierarchy_bulk(self):
         def CheckBulk(value, bulk):
             self.assertEqual(2, len(value))
             self.assertTrue('BulkDataURI' in value)
@@ -429,6 +457,10 @@ class Orthanc(unittest.TestCase):
         series = '1.2.840.113619.2.115.147416.1094281639.0.30'
         sop = '1.2.840.113619.2.115.147416.1094281639.0.38'
 
+        # WARNING: This test will fail on Orthanc <= 1.5.5, because
+        # the following fix is not included yet:
+        # https://bitbucket.org/sjodogne/orthanc/commits/b88937ef597b33c4387a546c751827019bcdc205
+        
         a = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)
         self.assertEqual(1, len(a))
 
@@ -514,14 +546,13 @@ class Orthanc(unittest.TestCase):
         # https://bitbucket.org/sjodogne/orthanc/issues/96
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/5/
         
-        UploadInstance(ORTHANC, 'LenaTwiceWithFragments.dcm')
+        UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm')
 
         a = DoGet(ORTHANC, '/dicom-web/instances')
         self.assertEqual(1, len(a))
-        self.assertEqual(2, a[0]['00280008']['Value'][0])   # Number of frames
-        self.assertEqual(512, a[0]['00280010']['Value'][0]) # Rows
-        self.assertEqual(512, a[0]['00280011']['Value'][0]) # Columns
-        self.assertEqual(8, a[0]['00280100']['Value'][0])   # Bits allocated
+        self.assertEqual(256, a[0]['00280010']['Value'][0]) # Rows
+        self.assertEqual(256, a[0]['00280011']['Value'][0]) # Columns
+        self.assertEqual(16, a[0]['00280100']['Value'][0])  # Bits allocated
 
         url = a[0]['00081190']['Value'][0]
 
@@ -530,27 +561,31 @@ class Orthanc(unittest.TestCase):
         uri = url[len(prefix):]
 
         self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 0)))
-        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 3)))
-        
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2)))
+
+        print('%s/frames/%d' % (uri, 1))
         b = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1))
         self.assertEqual(1, len(b))
-        self.assertEqual(512 * 512 * 3, len(b[0]))
+        self.assertEqual(256 * 256 * 2, len(b[0]))
         
-        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2))
-        self.assertEqual(1, len(c))
-        self.assertEqual(512 * 512 * 3, len(c[0]))
-
-        self.assertEqual(b[0], c[0])
-
-        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2),
+        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
                            headers = { 'Accept' : 'multipart/related; type=application/octet-stream' })
         self.assertEqual(1, len(c))
         self.assertEqual(b[0], c[0])
 
-        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 2),
+        c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
                            headers = { 'Accept' : 'multipart/related; type="application/octet-stream"' })
         self.assertEqual(1, len(c))
         self.assertEqual(b[0], c[0])
+
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
+                                                            headers = { 'Accept' : 'multipart/related; type="nope"' }))
+
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
+                                                            headers = { 'Accept' : 'multipart/related; type=nope' }))
+
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
+                                                            headers = { 'Accept' : 'nope' }))
 
 
     def test_qido_fields(self):
