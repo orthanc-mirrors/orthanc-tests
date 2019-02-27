@@ -170,11 +170,37 @@ class Orthanc(unittest.TestCase):
         a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
         self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
 
-        self.assertEqual(0, len(a['00081198']['Value']))  # No error
-        self.assertEqual(1, len(a['00081199']['Value']))  # 1 success
+        self.assertEqual(4, len(a))
+
+        # Specific character set
+        self.assertTrue('00080005' in a)
+        self.assertEqual('CS', a['00080005']['vr'])
 
         self.assertTrue(a['00081190']['Value'][0].endswith('studies/2.16.840.1.113669.632.20.1211.10000098591'))
-        self.assertTrue(a['00081199']['Value'][0]['00081190']['Value'][0].
+        self.assertEqual('UR', a['00081190']['vr'])
+        
+        self.assertFalse('Value' in a['00081198'])  # No error => empty sequence
+        self.assertEqual('SQ', a['00081198']['vr'])
+
+        self.assertEqual(1, len(a['00081199']['Value']))  # 1 success
+        self.assertEqual('SQ', a['00081199']['vr'])
+
+        b = a['00081199']['Value'][0]
+
+        # Referenced SOP class UID
+        self.assertEqual('UI', b['00081150']['vr'])
+        self.assertEqual(1, len(b['00081150']['Value']))
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.2', b['00081150']['Value'][0])
+
+        # Referenced SOP instance UID
+        self.assertEqual('UI', b['00081155']['vr'])
+        self.assertEqual(1, len(b['00081155']['Value']))
+        self.assertEqual('1.2.840.113704.7.1.1.6632.1127829031.2', b['00081155']['Value'][0])
+
+        # Retrieve URL
+        self.assertEqual('UR', b['00081190']['vr'])
+        self.assertEqual(1, len(b['00081190']['Value']))
+        self.assertTrue(b['00081190']['Value'][0].
                         endswith('series/1.2.840.113704.1.111.5692.1127828999.2/instances/1.2.840.113704.7.1.1.6632.1127829031.2'))
 
         # Remove the "http://localhost:8042" prefix
@@ -187,6 +213,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(parts))
         self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
 
+        
     def test_server_get(self):
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
 
@@ -524,7 +551,66 @@ class Orthanc(unittest.TestCase):
                            headers = { 'Accept' : 'multipart/related; type="application/octet-stream"' })
         self.assertEqual(1, len(c))
         self.assertEqual(b[0], c[0])
+
+
+    def test_qido_fields(self):
+        UploadInstance(ORTHANC, 'DummyCT.dcm')
+
+        a = DoGet(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(1, len(a))
+        self.assertFalse('00280010' in a[0])   # Rows
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?includefield=Rows')
+        self.assertEqual(1, len(a))
+        self.assertTrue('00280010' in a[0])
+        self.assertEqual(512, a[0]['00280010']['Value'][0])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?Rows=128')
+        self.assertEqual(0, len(a))
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?Rows=512')
+        self.assertEqual(1, len(a))
+        self.assertTrue('00280010' in a[0])
+        self.assertEqual(512, a[0]['00280010']['Value'][0])
+
         
+    def test_stow_errors(self):
+        # Pushing an instance to a study that is not its parent
+        a = SendStow(ORTHANC, args.dicomweb + '/studies/nope', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
+        self.assertEqual(3, len(a))
+        self.assertTrue('00080005' in a)
+        self.assertEqual('CS', a['00080005']['vr'])
+        self.assertTrue('00081198' in a)
+        self.assertEqual('SQ', a['00081198']['vr'])
+        self.assertEqual(1, len(['00081198']))
+        self.assertTrue('00081199' in a)
+        self.assertEqual('SQ', a['00081199']['vr'])
+        self.assertEqual(1, len(['00081199']))
+
+        # Pushing an instance with missing tags
+        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dcm'))
+        self.assertEqual(3, len(a))
+        self.assertTrue('00080005' in a)
+        self.assertEqual('CS', a['00080005']['vr'])
+        self.assertTrue('00081198' in a)
+        self.assertEqual('SQ', a['00081198']['vr'])
+        self.assertEqual(1, len(['00081198']))
+        self.assertTrue('00081199' in a)
+        self.assertEqual('SQ', a['00081199']['vr'])
+        self.assertEqual(1, len(['00081199']))
+
+        # Pushing a file that is not in the DICOM format
+        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dump'))
+        self.assertEqual(3, len(a))
+        self.assertTrue('00080005' in a)
+        self.assertEqual('CS', a['00080005']['vr'])
+        self.assertTrue('00081198' in a)
+        self.assertEqual('SQ', a['00081198']['vr'])
+        self.assertEqual(1, len(['00081198']))
+        self.assertTrue('00081199' in a)
+        self.assertEqual('SQ', a['00081199']['vr'])
+        self.assertEqual(1, len(['00081199']))
+
         
 try:
     print('\nStarting the tests...')
