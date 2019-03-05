@@ -102,10 +102,19 @@ def GetMoveScuCommand():
         str(_REMOTE['DicomPort'])  
         ]
 
-def CallMoveScu(args):
-    subprocess.check_call(GetMoveScuCommand() + args,
-                          stderr=subprocess.PIPE)
 
+def CallMoveScu(args):
+    try:
+        subprocess.check_call(GetMoveScuCommand() + args,
+                              stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        # The error code "69" corresponds to "EXITCODE_CMOVE_ERROR",
+        # that has been introduced in DCMTK 3.6.2. This error code is
+        # expected by some tests that try and C-MOVE non-existing
+        # DICOM instances.
+        # https://groups.google.com/d/msg/orthanc-users/DCRc5NeSCbM/DG-pSWj-BwAJ
+        if e.returncode != 69:
+            raise e
 
 
 def GenerateTestSequence():
