@@ -110,7 +110,20 @@ config['DicomModalities'] = {
 config['DicomPort'] = args.dicom
 config['HttpCompressionEnabled'] = False
 config['LogExportedResources'] = True
-config['OrthancPeers'] = { 'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ] }
+config['OrthancPeers'] = {
+    'peer' : [ 'http://%s:%d/' % (ip, 5000), 'alice', 'orthanctest' ],
+    'transfers-bidirectional' : {
+        'Url' : 'http://localhost:8042/',
+        'RemoteSelf' : 'transfers-bidirectional',
+        'Username' : 'alice',
+        'Password' : 'orthanctest'
+    },
+    'transfers-simple' : {
+        'Url' : 'http://localhost:8042/',
+        'Username' : 'alice',
+        'Password' : 'orthanctest'
+    }
+}
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
 config['OverwriteInstances'] = True
