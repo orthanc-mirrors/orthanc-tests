@@ -4609,3 +4609,34 @@ class Orthanc(unittest.TestCase):
         patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(patientNames))
         self.assertEqual('John Doe', patientNames[0])
+
+
+    def test_anonymize_relationships_4(self):
+        # https://groups.google.com/d/msg/orthanc-users/UkcsqyTpszE/bXUpzU0vAAAJ
+        sr1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/2019-03-28/CR000000.dcm')['ID']
+        mr1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/2019-03-28/PR000000.dcm')['ID']
+        study = '0c923249-d52121a9-2b7167f7-6b85534f-0943697e'
+        
+        anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study, '{}',
+                            'application/json')['ID']
+        series = DoGet(_REMOTE, '/studies/%s/series' % anonymized)
+        self.assertEqual(2, len(series))
+
+        cr = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'CR', series))
+        pr = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'PR', series))
+        self.assertEqual(1, len(cr))
+        self.assertEqual(1, len(pr))
+        self.assertEqual(1, len(cr[0]['Instances']))
+        self.assertEqual(1, len(pr[0]['Instances']))
+
+        crinstance = DoGet(_REMOTE, '/instances/%s' % cr[0]['Instances'][0])
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % pr[0]['Instances'][0])
+
+        self.assertEqual(tags['0008,1115'][0]['0008,1140'][0]['0008,1155'],
+                         crinstance['MainDicomTags']['SOPInstanceUID'])
+        self.assertEqual(tags['0008,1115'][0]['0008,1140'][0]['0008,1150'],
+                         '1.2.840.10008.5.1.4.1.1.1')  # SOP class for CR Image Storage
+
+        # This fails on Orthanc <= 1.5.6
+        self.assertEqual(tags['0008,1115'][0]['0020,000e'],
+                         cr[0]['MainDicomTags']['SeriesInstanceUID'])
