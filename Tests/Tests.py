@@ -4602,3 +4602,10 @@ class Orthanc(unittest.TestCase):
                             '{"TargetAet":"ORTHANCTEST","Synchronous":false}'))
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         
+
+    def test_bitbucket_issue_136(self):
+        UploadInstance(_REMOTE, 'Issue137.dcm')
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0010,0010', '-k', '0028,0010', '-k', '0040,0275' ])
+        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(patientNames))
+        self.assertEqual('John Doe', patientNames[0])
