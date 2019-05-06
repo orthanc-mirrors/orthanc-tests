@@ -135,7 +135,8 @@ del config['KeepAlive']
 
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
-    '7053,1003' : [ 'ST', 'Original Image Filename', 1, 1, 'Philips PET Private Group' ]
+    '7053,1003' : [ 'ST', 'Original Image Filename', 1, 1, 'Philips PET Private Group' ],
+    '4321,1012' : [ 'LO', 'RadioButton3', 1, 1, 'RadioLogic' ],  # For issue 140
 }
 
 config['DicomWeb'] = {

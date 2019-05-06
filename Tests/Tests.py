@@ -4640,3 +4640,30 @@ class Orthanc(unittest.TestCase):
         # This fails on Orthanc <= 1.5.6
         self.assertEqual(tags['0008,1115'][0]['0020,000e'],
                          cr[0]['MainDicomTags']['SeriesInstanceUID'])
+
+
+    @unittest.skip('Not fixed yet in Orthanc')
+    def test_bitbucket_issue_140(self):
+        source = UploadInstance(_REMOTE, 'Issue140.dcm') ['ID']
+        series = DoGet(_REMOTE, '/instances/%s' % source) ['ParentSeries']
+
+        target = DoPost(_REMOTE, '/series/%s/modify' % series, {
+            'Replace' : { 'RadioButton3' : 'aaabbbccc' }
+        }, 'application/json') ['ID']
+
+        instances = DoGet(_REMOTE, '/series/%s/instances' % target)
+        self.assertEqual(1, len(instances))
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags' % source)
+        t = tags['4321,1012']
+        self.assertEqual('String', t['Type'])
+        self.assertEqual('RadioButton3', t['Name'])
+        self.assertEqual('RadioLogic', t['PrivateCreator'])
+        self.assertEqual('jklmopq', t['Value'])
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags' % instances[0]['ID'])
+        t = tags['4321,1012']
+        self.assertEqual('String', t['Type'])
+        self.assertEqual('RadioButton3', t['Name'])
+        self.assertEqual('RadioLogic', t['PrivateCreator'])
+        self.assertEqual('aaabbbccc', t['Value'])
