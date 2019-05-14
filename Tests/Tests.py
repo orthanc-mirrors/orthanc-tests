@@ -4702,3 +4702,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(b))
         self.assertTrue('Rows' in b[0])
         self.assertEqual('512', b[0]['Rows'])
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Instance',
+            'Query' : { 'Rows' : '' },
+            'Normalize' : False
+        }) ['ID']
+
+        b = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
+        self.assertEqual(1, len(b))
+        self.assertTrue('Rows' in b[0])
+        self.assertEqual('512', b[0]['Rows'])
+
+        self.assertRaises(Exception, lambda: DoPost(
+            _REMOTE, '/modalities/self/query', {
+                'Level' : 'Instance',
+                'Query' : { 'Rows' : '*' },  # Out-of-range value
+                'Normalize' : False
+            }))
