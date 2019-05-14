@@ -4667,3 +4667,38 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('RadioButton3', t['Name'])
         self.assertEqual('RadioLogic', t['PrivateCreator'])
         self.assertEqual('aaabbbccc', t['Value'])
+
+
+    def test_find_normalize(self):
+        # https://groups.google.com/d/msg/orthanc-users/AIwooGjsh94/YL28MNY4AgAJ
+        
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Instance',
+            'Query' : { 'Rows' : '42' }
+        }) ['ID']
+
+        b = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
+        self.assertEqual(1, len(b))
+        self.assertFalse('Rows' in b[0])
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Instance',
+            'Query' : { 'Rows' : '42' },
+            'Normalize' : False
+        }) ['ID']
+
+        b = DoGet(_REMOTE, '/queries/%s/answers' % a)
+        self.assertEqual(0, len(b))
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Instance',
+            'Query' : { 'Rows' : '512' },
+            'Normalize' : False
+        }) ['ID']
+
+        b = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
+        self.assertEqual(1, len(b))
+        self.assertTrue('Rows' in b[0])
+        self.assertEqual('512', b[0]['Rows'])
