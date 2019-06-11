@@ -111,7 +111,7 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
     (resp, content) = DoGetRaw(orthanc, uri, data = data, body = body, headers = headers)
 
     if not (resp.status in [ 200 ]):
-        raise Exception(resp.status)
+        raise Exception(resp.status, resp)
     else:
         return _DecodeJson(content)
 
@@ -134,7 +134,7 @@ def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
                                  body = body,
                                  headers = headers)
     if not (resp.status in [ 200, 302 ]):
-        raise Exception(resp.status)
+        raise Exception(resp.status, resp)
     else:
         return _DecodeJson(content)
 
@@ -145,7 +145,7 @@ def DoDelete(orthanc, uri):
 
     resp, content = http.request(orthanc['Url'] + uri, 'DELETE')
     if not (resp.status in [ 200 ]):
-        raise Exception(resp.status)
+        raise Exception(resp.status, resp)
     else:
         return _DecodeJson(content)
 

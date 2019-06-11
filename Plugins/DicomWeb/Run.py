@@ -641,6 +641,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('SQ', a['00081199']['vr'])
         self.assertEqual(1, len(['00081199']))
 
+
+    def test_allowed_methods(self):
+        self.assertEqual(0, len(DoGet(ORTHANC, '/dicom-web/studies')))
+        
+        with self.assertRaises(Exception) as e:
+            DoPut(ORTHANC, '/dicom-web/studies')
+
+        self.assertEqual(405, e.exception[0])
+        self.assertEqual("GET,POST", e.exception[1]['allow'])
+        
+        with self.assertRaises(Exception) as e:
+            DoDelete(ORTHANC, '/dicom-web/studies')
+
+        self.assertEqual(405, e.exception[0])
+        self.assertEqual("GET,POST", e.exception[1]['allow'])
         
 try:
     print('\nStarting the tests...')
