@@ -656,6 +656,43 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(405, e.exception[0])
         self.assertEqual("GET,POST", e.exception[1]['allow'])
+
+
+    def test_add_server(self):
+        try:
+            DoDelete(ORTHANC, '/dicom-web/servers/hello')
+        except:
+            pass
+        
+        l = DoGet(ORTHANC, '/dicom-web/servers')
+        self.assertEqual(1, len(l))
+        self.assertTrue('sample' in l)
+
+        url = 'http://localhost:8042/dicom-web/'
+        DoPut(ORTHANC, '/dicom-web/servers/hello', {
+            'Url': url,
+            'HttpHeaders' : {
+                'Hello' : 'World'
+            },
+            'Username' : 'bob',
+            'Password' : 'bob'
+            })
+
+        l = DoGet(ORTHANC, '/dicom-web/servers')
+        self.assertEqual(2, len(l))
+        self.assertTrue('sample' in l)        
+        self.assertTrue('hello' in l)        
+
+        s = DoGet(ORTHANC, '/dicom-web/servers?expand')
+        self.assertEqual(5, len(s['hello']))
+        self.assertEqual(url, s['hello']['Url'])
+        self.assertEqual('bob', s['hello']['Username'])
+        self.assertEqual(None, s['hello']['Password'])
+        self.assertFalse(s['hello']['Pkcs11'])
+        self.assertEqual(1, len(s['hello']['HttpHeaders']))
+        self.assertTrue('Hello' in s['hello']['HttpHeaders'])
+        
+        DoDelete(ORTHANC, '/dicom-web/servers/hello')
         
 try:
     print('\nStarting the tests...')
