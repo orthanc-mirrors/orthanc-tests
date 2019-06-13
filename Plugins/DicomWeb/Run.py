@@ -675,7 +675,8 @@ class Orthanc(unittest.TestCase):
                 'Hello' : 'World'
             },
             'Username' : 'bob',
-            'Password' : 'bob'
+            'Password' : 'password',
+            'UserProperty' : 'Test',
             })
 
         l = DoGet(ORTHANC, '/dicom-web/servers')
@@ -684,13 +685,14 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('hello' in l)        
 
         s = DoGet(ORTHANC, '/dicom-web/servers?expand')
-        self.assertEqual(5, len(s['hello']))
+        self.assertEqual(6, len(s['hello']))
         self.assertEqual(url, s['hello']['Url'])
         self.assertEqual('bob', s['hello']['Username'])
         self.assertEqual(None, s['hello']['Password'])
         self.assertFalse(s['hello']['Pkcs11'])
         self.assertEqual(1, len(s['hello']['HttpHeaders']))
         self.assertTrue('Hello' in s['hello']['HttpHeaders'])
+        self.assertEqual('Test', s['hello']['UserProperty'])
         
         DoDelete(ORTHANC, '/dicom-web/servers/hello')
         
