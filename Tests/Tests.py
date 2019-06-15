@@ -4720,3 +4720,23 @@ class Orthanc(unittest.TestCase):
                 'Query' : { 'Rows' : '*' },  # Out-of-range value
                 'Normalize' : False
             }))
+
+
+    def test_bitbucket_issue_141(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/141/
+        a = UploadInstance(_REMOTE, 'Issue141.dcm') ['ID']
+        study = '494c8037-b237f263-d8f15075-c8cb2280-daf39bd1'
+
+        with open(GetDatabasePath('HelloWorld.pdf'), 'rb') as f:
+            pdf = f.read()
+
+        b = DoPost(_REMOTE, '/tools/create-dicom', {
+                'Parent' : study,
+                'Tags' : {},
+                'Content' : 'data:application/pdf;base64,' + base64.b64encode(pdf)
+                }) ['ID']
+        
+        tagsA = DoGet(_REMOTE, '/instances/%s/tags?short' % a)
+        tagsB = DoGet(_REMOTE, '/instances/%s/tags?short' % b)
+        self.assertEqual(tagsA['0008,0005'], tagsB['0008,0005'])
+        self.assertEqual(tagsA['0008,1030'], tagsB['0008,1030'])
