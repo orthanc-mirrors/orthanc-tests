@@ -225,10 +225,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('alice', serversReadback['sample']['Username'])
 
         sample = DoGet(ORTHANC, '/dicom-web/servers/sample')
-        self.assertEqual(3, len(sample))
+        self.assertEqual(5, len(sample))
         self.assertTrue('stow' in sample)
         self.assertTrue('retrieve' in sample)
         self.assertTrue('get' in sample)
+        self.assertTrue('wado' in sample)  # New in 0.7
+        self.assertTrue('qido' in sample)  # New in 0.7
 
         # application/dicom+xml
         self.assertEqual(2, len(re.findall('^--', DoGet(ORTHANC, '/dicom-web/studies',
@@ -288,6 +290,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_server_retrieve(self):
+        COUNT = 'ReceivedInstancesCount'
+        #COUNT = 'Instances'  # In version <= 0.6
+
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0002.dcm')
         UploadInstance(ORTHANC, 'Knee/T2/IM-0001-0001.dcm')
@@ -298,7 +303,7 @@ class Orthanc(unittest.TestCase):
 
         t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
                    { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881' } ] })
-        self.assertEqual(3, len(t['Instances']))
+        self.assertEqual(3, int(t[COUNT]))
 
         # Missing "Study" field
         self.assertRaises(Exception, lambda: 
@@ -308,25 +313,25 @@ class Orthanc(unittest.TestCase):
         t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
                    { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
                                        'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081908564160709' } ] })
-        self.assertEqual(2, len(t['Instances']))
+        self.assertEqual(2, int(t[COUNT]))
 
         t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
                    { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
                                        'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350' } ] })
-        self.assertEqual(1, len(t['Instances']))
+        self.assertEqual(1, int(t[COUNT]))
 
         t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
                    { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
                                        'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350' },
                                      { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
                                        'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081908564160709' } ] })
-        self.assertEqual(3, len(t['Instances']))
+        self.assertEqual(3, int(t[COUNT]))
 
         t = DoPost(ORTHANC, '/dicom-web/servers/sample/retrieve',
                    { 'Resources' : [ { 'Study' : '2.16.840.1.113669.632.20.121711.10000160881',
                                        'Series' : '1.3.46.670589.11.17521.5.0.3124.2008081909090037350',
                                        'Instance' : '1.3.46.670589.11.17521.5.0.3124.2008081909113806560' } ] })
-        self.assertEqual(1, len(t['Instances']))
+        self.assertEqual(1, int(t[COUNT]))
 
         
     def test_bitbucket_issue_53(self):
