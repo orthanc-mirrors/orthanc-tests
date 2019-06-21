@@ -267,26 +267,31 @@ class Orthanc(unittest.TestCase):
 
         self.assertRaises(Exception, lambda: 
                           DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                 { 'Resources' : [ 'nope' ]}))  # inexisting resource
+                                 { 'Resources' : [ 'nope' ],
+                                   'Synchronous' : True }))  # inexisting resource
 
-        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17' ]})))  # patient
+        l = 2   # For >= 0.7
+        #l = 0   # For <= 0.6
+        
+        self.assertEqual(l, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918' ],
+                                         'Synchronous' : True })))  # study
 
-        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918' ]})))  # study
+        self.assertEqual(l, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285' ],
+                                         'Synchronous' : True })))  # series
 
-        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285' ]})))  # series
+        self.assertEqual(l, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                       { 'Resources' : [ 'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
+                                         'Synchronous' : True })))  # instance
 
-        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ 'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ]})))  # instance
-
-        self.assertEqual(0, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        self.assertEqual(l, len(DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
                                        { 'Resources' : [ 
                                            'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
                                            '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918',
                                            '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285',
-                                           'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ]})))  # altogether
+                                           'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
+                                         'Synchronous' : True })))  # altogether
 
 
     def test_server_retrieve(self):
@@ -700,6 +705,40 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Test', s['hello']['UserProperty'])
         
         DoDelete(ORTHANC, '/dicom-web/servers/hello')
+
+        
+    def test_bitbucket_issue_143(self):
+        # WADO-RS metadata request returns "500 Internal Server Error"
+        # instead of "404 Not Found" for missing instance
+        # https://bitbucket.org/sjodogne/orthanc/issues/143
+        UploadInstance(ORTHANC, 'Issue143.dcm')
+
+        try:
+            DoGet(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.55.3.671756986.106.1316467036.460/series/1.2.840.113619.2.55.3.671756986.106.1316467036.465/instances/0.0.0.0.0/metadata')
+            self.assertFail()
+        except Exception as e:
+            self.assertEqual(404, e[0])
+        
+        DoGet(ORTHANC, '/dicom-web/studies/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.2/series/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.3/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
+
+        try:
+            DoGet(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.3/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
+            self.fail()
+        except Exception as e:
+            self.assertEqual(404, e[0])
+
+        try:
+            DoGet(ORTHANC, '/dicom-web/studies/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.2/series/0.0.0.0.0/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
+            self.assertFail()
+        except Exception as e:
+            self.assertEqual(404, e[0])
+
+        try:
+            DoGet(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/0.0.0.0.0/instances/0.0.0.0.0/metadata')
+            self.assertFail()
+        except Exception as e:
+            self.assertEqual(404, e[0])
+
         
 try:
     print('\nStarting the tests...')
