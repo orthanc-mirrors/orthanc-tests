@@ -104,6 +104,16 @@ ORTHANC = DefineOrthanc(server = args.server,
 ## The tests
 ##
 
+
+def UploadAndGetWadoPath(dicom):
+    i = UploadInstance(ORTHANC, dicom) ['ID']
+    study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+    series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
+    instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
+    return '/studies/%s/series/%s/instances/%s' % (study, series, instance)
+    
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -687,6 +697,7 @@ class Orthanc(unittest.TestCase):
             'Username' : 'bob',
             'Password' : 'password',
             'UserProperty' : 'Test',
+            'HasDelete' : True,
             })
 
         l = DoGet(ORTHANC, '/dicom-web/servers')
@@ -694,8 +705,25 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('sample' in l)        
         self.assertTrue('hello' in l)        
 
+        o = DoGet(ORTHANC, '/dicom-web/servers/sample')
+        self.assertEqual(5, len(o))
+        self.assertTrue('stow' in o)
+        self.assertTrue('retrieve' in o)
+        self.assertTrue('get' in o)
+        self.assertTrue('wado' in o)  # New in 0.7
+        self.assertTrue('qido' in o)  # New in 0.7
+
+        o = DoGet(ORTHANC, '/dicom-web/servers/hello')
+        self.assertEqual(6, len(o))
+        self.assertTrue('stow' in o)
+        self.assertTrue('retrieve' in o)
+        self.assertTrue('get' in o)
+        self.assertTrue('wado' in o)  # New in 0.7
+        self.assertTrue('qido' in o)  # New in 0.7
+        self.assertTrue('delete' in o)  # New in 0.7
+
         s = DoGet(ORTHANC, '/dicom-web/servers?expand')
-        self.assertEqual(6, len(s['hello']))
+        self.assertEqual(7, len(s['hello']))
         self.assertEqual(url, s['hello']['Url'])
         self.assertEqual('bob', s['hello']['Username'])
         self.assertEqual(None, s['hello']['Password'])
@@ -703,6 +731,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(s['hello']['HttpHeaders']))
         self.assertTrue('Hello' in s['hello']['HttpHeaders'])
         self.assertEqual('Test', s['hello']['UserProperty'])
+        self.assertEqual('1', s['hello']['HasDelete'])
         
         DoDelete(ORTHANC, '/dicom-web/servers/hello')
 
@@ -780,7 +809,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(u'やまだ^たろう', GetPatientName('Encodings/DavidClunie/SCSH31', False)['Phonetic'])
         self.assertEqual(u'ﾔﾏﾀﾞ^ﾀﾛｳ', GetPatientName('Encodings/DavidClunie/SCSH32', False)['Alphabetic'])
 
-        # TODO - Not supported yet by the Orthanc core
+        # TODO - Not supported yet by the Orthanc core as of 1.5.7
         #self.assertEqual(u'山田^太郎', GetPatientName('Encodings/DavidClunie/SCSH32')['Ideographic'])
         #self.assertEqual(u'やまだ^たろう', GetPatientName('Encodings/DavidClunie/SCSH32')['Phonetic'])
 
@@ -789,11 +818,7 @@ class Orthanc(unittest.TestCase):
         # If querying the instance metadata, the "DefaultEncoding"
         # configuration is not used, but the actual encoding
         def GetEncoding(dicom, length):
-            i = UploadInstance(ORTHANC, dicom) ['ID']
-            study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
-            series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
-            instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
-            qido = DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/metadata' % (study, series, instance))
+            qido = DoGet(ORTHANC, '/dicom-web/%s/metadata' % UploadAndGetWadoPath(dicom))
             self.assertEqual(1, len(qido))
             self.assertEqual(length, len(qido[0]['00080005']['Value']))
             self.assertEqual('CS', qido[0]['00080005']['vr'])
@@ -812,6 +837,58 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('ISO 2022 IR 13', GetEncoding('Encodings/DavidClunie/SCSH32', 2)[0])
         self.assertEqual('ISO 2022 IR 87', GetEncoding('Encodings/DavidClunie/SCSH32', 2)[1])
 
+
+    def test_rendered(self):
+        def RenderFrame(path, i):
+            return DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '%s/frames/%d/rendered' % (path, i)
+            })
+
+        # This image has 76 frames
+        path = UploadAndGetWadoPath('Multiframe.dcm')
+
+        self.assertRaises(Exception, lambda: RenderFrame(path, 0))
+
+        frame1 = RenderFrame(path, 1)        
+        im = UncompressImage(frame1)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        im = UncompressImage(RenderFrame(path, 76))
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        self.assertRaises(Exception, lambda: RenderFrame(path, 77))
+
+        defaultFrame = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+            'Uri' : '%s/rendered' % path
+        })
+
+        self.assertEqual(len(frame1), len(defaultFrame))
+        self.assertEqual(frame1, defaultFrame)
+
+
+        # This image has 1 frame
+        path = UploadAndGetWadoPath('Phenix/IM-0001-0001.dcm')
+
+        self.assertRaises(Exception, lambda: RenderFrame(path, 0))
+        self.assertRaises(Exception, lambda: RenderFrame(path, 2))
+
+        frame1 = RenderFrame(path, 1)
+        im = UncompressImage(frame1)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        defaultFrame = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+            'Uri' : '%s/rendered' % path
+        })
+
+        self.assertEqual(len(frame1), len(defaultFrame))
+        self.assertEqual(frame1, defaultFrame)
+        
         
 try:
     print('\nStarting the tests...')

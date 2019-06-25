@@ -197,13 +197,15 @@ def ComputeMD5(data):
     m.update(data)
     return m.hexdigest()
 
-def GetImage(orthanc, uri, headers = {}):
-    # http://www.pythonware.com/library/pil/handbook/introduction.htm
-    data = DoGet(orthanc, uri, headers = headers)
+def UncompressImage(data):
     if (sys.version_info >= (3, 0)):
         return Image.open(BytesIO(data))
     else:
         return Image.open(StringIO(data))
+
+def GetImage(orthanc, uri, headers = {}):
+    # http://www.pythonware.com/library/pil/handbook/introduction.htm
+    return UncompressImage(DoGet(orthanc, uri, headers = headers))
 
 def GetArchive(orthanc, uri):
     # http://stackoverflow.com/a/1313868/881731
