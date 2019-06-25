@@ -4740,3 +4740,9 @@ class Orthanc(unittest.TestCase):
         tagsB = DoGet(_REMOTE, '/instances/%s/tags?short' % b)
         self.assertEqual(tagsA['0008,0005'], tagsB['0008,0005'])
         self.assertEqual(tagsA['0008,1030'], tagsB['0008,1030'])
+
+
+    def test_modifying_missing_patientid(self):
+        # https://groups.google.com/d/msg/orthanc-users/aphG_h1AHVg/rfOTtTPTAgAJ
+        UploadInstance(_REMOTE, '2019-06-17-VedranZdesic.dcm')
+        DoPost(_REMOTE, '/studies/0c4aca1d-c107a241-6659d6aa-594c674a-a468b94a/modify', {})
