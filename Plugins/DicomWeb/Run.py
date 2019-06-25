@@ -739,6 +739,79 @@ class Orthanc(unittest.TestCase):
         except Exception as e:
             self.assertEqual(404, e[0])
 
+
+    def test_encodings_qido(self):
+        # The "DefaultEncoding" condifuration option is set to "UTF8"
+        # in the integration tests, so all the QIDO-RS requests must
+        # lead to a "ISO_IR 192" specific character set
+        def GetPatientName(dicom, onlyAlphabetic):
+            i = UploadInstance(ORTHANC, dicom) ['ID']
+            j = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+            qido = DoGet(ORTHANC, '/dicom-web/studies?0020000D=%s' % j)
+            self.assertEqual(1, len(qido))
+            self.assertEqual('CS', qido[0]['00080005']['vr'])
+            self.assertEqual('ISO_IR 192', qido[0]['00080005']['Value'][0])
+            if onlyAlphabetic:
+                self.assertEqual(1, len(qido[0]['00100010']['Value'][0]))
+            else:
+                self.assertEqual(3, len(qido[0]['00100010']['Value'][0]))
+            return qido[0]['00100010']['Value'][0]
+
+        # Check out "test_issue_95_encodings" in "../../Tests/Tests.py"
+
+        self.assertEqual(u'Buc^Jérôme', GetPatientName('Encodings/DavidClunie/SCSFREN', True) ['Alphabetic'])
+        self.assertEqual(u'Äneas^Rüdiger', GetPatientName('Encodings/DavidClunie/SCSGERM', True)['Alphabetic'])
+        self.assertEqual(u'Διονυσιος', GetPatientName('Encodings/DavidClunie/SCSGREEK', True)['Alphabetic'])
+        self.assertEqual(u'Люкceмбypг', GetPatientName('Encodings/DavidClunie/SCSRUSS', True)['Alphabetic'])
+        self.assertEqual(u'שרון^דבורה', GetPatientName('Encodings/DavidClunie/SCSHBRW', True)['Alphabetic'])
+        self.assertEqual(u'قباني^لنزار', GetPatientName('Encodings/DavidClunie/SCSARAB', True)['Alphabetic'])
+
+        self.assertEqual(u'Hong^Gildong', GetPatientName('Encodings/DavidClunie/SCSI2', False)['Alphabetic'])
+        self.assertEqual(u'洪^吉洞', GetPatientName('Encodings/DavidClunie/SCSI2', False)['Ideographic'])
+        self.assertEqual(u'홍^길동', GetPatientName('Encodings/DavidClunie/SCSI2', False)['Phonetic'])
+        self.assertEqual(u'Wang^XiaoDong', GetPatientName('Encodings/DavidClunie/SCSX2', False)['Alphabetic'])
+        self.assertEqual(u'王^小东', GetPatientName('Encodings/DavidClunie/SCSX2', False)['Ideographic'])
+        self.assertEqual(u'', GetPatientName('Encodings/DavidClunie/SCSX2', False)['Phonetic'])
+        self.assertEqual(u'Wang^XiaoDong', GetPatientName('Encodings/DavidClunie/SCSX1', False)['Alphabetic'])
+        self.assertEqual(u'王^小東', GetPatientName('Encodings/DavidClunie/SCSX1', False)['Ideographic'])
+        self.assertEqual(u'', GetPatientName('Encodings/DavidClunie/SCSX1', False)['Phonetic'])
+        self.assertEqual(u'Yamada^Tarou', GetPatientName('Encodings/DavidClunie/SCSH31', False)['Alphabetic'])
+        self.assertEqual(u'山田^太郎', GetPatientName('Encodings/DavidClunie/SCSH31', False)['Ideographic'])
+        self.assertEqual(u'やまだ^たろう', GetPatientName('Encodings/DavidClunie/SCSH31', False)['Phonetic'])
+        self.assertEqual(u'ﾔﾏﾀﾞ^ﾀﾛｳ', GetPatientName('Encodings/DavidClunie/SCSH32', False)['Alphabetic'])
+
+        # TODO - Not supported yet by the Orthanc core
+        #self.assertEqual(u'山田^太郎', GetPatientName('Encodings/DavidClunie/SCSH32')['Ideographic'])
+        #self.assertEqual(u'やまだ^たろう', GetPatientName('Encodings/DavidClunie/SCSH32')['Phonetic'])
+
+
+    def test_encodings_wado_metadata(self):
+        # If querying the instance metadata, the "DefaultEncoding"
+        # configuration is not used, but the actual encoding
+        def GetEncoding(dicom, length):
+            i = UploadInstance(ORTHANC, dicom) ['ID']
+            study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+            series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
+            instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
+            qido = DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/metadata' % (study, series, instance))
+            self.assertEqual(1, len(qido))
+            self.assertEqual(length, len(qido[0]['00080005']['Value']))
+            self.assertEqual('CS', qido[0]['00080005']['vr'])
+            return qido[0]['00080005']['Value']
+
+        self.assertEqual('ISO_IR 100', GetEncoding('Encodings/DavidClunie/SCSFREN', 1)[0])
+        self.assertEqual('ISO_IR 100', GetEncoding('Encodings/DavidClunie/SCSGERM', 1)[0])
+        self.assertEqual('ISO_IR 126', GetEncoding('Encodings/DavidClunie/SCSGREEK', 1)[0])
+        self.assertEqual('ISO_IR 144', GetEncoding('Encodings/DavidClunie/SCSRUSS', 1)[0])
+        self.assertEqual('ISO_IR 138', GetEncoding('Encodings/DavidClunie/SCSHBRW', 1)[0])
+        self.assertEqual('ISO_IR 127', GetEncoding('Encodings/DavidClunie/SCSARAB', 1)[0])
+        self.assertEqual('ISO 2022 IR 149', GetEncoding('Encodings/DavidClunie/SCSI2', 1)[0])
+        self.assertEqual('GB18030', GetEncoding('Encodings/DavidClunie/SCSX2', 1)[0])
+        self.assertEqual('ISO_IR 192', GetEncoding('Encodings/DavidClunie/SCSX1', 1)[0])
+        self.assertEqual('ISO 2022 IR 87', GetEncoding('Encodings/DavidClunie/SCSH31', 1)[0])
+        self.assertEqual('ISO 2022 IR 13', GetEncoding('Encodings/DavidClunie/SCSH32', 2)[0])
+        self.assertEqual('ISO 2022 IR 87', GetEncoding('Encodings/DavidClunie/SCSH32', 2)[1])
+
         
 try:
     print('\nStarting the tests...')
