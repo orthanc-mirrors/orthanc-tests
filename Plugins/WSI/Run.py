@@ -92,20 +92,38 @@ ORTHANC = DefineOrthanc(server = args.server,
                         password = args.password,
                         restPort = args.rest)
 
-def CallDicomizer(suffix):
+def CallCommand(command):
     prefix = []
     if args.valgrind:
         prefix = [ 'valgrind' ]
     
-    log = subprocess.check_output(prefix + [ args.dicomizer,
-                                             '--username=%s' % args.username,
-                                             '--password=%s' % args.password ] + suffix,
+    log = subprocess.check_output(prefix + command,
                                   stderr=subprocess.STDOUT)
-
+                                  
     # If using valgrind, only print the lines from the log starting
     # with '==' (they contain the report from valgrind)
     if args.valgrind:
         print('\n'.join(filter(lambda x: x.startswith('=='), log.splitlines())))
+
+        
+def CallDicomizer(suffix):
+    CallCommand([ args.dicomizer,
+                  '--username=%s' % args.username,
+                  '--password=%s' % args.password ] + suffix)
+
+    
+def CallDicomToTiff(suffix):
+    CallCommand([ args.to_tiff ] + suffix)
+
+
+def CallTiffInfoOnSeries(series):
+    with tempfile.NamedTemporaryFile(delete = False) as temp:
+        temp.close()
+        CallDicomToTiff([ series, temp.name ])
+        tiff = subprocess.check_output([ 'tiffinfo', temp.name ])
+        os.unlink(temp.name)
+
+    return tiff
 
 
 class Orthanc(unittest.TestCase):
@@ -147,6 +165,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(512, pyramid['TotalHeight'])
         self.assertEqual(1, pyramid['TilesCount'][0][0])
         self.assertEqual(1, pyramid['TilesCount'][0][1])
+
+        tiff = CallTiffInfoOnSeries(s[0])
+        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        self.assertEqual(1, len(p))
+        self.assertTrue('YCbCr' in p[0])
 
 
     def test_grayscale_pyramid(self):
@@ -193,6 +216,61 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, pyramid['TilesCount'][2][1])
         self.assertEqual(1, pyramid['TilesCount'][3][0])
         self.assertEqual(1, pyramid['TilesCount'][3][1])
+
+        tiff = CallTiffInfoOnSeries(s[0])
+        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        self.assertEqual(4, len(p))
+        for j in range(4):
+            self.assertTrue('min-is-black' in p[j])
+
+
+    def test_import_tiff_grayscale(self):
+        CallDicomizer([ GetDatabasePath('WSI/LenaGrayscaleJpeg.tiff') ])
+
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        pyramid = DoGet(ORTHANC, '/wsi/pyramids/%s' % s[0])
+        self.assertEqual(4, len(pyramid['Resolutions']))
+
+        tiff = CallTiffInfoOnSeries(s[0])
+        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        self.assertEqual(4, len(p))
+        for j in range(4):
+            self.assertTrue('min-is-black' in p[j])
+
+            
+    def test_import_tiff_ycbcr(self):
+        CallDicomizer([ GetDatabasePath('WSI/LenaColorJpegYCbCr.tiff') ])
+
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        pyramid = DoGet(ORTHANC, '/wsi/pyramids/%s' % s[0])
+        self.assertEqual(4, len(pyramid['Resolutions']))
+
+        tiff = CallTiffInfoOnSeries(s[0])
+        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        self.assertEqual(4, len(p))
+        for j in range(4):
+            self.assertTrue('YCbCr' in p[j])
+
+
+    def test_import_tiff_rgb(self):
+        CallDicomizer([ GetDatabasePath('WSI/LenaColorJpegRGB.tiff') ])
+
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        pyramid = DoGet(ORTHANC, '/wsi/pyramids/%s' % s[0])
+        self.assertEqual(4, len(pyramid['Resolutions']))
+
+        tiff = CallTiffInfoOnSeries(s[0])
+        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        self.assertEqual(4, len(p))
+        for j in range(4):
+            self.assertTrue('RGB' in p[j])
+
         
 try:
     print('\nStarting the tests...')
