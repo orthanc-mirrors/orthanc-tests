@@ -60,6 +60,8 @@ parser.add_argument('--dicomizer',
 parser.add_argument('--to-tiff',
                     default = '/home/jodogne/Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomToTiff',
                     help = 'Password to the REST API')
+parser.add_argument('--valgrind', help = 'Use valgrind while running the DICOM-izer',
+                    action = 'store_true')
 parser.add_argument('--force', help = 'Do not warn the user',
                     action = 'store_true')
 parser.add_argument('options', metavar = 'N', nargs = '*',
@@ -90,11 +92,20 @@ ORTHANC = DefineOrthanc(server = args.server,
                         password = args.password,
                         restPort = args.rest)
 
-def CallDicomizer(p):
-    subprocess.check_output([ args.dicomizer,
-                              '--username=%s' % args.username,
-                              '--password=%s' % args.password ] + p,
-                            stderr=subprocess.STDOUT)
+def CallDicomizer(suffix):
+    prefix = []
+    if args.valgrind:
+        prefix = [ 'valgrind' ]
+    
+    log = subprocess.check_output(prefix + [ args.dicomizer,
+                                             '--username=%s' % args.username,
+                                             '--password=%s' % args.password ] + suffix,
+                                  stderr=subprocess.STDOUT)
+
+    # If using valgrind, only print the lines from the log starting
+    # with '==' (they contain the report from valgrind)
+    if args.valgrind:
+        print('\n'.join(filter(lambda x: x.startswith('=='), log.splitlines())))
 
 
 class Orthanc(unittest.TestCase):
