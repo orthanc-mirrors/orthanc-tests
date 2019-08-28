@@ -4007,6 +4007,8 @@ class Orthanc(unittest.TestCase):
     def test_split(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        knee1Sop = '1.3.46.670589.11.17521.5.0.3124.2008081908590448738'
+        knee2Sop = '1.3.46.670589.11.17521.5.0.3124.2008081909113806560'
         study = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
         t1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
         t2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
@@ -4043,10 +4045,24 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('Hello', info['PatientMainDicomTags']['PatientName'])
         self.assertFalse('ReferringPhysicianName' in info['MainDicomTags'])
 
+        sopInstanceUids = set()
+        for i in DoGet(_REMOTE, '/instances?expand'):
+            sopInstanceUids.add(i['MainDicomTags']['SOPInstanceUID'])
+
+        self.assertTrue(knee1Sop in sopInstanceUids)
+
+        # Fails if Orthanc <= 1.5.7
+        self.assertFalse(knee2Sop in sopInstanceUids)  # Because "KeepSource" is False
+
+        # One original instance is kept, another one is added because of the split
+        self.assertEqual(2, len(sopInstanceUids))
+
         
     def test_merge(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
-        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        kneeSop = '1.3.46.670589.11.17521.5.0.3124.2008081908590448738'
+        brainixSop = '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'
         knee = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
         t1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
         brainix = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
@@ -4101,6 +4117,17 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual(a[key], merged[key])
                 if (key in b):
                     self.assertNotEqual(a[key], b[key])
+
+        sopInstanceUids = set()
+        for i in DoGet(_REMOTE, '/instances?expand'):
+            sopInstanceUids.add(i['MainDicomTags']['SOPInstanceUID'])
+
+        self.assertTrue(kneeSop in sopInstanceUids)
+        self.assertTrue(brainixSop in sopInstanceUids)
+
+        # Fails if Orthanc <= 1.5.7
+        # The 2 original instances are kept, another one is added because of the merge
+        self.assertEqual(3, len(sopInstanceUids))
  
 
     def test_async_archive(self):
