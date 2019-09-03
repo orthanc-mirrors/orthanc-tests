@@ -61,6 +61,7 @@ Here is the source of each set of sample images:
 - Comunix/* : From OsiriX, "COMUNIX" (sample of PET/CT study).
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
 - HierarchicalAnonymization/StructuredReports/* : Courtesy of Collective Minds Radiology AB
+- HierarchicalAnonymization/RTH/* : From https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017
 - Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
 - Issue22.dcm : From Emsy Chan on Google Code (Error decoding multi-frame instances)
