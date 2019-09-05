@@ -4707,10 +4707,8 @@ class Orthanc(unittest.TestCase):
 
         aCt = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'CT', aSeries))
         aRt = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'RTSTRUCT', aSeries))
-
         aCtInstanceId = aCt[0]['Instances'][0]
         aRtInstanceId = aRt[0]['Instances'][0]
-
         aCtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % aCtInstanceId)
         aRtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % aRtInstanceId)
 
@@ -4736,11 +4734,42 @@ class Orthanc(unittest.TestCase):
         # validate the relationships
         self.assertEqual(oContourSequenceCount, aContourSequenceCount)
         self.assertEqual(aCtFrameOfReferenceUID, aRtFrameOfReferenceUID)
-        # fails !!! self.assertEqual(aStudyUID, aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['ReferencedSOPInstanceUID'])
-        # fails !!! self.assertEqual(aCtSeriesUID, aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['RTReferencedSeriesSequence'][0]['SeriesInstanceUID'])
+        self.assertEqual(aStudyUID, aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['ReferencedSOPInstanceUID'])
+        self.assertEqual(aCtSeriesUID, aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['RTReferencedSeriesSequence'][0]['SeriesInstanceUID'])
         self.assertEqual(aCtInstanceUID, aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['RTReferencedSeriesSequence'][0]['ContourImageSequence'][0]['ReferencedSOPInstanceUID'])
         self.assertEqual(aCtInstanceUID, aRtTags['ROIContourSequence'][0]['ContourSequence'][aContourSequenceCount-1]['ContourImageSequence'][0]['ReferencedSOPInstanceUID'])
 
+    def test_anonymize_relationships_5b(self):
+        # same test as previous one but, this time, we force the StudyInstanceUID
+        ct1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/RTH/CT01.dcm')
+        rt1 = UploadInstance(_REMOTE, 'HierarchicalAnonymization/RTH/RT.dcm')
+        oStudyId = ct1['ParentStudy']
+        oCtInstanceId = ct1['ID']
+        oRtInstanceId = rt1['ID']
+
+        oCtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % oCtInstanceId)
+        oRtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % oRtInstanceId)
+
+        ### anonymize while forcing the StudyInstanceUID
+
+        aStudyId = DoPost(_REMOTE, '/studies/%s/anonymize' % oStudyId, '{ "Replace" : { "StudyInstanceUID" : "1.2.3.4"}, "Force": true}',
+                            'application/json')['ID']
+
+        ### validate
+
+        aSeries = DoGet(_REMOTE, '/studies/%s/series' % aStudyId)
+        self.assertEqual(2, len(aSeries))
+
+        aCt = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'CT', aSeries))
+        aRt = list(filter(lambda x: x['MainDicomTags']['Modality'] == 'RTSTRUCT', aSeries))
+        aCtInstanceId = aCt[0]['Instances'][0]
+        aRtInstanceId = aRt[0]['Instances'][0]
+        aCtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % aCtInstanceId)
+        aRtTags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % aRtInstanceId)
+
+        self.assertEqual("1.2.3.4", aCtTags['StudyInstanceUID'])
+        self.assertEqual("1.2.3.4", aRtTags['StudyInstanceUID'])
+        self.assertEqual("1.2.3.4", aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['ReferencedSOPInstanceUID'])
         
 
 
