@@ -131,6 +131,7 @@ config['JobsHistorySize'] = 1000
 config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
 config['SaveJobs'] = False
+config['ExecuteLuaEnabled'] = True
 del config['KeepAlive']
 
 config['Dictionary'] = {
