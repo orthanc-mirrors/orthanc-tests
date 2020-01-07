@@ -888,6 +888,93 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(len(frame1), len(defaultFrame))
         self.assertEqual(frame1, defaultFrame)
+
+
+    def test_qido_parent_attributes(self):
+        UploadInstance(ORTHANC, 'Brainix/Flair/IM-0001-0001.dcm')
+        study = '2.16.840.1.113669.632.20.1211.10000357775'
+        series = '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497'
+        instance = '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'
+
+        a = DoGet(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(1, len(a))
+        self.assertFalse('00080018' in a[0])  # SOPInstanceUID
+        self.assertFalse('0020000E' in a[0])  # SeriesInstanceUID
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?0020000D=%s' % study)
+        self.assertEqual(1, len(a))
+        self.assertFalse('00080018' in a[0])  # SOPInstanceUID
+        self.assertFalse('0020000E' in a[0])  # SeriesInstanceUID
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+        
+        a = DoGet(ORTHANC, '/dicom-web/series')
+        self.assertEqual(1, len(a))
+        self.assertFalse('00080018' in a[0])
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+
+        a = DoGet(ORTHANC, '/dicom-web/instances')
+        self.assertEqual(1, len(a))
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual(instance, a[0]['00080018']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies/%s/series' % study)
+        self.assertEqual(1, len(a))
+        self.assertFalse('00080018' in a[0])
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/instances' % (study, series))
+        self.assertEqual(1, len(a))
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual(instance, a[0]['00080018']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+
+        # "If {StudyInstanceUID} is not specified, all Study-level
+        # attributes specified in Table 6.7.1-2" => Here,
+        # {StudyInstanceUID} *is* specified, so we must *not* get the
+        # PatientName.
+        # http://dicom.nema.org/medical/dicom/2019a/output/html/part18.html#table_6.7.1-2a
+        a = DoGet(ORTHANC, '/dicom-web/series?0020000D=%s' % study)
+        self.assertEqual(1, len(a))
+        self.assertFalse('00100010' in a[0])  # PatientName
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+
+        # http://dicom.nema.org/medical/dicom/2019a/output/html/part18.html#table_6.7.1-2b
+        a = DoGet(ORTHANC, '/dicom-web/instances?0020000D=%s' % study)
+        self.assertEqual(1, len(a))
+        self.assertFalse('00100010' in a[0])  # PatientName
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual('MR', a[0]['00080060']['Value'][0])
+        
+        a = DoGet(ORTHANC, '/dicom-web/instances?0020000E=%s' % series)
+        self.assertEqual(1, len(a))
+        self.assertFalse('00080060' in a[0])  # Modality
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
+        self.assertEqual('BRAINIX', a[0]['00100010']['Value'][0]['Alphabetic'])
+        
+        a = DoGet(ORTHANC, '/dicom-web/instances?0020000D=%s&0020000E=%s' % (study, series))
+        self.assertEqual(1, len(a))
+        self.assertFalse('00100010' in a[0])  # PatientName
+        self.assertFalse('00080060' in a[0])  # Modality
+        self.assertEqual(study, a[0]['0020000D']['Value'][0])
+        self.assertEqual(series, a[0]['0020000E']['Value'][0])
         
         
 try:
