@@ -975,6 +975,15 @@ class Orthanc(unittest.TestCase):
         self.assertFalse('00080060' in a[0])  # Modality
         self.assertEqual(study, a[0]['0020000D']['Value'][0])
         self.assertEqual(series, a[0]['0020000E']['Value'][0])
+
+
+    def test_bitbucket_issue_164(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/164
+        UploadInstance(ORTHANC, 'Issue164.dcm')
+
+        p = DoGetMultipart(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/frames/5')
+        self.assertEqual(1, len(p))
+        self.assertEqual(743 * 975 * 3, len(p[0]))
         
         
 try:
