@@ -4877,3 +4877,27 @@ class Orthanc(unittest.TestCase):
         # https://groups.google.com/d/msg/orthanc-users/aphG_h1AHVg/rfOTtTPTAgAJ
         UploadInstance(_REMOTE, '2019-06-17-VedranZdesic.dcm')
         DoPost(_REMOTE, '/studies/0c4aca1d-c107a241-6659d6aa-594c674a-a468b94a/modify', {})
+
+
+    def test_log_level(self):
+        # https://bitbucket.org/sjodogne/orthanc/issues/65/
+        original = DoGet(_REMOTE, '/tools/log-level')
+        
+        DoPut(_REMOTE, '/tools/log-level', 'default')
+        self.assertEqual('default', DoGet(_REMOTE, '/tools/log-level'))
+        DoGet(_REMOTE, '/system')
+
+        DoPut(_REMOTE, '/tools/log-level', 'verbose')
+        self.assertEqual('verbose', DoGet(_REMOTE, '/tools/log-level'))
+        DoGet(_REMOTE, '/system')
+
+        DoPut(_REMOTE, '/tools/log-level', 'trace')
+        self.assertEqual('trace', DoGet(_REMOTE, '/tools/log-level'))
+        DoGet(_REMOTE, '/system')
+
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level', 'nope'))
+        
+        # Switch back to the original log level
+        DoPut(_REMOTE, '/tools/log-level', original)
+        
+        
