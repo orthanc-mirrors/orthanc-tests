@@ -4901,3 +4901,220 @@ class Orthanc(unittest.TestCase):
         DoPut(_REMOTE, '/tools/log-level', original)
         
         
+    def test_study_series_find_inconsistency(self):
+        # https://groups.google.com/forum/#!topic/orthanc-users/bLv6Z11COy0
+
+        def CountAnswers(query):
+            a = DoPost(_REMOTE, 'modalities/self/query', query)
+            return len(DoGet(_REMOTE, '%s/answers' % a['Path']))
+
+        # This instance has "SeriesDescription" (0008,103e) tag, but no
+        # "ProtocolName" (0018,1030). Both of those tags are part of
+        # the "main DICOM tags" of Orthanc.
+        UploadInstance(_REMOTE, 'Issue137.dcm')
+
+        
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+        }))
+
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Series',
+        }))
+
+        
+        ##
+        ## "SeriesDescription" is present, and has VR "CS" => wildcard is allowed
+        ## http://dicom.nema.org/medical/dicom/2019e/output/chtml/part04/sect_C.2.2.2.4.html
+        ##
+
+        # At the study level, the "SeriesDescription" tag is not allowed, but
+        # is wiped out by the normalization
+        self.assertEqual(0, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'SeriesDescription' : 'NOPE'
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(0, CountAnswers({
+            # This test fails on Orthanc <= 1.5.8
+            'Level' : 'Study',
+            'Query' : {
+                'SeriesDescription' : '*'  # Wildcard matching => no match, as the tag is absent
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'SeriesDescription' : 'THIS^VALUE^IS^WIPED^OUT'
+            },
+            'Normalize' : True
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'SeriesDescription' : '*'  # Matches, as wiped out by the normalization
+            },
+            'Normalize' : True
+        }))
+
+        for normalize in [ True, False ]:
+            # At the series level, the "SeriesDescription" tag is allowed, and
+            # normalization has no effect
+
+            # "Universal matching" will match all entities, including
+            # those with the missing tag
+            # http://dicom.nema.org/medical/dicom/2019e/output/chtml/part04/sect_C.2.2.2.3.html
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'SeriesDescription' : ''  # Universal matching
+                },
+                'Normalize' : normalize,
+            }))
+            # "Universal matching" will match all entities, including
+            # those with the missing tag
+            # http://dicom.nema.org/medical/dicom/2019e/output/chtml/part04/sect_C.2.2.2.3.html
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'SeriesDescription' : '*'  # Wildcard matching
+                },
+                'Normalize' : normalize,
+            }))
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'SeriesDescription' : '*model*'  # The actual value is "STL model: intraop Report"
+                },
+                'Normalize' : normalize,
+            }))
+            self.assertEqual(0, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'SeriesDescription' : '*MISMATCHED^VALUE*'
+                },
+                'Normalize' : normalize,
+            }))
+
+            # Universal matching matches any instance, even if the
+            # query is at the study-level, and thus if "SeriesDescription"
+            # makes no sense
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Study',
+                'Query' : {
+                    'SeriesDescription' : ''  # Universal matching
+                },
+                'Normalize' : normalize,
+            }))
+        
+
+
+        ##
+        ## "ProtocolName" is absent, and has VR "CS" => wildcard is allowed
+        ##
+
+        # At the study level, the "ProtocolName" tag is not allowed, but
+        # is wiped out by the normalization
+        self.assertEqual(0, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ProtocolName' : 'NOPE'
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(0, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ProtocolName' : '*'  # Wildcard matching => no match, as the tag is absent
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ProtocolName' : 'THIS^VALUE^IS^WIPED^OUT'
+            },
+            'Normalize' : True
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ProtocolName' : '*'  # Matches, as wiped out by the normalization
+            },
+            'Normalize' : True
+        }))
+
+        for normalize in [ True, False ]:
+            # At the series level, the "ProtocolName" tag is allowed, and
+            # normalization has no effect
+
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'ProtocolName' : ''  # Universal matching
+                },
+                'Normalize' : normalize,
+            }))
+            self.assertEqual(0, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'ProtocolName' : '*'  # Wildcard matching => no match, as the tag is absent
+                },
+                'Normalize' : normalize,
+            }))
+            self.assertEqual(0, CountAnswers({
+                'Level' : 'Series',
+                'Query' : {
+                    'ProtocolName' : '*MISMATCHED^VALUE*'
+                },
+                'Normalize' : normalize,
+            }))
+
+            self.assertEqual(1, CountAnswers({
+                'Level' : 'Study',
+                'Query' : {
+                    'ProtocolName' : '' # Universal matching
+                },
+                'Normalize' : normalize,
+            }))
+            
+
+        ##
+        ## "StudyInstanceUID" is present, and has VR "UI" => wildcard is not allowed
+        ##
+
+        for level in [ 'Study', 'Series' ] :
+            for normalize in [ True, False ]:
+                self.assertEqual(1, CountAnswers({
+                    'Level' : level,
+                    'Query' : {
+                        'StudyInstanceUID' : ''  # Universal matching
+                    },
+                    'Normalize' : normalize,
+                }))
+                self.assertEqual(0, CountAnswers({
+                    'Level' : level,
+                    'Query' : {
+                        'StudyInstanceUID' : 'MISMATCHED^VALUE'
+                    },
+                    'Normalize' : normalize,
+                }))
+                self.assertEqual(1, CountAnswers({
+                    'Level' : level,
+                    'Query' : {
+                        'StudyInstanceUID' : '4.5.6'  # This is the actual value
+                    },
+                    'Normalize' : normalize,
+                }))
+
+                # This test fails on Orthanc <= 1.5.8
+                self.assertEqual(0, CountAnswers({
+                    'Level' : level,
+                    'Query' : {
+                        'StudyInstanceUID' : '*'  # Wildcard matching not allowed for this VR
+                    },
+                    'Normalize' : normalize,
+                }))

@@ -132,6 +132,7 @@ config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
 config['SaveJobs'] = False
 config['ExecuteLuaEnabled'] = True
+config['HttpTimeout'] = 2
 del config['KeepAlive']
 
 config['Dictionary'] = {

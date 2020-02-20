@@ -37,6 +37,9 @@ if not testSucceeded then print('Failed in HttpPut without body') PrintRecursive
 -- Issue HttpDelete (juste make sure it is issued, we can't check the response)
 HttpDelete('http://httpbin.org/delete', httpHeaders)
 
+-- TODO Very strange: Since Orthanc 1.6.0, a timeout frequently occurs
+-- in curl at this point
+
 -- Issue HttpGet
 response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
