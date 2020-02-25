@@ -2599,7 +2599,8 @@ class Orthanc(unittest.TestCase):
 
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps({
-                       'Tags' : tags
+                       'Tags' : tags,
+                       'PrivateCreator' : 'TestBinary',
                    }))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
@@ -2608,7 +2609,8 @@ class Orthanc(unittest.TestCase):
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps({
                        'InterpretBinaryTags' : False,
-                       'Tags' : tags
+                       'Tags' : tags,
+                       'PrivateCreator' : 'TestBinary',
                    }))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
@@ -4772,14 +4774,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual("1.2.3.4", aRtTags['ReferencedFrameOfReferenceSequence'][0]['RTReferencedStudySequence'][0]['ReferencedSOPInstanceUID'])
         
 
-
-    @unittest.skip('Not fixed yet in Orthanc')
     def test_bitbucket_issue_140(self):
+        # "Modifying private tags with REST API changes VR from LO to
+        # UN." This test fails if DCMTK <= 3.6.0.
+        # https://bitbucket.org/sjodogne/orthanc/issues/140
         source = UploadInstance(_REMOTE, 'Issue140.dcm') ['ID']
         series = DoGet(_REMOTE, '/instances/%s' % source) ['ParentSeries']
 
         target = DoPost(_REMOTE, '/series/%s/modify' % series, {
-            'Replace' : { 'RadioButton3' : 'aaabbbccc' }
+            'Replace' : { 'RadioButton3' : 'aaabbbccc' },
+            'PrivateCreator' : 'RadioLogic',  # <= the trick is here
         }, 'application/json') ['ID']
 
         instances = DoGet(_REMOTE, '/series/%s/instances' % target)
