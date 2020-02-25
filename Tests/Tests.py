@@ -4899,6 +4899,20 @@ class Orthanc(unittest.TestCase):
         
         # Switch back to the original log level
         DoPut(_REMOTE, '/tools/log-level', original)
+
+
+    def test_upload_compressed(self):
+        with open(GetDatabasePath('DummyCT.dcm.gz'), 'rb') as f:
+            d = f.read()
+
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/instances', d, 'application/dicom'))
+        
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/instances', d, 'application/dicom',
+                                                    headers = { 'Content-Encoding' : 'nope' }))
+        
+        a = DoPost(_REMOTE, '/instances', d, 'application/dicom',
+                   headers = { 'Content-Encoding' : 'gzip' })
+        self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', a['ID'])
         
         
     def test_study_series_find_inconsistency(self):
