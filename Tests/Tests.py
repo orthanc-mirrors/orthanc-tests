@@ -4902,6 +4902,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_upload_compressed(self):
+        # New in Orthanc 1.6.0
         with open(GetDatabasePath('DummyCT.dcm.gz'), 'rb') as f:
             d = f.read()
 
@@ -5132,3 +5133,115 @@ class Orthanc(unittest.TestCase):
                     },
                     'Normalize' : normalize,
                 }))
+
+
+    def test_rendered(self):
+        # New in Orthanc 1.6.0
+        i = UploadInstance(_REMOTE, 'ColorTestMalaterre.dcm')['ID']
+        im = GetImage(_REMOTE, '/instances/%s/rendered' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(41, im.size[0])
+        self.assertEqual(41, im.size[1])
+
+        # http://effbot.org/zone/pil-comparing-images.htm
+        truth = Image.open(GetDatabasePath('ColorTestMalaterre.png'))
+        self.assertTrue(ImageChops.difference(im, truth).getbbox() is None)
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=10' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+        
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=10' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+                
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=128' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(128, im.size[0])
+        self.assertEqual(128, im.size[1])
+                
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=10&smooth=0' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+                
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=10&smooth=1' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+                
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=5&width=10' % i)
+        self.assertEqual("RGB", im.mode)
+        self.assertEqual(5, im.size[0])
+        self.assertEqual(5, im.size[1])
+
+        
+        # Grayscale image
+        i = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        im = GetImage(_REMOTE, '/instances/%s/rendered' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(288, im.size[0])
+        self.assertEqual(288, im.size[1])
+        self.assertEqual(0, im.getpixel((0, 0)))
+
+        # Those are the original windowing parameters that are written
+        # inside the DICOM file
+        im2 = GetImage(_REMOTE, '/instances/%s/rendered?window-center=248.009544468547&window-width=431.351843817788' % i)
+        self.assertEqual("L", im2.mode)
+        self.assertEqual(288, im2.size[0])
+        self.assertEqual(288, im2.size[1])
+        self.assertTrue(ImageChops.difference(im, im2).getbbox() is None)        
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=512&smooth=0' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=10&smooth=0' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=10&smooth=1' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(10, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=1&window-center=-1000' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(1, im.size[0])
+        self.assertEqual(1, im.size[1])
+        self.assertEqual(255, im.getpixel((0, 0)))
+
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=1&window-center=1000' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(1, im.size[0])
+        self.assertEqual(1, im.size[1])
+        self.assertEqual(0, im.getpixel((0, 0)))
+
+        
+        # Test monochrome 1
+        i = UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')['ID']
+        im = GetImage(_REMOTE, '/instances/%s/rendered' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(2010, im.size[0])
+        self.assertEqual(2446, im.size[1])
+        self.assertEqual(0, im.getpixel((0, 0)))
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=20' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(20, im.size[0])
+        self.assertEqual(24, im.size[1])
+        im = GetImage(_REMOTE, '/instances/%s/rendered?height=24' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(20, im.size[0])
+        self.assertEqual(24, im.size[1])
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=10&height=24' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(10, im.size[0])
+        self.assertEqual(12, im.size[1])
+        im = GetImage(_REMOTE, '/instances/%s/rendered?width=40&height=24' % i)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(20, im.size[0])
+        self.assertEqual(24, im.size[1])
