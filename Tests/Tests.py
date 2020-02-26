@@ -5129,11 +5129,12 @@ class Orthanc(unittest.TestCase):
                     'Normalize' : normalize,
                 }))
 
+                # Wildcard matching is not allowed for this VR
                 # This test fails on Orthanc <= 1.5.8
-                self.assertEqual(0, CountAnswers({
+                self.assertRaises(Exception, lambda: CountAnswers({
                     'Level' : level,
                     'Query' : {
-                        'StudyInstanceUID' : '*'  # Wildcard matching not allowed for this VR
+                        'StudyInstanceUID' : '*'
                     },
                     'Normalize' : normalize,
                 }))
