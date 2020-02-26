@@ -5249,3 +5249,48 @@ class Orthanc(unittest.TestCase):
         self.assertEqual("L", im.mode)
         self.assertEqual(20, im.size[0])
         self.assertEqual(24, im.size[1])
+
+
+    def test_bitbucket_issue_154(self):
+        # "Matching against list of UID-s by C-MOVE"
+        # https://bitbucket.org/sjodogne/orthanc/issues/154/
+        a = UploadInstance(_REMOTE, 'Issue154-d1.dcm') ['ID']
+        b = UploadInstance(_REMOTE, 'Issue154-d2.dcm') ['ID']
+
+        study = '1.2.826.0.1.3680043.8.498.35214236271657363033644818354280454731'
+        series1 = '1.2.826.0.1.3680043.8.498.12243321927795467590791662266352305113'
+        series2 = '1.2.826.0.1.3680043.8.498.43769499931624584079690260699536473555'
+
+        # C-FIND is working on list of UIDs
+        i = CallFindScu([ '-k', 'QueryRetrieveLevel=SERIES',
+                          '-k', 'StudyInstanceUID=%s' % study,
+                          '-k', 'SeriesInstanceUID=%s\\%s' % (series1, series2) ])
+        series = re.findall('\(0020,000e\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(series))
+        self.assertTrue(series1 in series)
+        self.assertTrue(series2 in series)
+        
+        # Individual retrieval is working in Orthanc < 1.6.0
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study', '-k', 'QueryRetrieveLevel=SERIES',
+            '-k', 'StudyInstanceUID=%s' % study,
+            '-k', 'SeriesInstanceUID=%s' % series1,
+            ])))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study', '-k', 'QueryRetrieveLevel=SERIES',
+            '-k', 'StudyInstanceUID=%s' % study,
+            '-k', 'SeriesInstanceUID=%s' % series2,
+            ])))
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+
+        DropOrthanc(_LOCAL)
+
+        # But list matching is working only in Orthanc >= 1.6.0
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study', '-k', 'QueryRetrieveLevel=SERIES',
+            '-k', 'StudyInstanceUID=%s' % study,
+            '-k', 'SeriesInstanceUID=%s\\%s' % (series1, series2),
+            ])))
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
