@@ -4776,7 +4776,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_140(self):
         # "Modifying private tags with REST API changes VR from LO to
-        # UN." This test fails if DCMTK <= 3.6.0.
+        # UN." This test fails if DCMTK <= 3.6.1 (e.g. fails on Ubuntu 16.04).
         # https://bitbucket.org/sjodogne/orthanc/issues/140
         source = UploadInstance(_REMOTE, 'Issue140.dcm') ['ID']
         series = DoGet(_REMOTE, '/instances/%s' % source) ['ParentSeries']
