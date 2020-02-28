@@ -990,7 +990,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(743 * 975 * 3, len(p[0]))
 
 
-    def test_bitbuck_issue_168(self):
+    def test_bitbucket_issue_168(self):
         # "Plugins can't read private tags from the configuration file"
         # This test will fail if DCMTK <= 3.6.1 (e.g. on Ubuntu 16.04)
         # https://bitbucket.org/sjodogne/orthanc/issues/168/
