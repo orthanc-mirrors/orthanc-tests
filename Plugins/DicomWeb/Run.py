@@ -121,6 +121,8 @@ class Orthanc(unittest.TestCase):
             import warnings
             warnings.simplefilter("ignore", ResourceWarning)
 
+        #print("In test: ", self._testMethodName)
+            
         DropOrthanc(ORTHANC)
 
     def test_wado_dicom(self):
@@ -977,15 +979,53 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(series, a[0]['0020000E']['Value'][0])
 
 
+    #@unittest.skip("Skip this test on GDCM 2.8.4")
     def test_bitbucket_issue_164(self):
+        # WARNING - This makes GDCM 2.8.4 crash
         # https://bitbucket.org/sjodogne/orthanc/issues/164
         UploadInstance(ORTHANC, 'Issue164.dcm')
 
         p = DoGetMultipart(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/frames/5')
         self.assertEqual(1, len(p))
         self.assertEqual(743 * 975 * 3, len(p[0]))
+
+
+    def test_bitbuck_issue_168(self):
+        # "Plugins can't read private tags from the configuration file"
+        # This test will fail if DCMTK <= 3.6.1 (e.g. on Ubuntu 16.04)
+        # https://bitbucket.org/sjodogne/orthanc/issues/168/
+
+        UploadInstance(ORTHANC, 'Issue168.dcm')
+
+        a = DoGet(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(1, len(a))
+        self.assertFalse('00090010' in a[0])
+        self.assertFalse('00091001' in a[0])
+        self.assertEqual('20170404', a[0]['00080020']['Value'][0])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?includefield=00091001')
+        self.assertEqual(1, len(a))
+        self.assertFalse('00090010' in a[0])
+        self.assertTrue('00091001' in a[0])
+        self.assertEqual('DS', a[0]['00091001']['vr'])
+        self.assertEqual(1, len(a[0]['00091001']['Value']))
+        self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
+
+        a = DoGet(ORTHANC, '/dicom-web/studies?00090010=Lunit&includefield=00091001')
+        self.assertEqual(1, len(a))
+        self.assertTrue('00090010' in a[0])
+        self.assertEqual('LO', a[0]['00090010']['vr'])
+        self.assertEqual(1, len(a[0]['00090010']['Value']))
+        self.assertEqual('Lunit', a[0]['00090010']['Value'][0])
+        self.assertTrue('00091001' in a[0])
+        self.assertEqual('DS', a[0]['00091001']['vr'])
+        self.assertEqual(1, len(a[0]['00091001']['Value']))
+        self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
         
-        
+        a = DoGet(ORTHANC, '/dicom-web/studies?00090010=Lunit2&includefield=00091001')
+        self.assertEqual(0, len(a))
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)

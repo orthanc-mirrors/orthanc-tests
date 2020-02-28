@@ -138,8 +138,12 @@ del config['KeepAlive']
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
     '7053,1003' : [ 'ST', 'Original Image Filename', 1, 1, 'Philips PET Private Group' ],
-    '4321,1012' : [ 'LO', 'RadioButton3', 1, 1, 'RadioLogic' ],  # For issue 140
+    '4321,1012' : [ 'LO', 'RadioButton3', 1, 1, 'RadioLogic' ],     # For issue 140
+    '0009,1001' : [ 'DS', 'Abnormality score', 1, 1, 'Lunit' ],     # For issue 168
+    '0009,0010' : [ 'LO', 'Private data element', 1, 1, 'Lunit' ],  # For issue 168
 }
+
+config['DefaultPrivateCreator'] = 'Lunit'  # For issue 168
 
 config['DicomWeb'] = {
     'Servers' : {
