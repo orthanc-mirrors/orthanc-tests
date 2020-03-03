@@ -1069,10 +1069,19 @@ class Orthanc(unittest.TestCase):
                                       headers = { 'Accept' : 'application/json, application/dicom+json' })))
         
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/json' })))
+        
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/dicom+json' })))
+        
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
                                       headers = { 'Accept' : 'toto, application/dicom+json' })))
         
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
                                       headers = { 'Accept' : 'application/json, tata' })))
+        
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                                   headers = { 'Accept' : 'toto' }))
         
         self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
                                                    headers = { 'Accept' : 'toto, tata' }))
