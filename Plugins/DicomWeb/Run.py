@@ -1056,6 +1056,29 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(a, c)
 
 
+    def test_multiple_mime_accept_wado_rs(self):
+        # "Multiple MIME type Accept Headers for Wado-RS"
+        # https://groups.google.com/forum/#!msg/orthanc-users/P3B6J9abZpE/syn5dnW2AwAJ
+
+        UploadInstance(ORTHANC, 'DummyCT.dcm')
+        study = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)))
+        
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/json, application/dicom+json' })))
+        
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'toto, application/dicom+json' })))
+        
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/json, tata' })))
+        
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                                   headers = { 'Accept' : 'toto, tata' }))
+        
+        
+        
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
