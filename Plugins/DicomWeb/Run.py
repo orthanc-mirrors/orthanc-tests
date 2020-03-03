@@ -1026,6 +1026,36 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(a))
 
 
+    def test_rendered_studies_series(self):
+        i = UploadInstance(ORTHANC, 'Phenix/IM-0001-0001.dcm') ['ID']
+        study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+        series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
+        instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
+
+        a = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+            'Uri' : '/studies/%s/series/%s/instances/%s/rendered' % (study, series, instance)
+        })
+        
+        im = UncompressImage(a)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(358, im.size[1])
+
+        b = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+            'Uri' : '/studies/%s/series/%s/rendered' % (study, series)
+        })
+        
+        self.assertEqual(len(a), len(b))
+        self.assertEqual(a, b)
+
+        c = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+            'Uri' : '/studies/%s/rendered' % study
+        })
+        
+        self.assertEqual(len(a), len(c))
+        self.assertEqual(a, c)
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
