@@ -1085,6 +1085,16 @@ class Orthanc(unittest.TestCase):
         
         self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
                                                    headers = { 'Accept' : 'toto, tata' }))
+
+        # https://groups.google.com/d/msg/orthanc-users/9o5kItsMQI0/Og6B27YyBgAJ
+        self.assertEqual(1, len(DoGetMultipart(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                               headers = { 'Accept' : 'multipart/related;type=application/dicom+xml' })))
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/json, application/dicom+xml' })))
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
+                                      headers = { 'Accept' : 'application/dicom+xml, application/json' })))
         
         
         
