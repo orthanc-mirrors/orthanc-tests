@@ -450,7 +450,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         url = a[0]['00081190']['Value'][0]
 
-        prefix = 'http://localhost:8042'
+        prefix = 'http://%s:%s' % (args.server, args.rest)
         self.assertTrue(url.startswith(prefix))
 
         b = DoGet(ORTHANC, url[len(prefix):] + '/metadata')
@@ -488,7 +488,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
 
         BASE_URI = '/dicom-web/studies/%s/series/%s/instances/%s/bulk' % (study, series, sop)
-        BASE_URL = 'http://localhost:8042%s' % BASE_URI
+        BASE_URL = 'http://%s:%s%s' % (args.server, args.rest, BASE_URI)
 
         self.assertEqual(2, len(a[0]['60031010']['Value']))
         CheckBulk(a[0]['60031010']['Value'][0]['60031011'], '%s/60031010/1/60031011' % BASE_URL)
@@ -579,7 +579,7 @@ class Orthanc(unittest.TestCase):
 
         url = a[0]['00081190']['Value'][0]
 
-        prefix = 'http://localhost:8042'
+        prefix = 'http://%s:%s' % (args.server, args.rest)
         self.assertTrue(url.startswith(prefix))
         uri = url[len(prefix):]
 
