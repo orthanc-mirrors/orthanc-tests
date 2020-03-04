@@ -991,8 +991,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_168(self):
-        # "Plugins can't read private tags from the configuration file"
-        # This test will fail if DCMTK <= 3.6.1 (e.g. on Ubuntu 16.04)
+        # "Plugins can't read private tags from the configuration
+        # file" This test will fail if DCMTK <= 3.6.1 (e.g. on Ubuntu
+        # 16.04), or if Orthanc <= 1.5.8
         # https://bitbucket.org/sjodogne/orthanc/issues/168/
 
         UploadInstance(ORTHANC, 'Issue168.dcm')
