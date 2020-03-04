@@ -227,6 +227,11 @@ class Orthanc(unittest.TestCase):
 
         
     def test_server_get(self):
+        try:
+            DoDelete(ORTHANC, '/dicom-web/servers/google')  # If "AllWindowsStart.sh" is used
+        except:
+            pass
+
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
 
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/servers')))
@@ -683,6 +688,11 @@ class Orthanc(unittest.TestCase):
     def test_add_server(self):
         try:
             DoDelete(ORTHANC, '/dicom-web/servers/hello')
+        except:
+            pass
+        
+        try:
+            DoDelete(ORTHANC, '/dicom-web/servers/google')  # If "AllWindowsStart.sh" is used
         except:
             pass
         
