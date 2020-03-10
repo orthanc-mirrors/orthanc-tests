@@ -5295,3 +5295,62 @@ class Orthanc(unittest.TestCase):
             '-k', 'SeriesInstanceUID=%s\\%s' % (series1, series2),
             ])))
         self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+
+
+    def test_storage_commitment_api(self):
+        # Storage commitment is available since Orthanc 1.6.0
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        sopClassUid = '1.2.840.10008.5.1.4.1.1.4'
+        sopInstanceUid = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
+
+        # Against self
+        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
+            [ sopClassUid, sopInstanceUid ],
+        ]) ['ID']
+        self.assertTrue(transaction.startswith('2.25.'))
+
+        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
+            { 'SOPClassUID' : sopClassUid,
+              'SOPInstanceUID' : sopInstanceUid },
+        ]) ['ID']
+        self.assertTrue(transaction.startswith('2.25.'))
+
+        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
+            [ 'nope', sopInstanceUid ],
+        ]) ['ID']
+        self.assertTrue(transaction.startswith('2.25.'))
+
+        
+        # Against Orthanc 0.8.6, that does not support storage commitment
+        self.assertRaises(Exception, lambda:
+                          DoPost(_REMOTE, '/modalities/orthanctest/storage-commitment', [
+                              [ sopClassUid, sopInstanceUid ],
+                          ]))
+
+
+
+    def test_storage_commitment_store(self):
+        # Storage commitment is available since Orthanc 1.6.0
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+        # The Orthanc 0.8.6 from "_LOCAL" does not support storage commitment
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/orthanctest/store', {
+            'Resources' : [ i ],
+            'StorageCommitment' : True,
+            }))
+
+        j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
+            'Resources' : [ i ],
+            'StorageCommitment' : False,
+            })
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+
+        j = DoPost(_REMOTE, '/modalities/self/store', {
+            'Resources' : [ i ],
+            'StorageCommitment' : True,
+            })
+
+        transaction = j['StorageCommitmentTransactionUID']
+        self.assertTrue(transaction.startswith('2.25.'))
