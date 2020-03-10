@@ -5299,6 +5299,15 @@ class Orthanc(unittest.TestCase):
 
     def test_storage_commitment_api(self):
         # Storage commitment is available since Orthanc 1.6.0
+
+        def WaitTransaction(uid):
+            while True:
+                s = DoGet(_REMOTE, '/storage-commitment/%s' % uid)
+                if s['Status'] != 'Pending':
+                    return s
+                else:
+                    time.sleep(0.1)
+        
         UploadInstance(_REMOTE, 'DummyCT.dcm')
         sopClassUid = '1.2.840.10008.5.1.4.1.1.4'
         sopInstanceUid = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
@@ -5309,17 +5318,43 @@ class Orthanc(unittest.TestCase):
         ]) ['ID']
         self.assertTrue(transaction.startswith('2.25.'))
 
-        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
+        result = WaitTransaction(transaction)
+        self.assertEqual('ORTHANC', result['RemoteAET'])
+        self.assertEqual('Success', result['Status'])
+        self.assertEqual(1, len(result['Success']))
+        self.assertEqual(0, len(result['Failures']))
+        self.assertEqual(sopClassUid, result['Success'][0]['SOPClassUID'])
+        self.assertEqual(sopInstanceUid, result['Success'][0]['SOPInstanceUID'])
+        
+        tmp = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
             { 'SOPClassUID' : sopClassUid,
               'SOPInstanceUID' : sopInstanceUid },
-        ]) ['ID']
-        self.assertTrue(transaction.startswith('2.25.'))
+        ])
+        self.assertEqual(tmp['Path'], '/storage-commitment/%s' % tmp['ID'])
+        self.assertEqual(result, WaitTransaction(transaction))
 
+        
         transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
-            [ 'nope', sopInstanceUid ],
+            [ 'nope', 'nope2' ],
+            [ sopClassUid, sopInstanceUid ],
         ]) ['ID']
         self.assertTrue(transaction.startswith('2.25.'))
 
+        result = WaitTransaction(transaction)
+        self.assertEqual('ORTHANC', result['RemoteAET'])
+        self.assertEqual('Failure', result['Status'])
+        self.assertEqual(1, len(result['Success']))
+        self.assertEqual(1, len(result['Failures']))
+        self.assertEqual(sopClassUid, result['Success'][0]['SOPClassUID'])
+        self.assertEqual(sopInstanceUid, result['Success'][0]['SOPInstanceUID'])
+        self.assertEqual('nope', result['Failures'][0]['SOPClassUID'])
+        self.assertEqual('nope2', result['Failures'][0]['SOPInstanceUID'])
+        self.assertEqual(274, result['Failures'][0]['FailureReason'])
+
+        # Cannot remove items from a failed storage commitment transaction
+        self.assertRaises(Exception, lambda:
+                          DoPost(_REMOTE, '/storage-commitment/%s/remove' % transaction))
+        
         
         # Against Orthanc 0.8.6, that does not support storage commitment
         self.assertRaises(Exception, lambda:
@@ -5331,6 +5366,15 @@ class Orthanc(unittest.TestCase):
 
     def test_storage_commitment_store(self):
         # Storage commitment is available since Orthanc 1.6.0
+
+        def WaitTransaction(uid):
+            while True:
+                s = DoGet(_REMOTE, '/storage-commitment/%s' % uid)
+                if s['Status'] != 'Pending':
+                    return s
+                else:
+                    time.sleep(0.1)
+
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
@@ -5354,3 +5398,16 @@ class Orthanc(unittest.TestCase):
 
         transaction = j['StorageCommitmentTransactionUID']
         self.assertTrue(transaction.startswith('2.25.'))
+
+        result = WaitTransaction(transaction)
+        self.assertEqual('ORTHANC', result['RemoteAET'])
+        self.assertEqual('Success', result['Status'])
+        self.assertEqual(1, len(result['Success']))
+        self.assertEqual(0, len(result['Failures']))
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', result['Success'][0]['SOPClassUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         result['Success'][0]['SOPInstanceUID'])
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoPost(_REMOTE, '/storage-commitment/%s/remove' % transaction)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
