@@ -5308,14 +5308,14 @@ class Orthanc(unittest.TestCase):
                 else:
                     time.sleep(0.1)
         
-        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm')
         sopClassUid = '1.2.840.10008.5.1.4.1.1.4'
         sopInstanceUid = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
 
         # Against self
-        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
-            [ sopClassUid, sopInstanceUid ],
-        ]) ['ID']
+        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', {
+            "DicomInstances" : [ [ sopClassUid, sopInstanceUid ] ],
+        }) ['ID']
         self.assertTrue(transaction.startswith('2.25.'))
 
         result = WaitTransaction(transaction)
@@ -5326,18 +5326,33 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(sopClassUid, result['Success'][0]['SOPClassUID'])
         self.assertEqual(sopInstanceUid, result['Success'][0]['SOPInstanceUID'])
         
-        tmp = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
-            { 'SOPClassUID' : sopClassUid,
-              'SOPInstanceUID' : sopInstanceUid },
-        ])
+        tmp = DoPost(_REMOTE, '/modalities/self/storage-commitment', {
+            "DicomInstances" : [
+                { 'SOPClassUID' : sopClassUid,
+                  'SOPInstanceUID' : sopInstanceUid },
+            ],
+        })
+        self.assertEqual(tmp['Path'], '/storage-commitment/%s' % tmp['ID'])
+        self.assertEqual(result, WaitTransaction(transaction))
+
+        tmp = DoPost(_REMOTE, '/modalities/self/storage-commitment', {
+            "Resources" : [
+                instance['ID'],
+                instance['ParentSeries'],
+                instance['ParentStudy'],
+                instance['ParentPatient'],
+            ]
+        })
         self.assertEqual(tmp['Path'], '/storage-commitment/%s' % tmp['ID'])
         self.assertEqual(result, WaitTransaction(transaction))
 
         
-        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', [
-            [ 'nope', 'nope2' ],
-            [ sopClassUid, sopInstanceUid ],
-        ]) ['ID']
+        transaction = DoPost(_REMOTE, '/modalities/self/storage-commitment', {
+            "DicomInstances" : [
+                [ 'nope', 'nope2' ],
+                [ sopClassUid, sopInstanceUid ],
+            ],
+        }) ['ID']
         self.assertTrue(transaction.startswith('2.25.'))
 
         result = WaitTransaction(transaction)
@@ -5358,9 +5373,11 @@ class Orthanc(unittest.TestCase):
         
         # Against Orthanc 0.8.6, that does not support storage commitment
         self.assertRaises(Exception, lambda:
-                          DoPost(_REMOTE, '/modalities/orthanctest/storage-commitment', [
-                              [ sopClassUid, sopInstanceUid ],
-                          ]))
+                          DoPost(_REMOTE, '/modalities/orthanctest/storage-commitment', {
+                              "DicomInstances" : [
+                                  [ sopClassUid, sopInstanceUid ],
+                              ]
+                          }))
 
 
 
