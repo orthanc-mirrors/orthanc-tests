@@ -1106,8 +1106,36 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study,
                                       headers = { 'Accept' : 'application/dicom+xml, application/json' })))
-        
-        
+
+
+
+    def test_bitbucket_issue_56(self):
+        # "Case-insensitive matching over accents" => DICOMweb part
+        # from AlexanderM on 2020-03-20
+        # https://bitbucket.org/sjodogne/orthanc/issues/56/
+        UploadInstance(ORTHANC, 'Issue56-NoPixelData.dcm')
+
+        self.assertEqual(1, len(DoPost(ORTHANC, '/tools/find', {
+            'Level' : 'Patient',
+            'Query' : {
+                'PatientName' : 'Гусева*',
+            },
+        })))
+
+        self.assertEqual(1, len(DoPost(ORTHANC, '/tools/find', {
+            'Level' : 'Patient',
+            'Query' : {
+                'PatientName' : 'гусева*',
+            },
+        })))
+
+        self.assertEqual(1, len(DoGet(ORTHANC, u'/dicom-web/studies?PatientName=Гусева*',
+                                      headers = { 'accept' : 'application/json' })))
+
+        # This line is the isse
+        self.assertEqual(1, len(DoGet(ORTHANC, u'/dicom-web/studies?PatientName=гусева*',
+                                      headers = { 'accept' : 'application/json' })))
+
         
 try:
     print('\nStarting the tests...')
