@@ -5428,3 +5428,24 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
         DoPost(_REMOTE, '/storage-commitment/%s/remove' % transaction)
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_store_straight(self):  # New in Orthanc 1.6.1
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            dicom = f.read()
+
+        self.assertRaises(Exception, lambda: DoPost(
+            _REMOTE, '/modalities/orthanctest/store-straight', 'nope', 'nope'))
+
+        answer = DoPost(_REMOTE, '/modalities/orthanctest/store-straight', dicom, 'nope')
+
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4',
+                         answer['SOPClassUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         answer['SOPInstanceUID'])
+        
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
