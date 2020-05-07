@@ -5449,3 +5449,31 @@ class Orthanc(unittest.TestCase):
         
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_storescu_transcoding(self):  # New in Orthanc 1.7.0       
+        # Add a RLE-encoded DICOM file
+        i = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.5.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        rleSize = len(DoGet(_REMOTE, '/instances/%s/file' % i))
+
+        # Export the instance, with transcoding: "_REMOTE" is the
+        # Orthanc server being tested
+        try:
+            DoDelete(_REMOTE, '/modalities/toto')
+        except:
+            pass
+
+        params = DoGet(_REMOTE, '/modalities?expand') ['orthanctest']
+        DoPut(_REMOTE, '/modalities/toto', params)
+        DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain')
+        j = DoGet(_LOCAL, '/instances')
+        self.assertEqual(1, len(j))
+        uncompressedSize = len(DoGet(_LOCAL, '/instances/%s/file' % j[0]))
+        self.assertTrue(uncompressedSize > rleSize / 2)
+
+        # Export, with transcoding disabled => this fails
+        params['AllowTranscoding'] = False
+        DoPut(_REMOTE, '/modalities/toto', params)
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
