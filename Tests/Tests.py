@@ -139,7 +139,6 @@ def GenerateTestSequence():
 
 
 
-
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -5481,14 +5480,6 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_169(self):
-        def GetTransferSyntax(dicom):
-            with tempfile.NamedTemporaryFile(delete = True) as f:
-                f.write(dicom)
-                f.flush()
-                data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ])
-
-            return re.search('<data-set xfer="(.*?)"', data).group(1)
-        
         with open(GetDatabasePath('Issue169.dcm.bz2'), 'rb') as f:
             dicom = bz2.decompress(f.read())
 
@@ -5508,10 +5499,35 @@ class Orthanc(unittest.TestCase):
         # In Orthanc <= 1.6.1, transfer syntax changed from "Explicit
         # VR Little Endian" (1.2.840.10008.1.2.1) to "Implicit VR
         # Little Endian" (1.2.840.10008.1.2)
-        self.assertEqual('1.2.840.10008.1.2.1',
-                         GetTransferSyntax(DoGet(_LOCAL, '/instances/%s/file' % j[0])))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            DoGet(_LOCAL, '/instances/%s/file' % j[0])))
 
         # In Orthanc <= 1.6.1, the value of the private tags was lost
         # because of this transcoding
         tags = DoGet(_LOCAL, '/instances/%s/tags' % j[0])
         self.assertEqual('NORMAL', tags['1337,1001']['Value'])
+
+
+    def test_modify_transcode(self):
+        i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            DoGet(_REMOTE, '/instances/%s/file' % i)))
+
+        for syntax in [
+                '1.2.840.10008.1.2',        
+                '1.2.840.10008.1.2.1',
+                #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian
+                '1.2.840.10008.1.2.2',
+                '1.2.840.10008.1.2.4.50',
+                '1.2.840.10008.1.2.4.51',
+                '1.2.840.10008.1.2.4.57',
+                '1.2.840.10008.1.2.4.70',
+                #'1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
+                #'1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
+        ]:
+            transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
+                'Transcode' : syntax,
+                })
+            
+            self.assertEqual(syntax, GetTransferSyntax(transcoded))
+                   
