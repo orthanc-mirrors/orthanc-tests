@@ -22,6 +22,7 @@
 
 
 import base64
+import bz2
 import copy
 import pprint
 import tempfile
@@ -5477,3 +5478,40 @@ class Orthanc(unittest.TestCase):
         params['AllowTranscoding'] = False
         DoPut(_REMOTE, '/modalities/toto', params)
         self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
+
+
+    def test_bitbucket_issue_169(self):
+        def GetTransferSyntax(dicom):
+            with tempfile.NamedTemporaryFile(delete = True) as f:
+                f.write(dicom)
+                f.flush()
+                data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ])
+
+            return re.search('<data-set xfer="(.*?)"', data).group(1)
+        
+        with open(GetDatabasePath('Issue169.dcm.bz2'), 'rb') as f:
+            dicom = bz2.decompress(f.read())
+
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(dicom))
+
+        self.assertEqual(44350560, len(dicom))
+        i = DoPost(_REMOTE, '/instances', dicom, 'application/dicom') ['ID']
+        
+        tags = DoGet(_REMOTE, '/instances/%s/tags' % i)
+        self.assertEqual('NORMAL', tags['1337,1001']['Value'])
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
+        j = DoGet(_LOCAL, '/instances')
+        self.assertEqual(1, len(j))
+
+        # In Orthanc <= 1.6.1, transfer syntax changed from "Explicit
+        # VR Little Endian" (1.2.840.10008.1.2.1) to "Implicit VR
+        # Little Endian" (1.2.840.10008.1.2)
+        self.assertEqual('1.2.840.10008.1.2.1',
+                         GetTransferSyntax(DoGet(_LOCAL, '/instances/%s/file' % j[0])))
+
+        # In Orthanc <= 1.6.1, the value of the private tags was lost
+        # because of this transcoding
+        tags = DoGet(_LOCAL, '/instances/%s/tags' % j[0])
+        self.assertEqual('NORMAL', tags['1337,1001']['Value'])
