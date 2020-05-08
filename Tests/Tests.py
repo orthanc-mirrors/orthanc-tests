@@ -5530,4 +5530,40 @@ class Orthanc(unittest.TestCase):
                 })
             
             self.assertEqual(syntax, GetTransferSyntax(transcoded))
-                   
+
+
+    def test_archive_transcode(self):
+        info = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
+
+        # "/media"
+        z = GetArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'])
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/media?transcode=nope' % info['ParentPatient']))
+
+        z = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50' % info['ParentPatient'])
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = GetArchive(_REMOTE, '/studies/%s/media?transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = GetArchive(_REMOTE, '/series/%s/media?transcode=1.2.840.10008.1.2.4.57' % info['ParentSeries'])
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        # "/archive"
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'])
+        self.assertEqual(1, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/archive?transcode=nope' % info['ParentPatient']))
+
+        z = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2' % info['ParentPatient'])
+        self.assertEqual('1.2.840.10008.1.2', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = GetArchive(_REMOTE, '/studies/%s/archive?transcode=1.2.840.10008.1.2.2' % info['ParentStudy'])
+        self.assertEqual('1.2.840.10008.1.2.2', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = GetArchive(_REMOTE, '/series/%s/archive?transcode=1.2.840.10008.1.2.4.70' % info['ParentSeries'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', GetTransferSyntax(z.read(z.namelist()[0])))
+        
