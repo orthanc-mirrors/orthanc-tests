@@ -5535,7 +5535,7 @@ class Orthanc(unittest.TestCase):
     def test_archive_transcode(self):
         info = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
 
-        # "/media"
+        # GET on "/media"
         z = GetArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'])
         self.assertEqual(2, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read('IMAGES/IM0')))
@@ -5551,7 +5551,28 @@ class Orthanc(unittest.TestCase):
         z = GetArchive(_REMOTE, '/series/%s/media?transcode=1.2.840.10008.1.2.4.57' % info['ParentSeries'])
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
-        # "/archive"
+
+        # POST on "/media"
+        self.assertRaises(Exception, lambda: PostArchive(
+            _REMOTE, '/patients/%s/media' % info['ParentPatient'], { 'Transcode' : 'nope' }))
+
+        z = PostArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'], {
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/studies/%s/media' % info['ParentStudy'], {
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/series/%s/media' % info['ParentSeries'], {
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        
+        # GET on "/archive"
         z = GetArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'])
         self.assertEqual(1, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read(z.namelist()[0])))
@@ -5566,4 +5587,48 @@ class Orthanc(unittest.TestCase):
 
         z = GetArchive(_REMOTE, '/series/%s/archive?transcode=1.2.840.10008.1.2.4.70' % info['ParentSeries'])
         self.assertEqual('1.2.840.10008.1.2.4.70', GetTransferSyntax(z.read(z.namelist()[0])))
+
+
+        # POST on "/archive"
+        self.assertRaises(Exception, lambda: PostArchive(
+            _REMOTE, '/patients/%s/archive' % info['ParentPatient'], { 'Transcode' : 'nope' }))
+
+        z = PostArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'], {
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/studies/%s/archive' % info['ParentStudy'], {
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/series/%s/archive' % info['ParentSeries'], {
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read(z.namelist()[0])))
+        
+
+        # "/tools/create-*"
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual(1, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/tools/create-media', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/tools/create-media-extended', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
         
