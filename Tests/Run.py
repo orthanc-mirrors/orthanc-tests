@@ -113,7 +113,10 @@ with open(CONFIG, 'wt') as f:
     f.write(config)
 
 localOrthanc = ExternalCommandThread([ 
-    'Orthanc', CONFIG, #'--verbose',
+    'Orthanc', 
+    CONFIG, 
+    #'--verbose', 
+    #'--no-jobs'
     #'/home/jodogne/Subversion/Orthanc/i/Orthanc', CONFIG, '--verbose'
 ])
 
