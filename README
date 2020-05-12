@@ -135,6 +135,21 @@ of your remote instance of Orthanc.
 Note that you will have to grant root access for Docker.
 
 
+(Option 2c) On Windows:
+
+Easiest way to run the integration test under windows is actually
+run the remote Orthanc and the python script under WSL and run the
+orthanc under test on Windows (such that you can debug it).
+Note that if Orthanc on Windows is not using the standard port, you
+may specify them when starting the test as shown below
+
+# bash
+# python Tests/Run.py --force --dicom 8567 --rest 8568
+
+Note that you will have to install Linux prerequisites under WSL
+and the orthanc package as well.
+
+
 
 Licensing
 =========

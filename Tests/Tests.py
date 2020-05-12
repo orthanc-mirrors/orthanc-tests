@@ -22,6 +22,7 @@
 
 
 import base64
+import bz2
 import copy
 import pprint
 import tempfile
@@ -136,7 +137,6 @@ def GenerateTestSequence():
             'StudyDate' : '19700202',
             }
         ]
-
 
 
 
@@ -5450,6 +5450,189 @@ class Orthanc(unittest.TestCase):
         
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_storescu_transcoding(self):  # New in Orthanc 1.7.0       
+        # Add a RLE-encoded DICOM file
+        i = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.5.dcm')['ID']
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        rleSize = len(DoGet(_REMOTE, '/instances/%s/file' % i))
+
+        # Export the instance, with transcoding: "_REMOTE" is the
+        # Orthanc server being tested
+        try:
+            DoDelete(_REMOTE, '/modalities/toto')
+        except:
+            pass
+
+        params = DoGet(_REMOTE, '/modalities?expand') ['orthanctest']
+        DoPut(_REMOTE, '/modalities/toto', params)
+        DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain')
+        j = DoGet(_LOCAL, '/instances')
+        self.assertEqual(1, len(j))
+        uncompressedSize = len(DoGet(_LOCAL, '/instances/%s/file' % j[0]))
+        self.assertTrue(uncompressedSize > rleSize / 2)
+
+        # Export, with transcoding disabled => this fails
+        params['AllowTranscoding'] = False
+        DoPut(_REMOTE, '/modalities/toto', params)
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
+
+
+    def test_bitbucket_issue_169(self):
+        with open(GetDatabasePath('Issue169.dcm.bz2'), 'rb') as f:
+            dicom = bz2.decompress(f.read())
+
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(dicom))
+
+        self.assertEqual(44350560, len(dicom))
+        i = DoPost(_REMOTE, '/instances', dicom, 'application/dicom') ['ID']
+        
+        tags = DoGet(_REMOTE, '/instances/%s/tags' % i)
+        self.assertEqual('NORMAL', tags['1337,1001']['Value'])
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        DoPost(_REMOTE, '/modalities/orthanctest/store', str(i), 'text/plain')
+        j = DoGet(_LOCAL, '/instances')
+        self.assertEqual(1, len(j))
+
+        # In Orthanc <= 1.6.1, transfer syntax changed from "Explicit
+        # VR Little Endian" (1.2.840.10008.1.2.1) to "Implicit VR
+        # Little Endian" (1.2.840.10008.1.2)
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            DoGet(_LOCAL, '/instances/%s/file' % j[0])))
+
+        # In Orthanc <= 1.6.1, the value of the private tags was lost
+        # because of this transcoding
+        tags = DoGet(_LOCAL, '/instances/%s/tags' % j[0])
+        self.assertEqual('NORMAL', tags['1337,1001']['Value'])
+
+
+    def test_modify_transcode(self):
+        i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            DoGet(_REMOTE, '/instances/%s/file' % i)))
+
+        for syntax in [
+                '1.2.840.10008.1.2',        
+                '1.2.840.10008.1.2.1',
+                #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian
+                '1.2.840.10008.1.2.2',
+                '1.2.840.10008.1.2.4.50',
+                '1.2.840.10008.1.2.4.51',
+                '1.2.840.10008.1.2.4.57',
+                '1.2.840.10008.1.2.4.70',
+                #'1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
+                #'1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
+        ]:
+            transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
+                'Transcode' : syntax,
+                })
+            
+            self.assertEqual(syntax, GetTransferSyntax(transcoded))
+
+
+    def test_archive_transcode(self):
+        info = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
+
+        # GET on "/media"
+        z = GetArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'])
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/media?transcode=nope' % info['ParentPatient']))
+
+        z = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50' % info['ParentPatient'])
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = GetArchive(_REMOTE, '/studies/%s/media?transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = GetArchive(_REMOTE, '/series/%s/media?transcode=1.2.840.10008.1.2.4.57' % info['ParentSeries'])
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+
+        # POST on "/media"
+        self.assertRaises(Exception, lambda: PostArchive(
+            _REMOTE, '/patients/%s/media' % info['ParentPatient'], { 'Transcode' : 'nope' }))
+
+        z = PostArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'], {
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/studies/%s/media' % info['ParentStudy'], {
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/series/%s/media' % info['ParentSeries'], {
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        
+        # GET on "/archive"
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'])
+        self.assertEqual(1, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/archive?transcode=nope' % info['ParentPatient']))
+
+        z = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2' % info['ParentPatient'])
+        self.assertEqual('1.2.840.10008.1.2', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = GetArchive(_REMOTE, '/studies/%s/archive?transcode=1.2.840.10008.1.2.2' % info['ParentStudy'])
+        self.assertEqual('1.2.840.10008.1.2.2', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = GetArchive(_REMOTE, '/series/%s/archive?transcode=1.2.840.10008.1.2.4.70' % info['ParentSeries'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', GetTransferSyntax(z.read(z.namelist()[0])))
+
+
+        # POST on "/archive"
+        self.assertRaises(Exception, lambda: PostArchive(
+            _REMOTE, '/patients/%s/archive' % info['ParentPatient'], { 'Transcode' : 'nope' }))
+
+        z = PostArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'], {
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/studies/%s/archive' % info['ParentStudy'], {
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/series/%s/archive' % info['ParentSeries'], {
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read(z.namelist()[0])))
+        
+
+        # "/tools/create-*"
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            })
+        self.assertEqual(1, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        z = PostArchive(_REMOTE, '/tools/create-media', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.51',
+            })
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        z = PostArchive(_REMOTE, '/tools/create-media-extended', {
+            'Resources' : [ info['ParentStudy'] ],
+            'Transcode' : '1.2.840.10008.1.2.4.57',
+            })
+        self.assertEqual(2, len(z.namelist()))
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        
 
     def test_getscu(self):
         

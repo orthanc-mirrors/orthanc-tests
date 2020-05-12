@@ -26,6 +26,7 @@ import os
 import re
 import signal
 import subprocess
+import tempfile
 import threading
 import sys
 import time
@@ -379,3 +380,12 @@ def AssertAlmostEqualRecursive(self, a, b, places = 7, ignoreKeys = []):
 
     else:
         self.assertAlmostEqual(a, b, places = places)
+
+
+def GetTransferSyntax(dicom):
+    with tempfile.NamedTemporaryFile(delete = True) as f:
+        f.write(dicom)
+        f.flush()
+        data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ])
+
+    return re.search('<data-set xfer="(.*?)"', data).group(1)
