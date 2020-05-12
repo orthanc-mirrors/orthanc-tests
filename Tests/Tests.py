@@ -26,6 +26,7 @@ import copy
 import pprint
 import tempfile
 import unittest
+import shutil
 
 from PIL import ImageChops
 from Toolbox import *
@@ -5449,3 +5450,42 @@ class Orthanc(unittest.TestCase):
         
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+    def test_getscu(self):
+        
+        # no transcoding required
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        if os.path.isdir('/tmp/GETSCU'):
+            shutil.rmtree('/tmp/GETSCU')
+        os.makedirs('/tmp/GETSCU')
+
+        subprocess.check_call([ FindExecutable('getscu'),
+                                _REMOTE['Server'], 
+                                str(_REMOTE['DicomPort']),
+                                '-aec', 'ORTHANC',
+                                '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+                                '-k', '0020,000d=1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+                                '-k', '0008,0052=STUDY',
+                                '--output-directory', '/tmp/GETSCU/' 
+                             ])
+
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'))
+
+        # transcoding required
+        # UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
+
+        # subprocess.check_call([ FindExecutable('getscu'),
+        #                         _REMOTE['Server'], 
+        #                         str(_REMOTE['DicomPort']),
+        #                         '-aec', 'ORTHANC',
+        #                         '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+        #                         '-k', '0020,000d=1.2.276.0.7230010.3.1.2.2831176407.19977.1434973482.75580',
+        #                         '-k', '0008,0052=STUDY',
+        #                         '--output-directory', '/tmp/GETSCU/' 
+        #                      ])
+
+        # self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.276.0.7230010.3.1.4.2831176407.19977.1434973482.75579'))
+
+
+
