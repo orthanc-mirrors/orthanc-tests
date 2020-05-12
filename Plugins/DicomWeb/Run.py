@@ -32,7 +32,7 @@
 
 
 
-
+import copy
 import os
 import pprint
 import sys
@@ -589,16 +589,19 @@ class Orthanc(unittest.TestCase):
         b = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1))
         self.assertEqual(1, len(b))
         self.assertEqual(256 * 256 * 2, len(b[0]))
+        self.assertEqual('ce394eb4d4de4eeef348436108101f3b', ComputeMD5(b[0]))
         
         c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
                            headers = { 'Accept' : 'multipart/related; type=application/octet-stream' })
         self.assertEqual(1, len(c))
         self.assertEqual(b[0], c[0])
+        self.assertEqual('ce394eb4d4de4eeef348436108101f3b', ComputeMD5(c[0]))
 
         c = DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
                            headers = { 'Accept' : 'multipart/related; type="application/octet-stream"' })
         self.assertEqual(1, len(c))
         self.assertEqual(b[0], c[0])
+        self.assertEqual('ce394eb4d4de4eeef348436108101f3b', ComputeMD5(c[0]))
 
         self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s/frames/%d' % (uri, 1),
                                                             headers = { 'Accept' : 'multipart/related; type="nope"' }))
@@ -998,6 +1001,11 @@ class Orthanc(unittest.TestCase):
         p = DoGetMultipart(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/frames/5')
         self.assertEqual(1, len(p))
         self.assertEqual(743 * 975 * 3, len(p[0]))
+        self.assertTrue(ComputeMD5(p[0]) in [
+            # The actual value depends on the JPEG decompression algorithm
+            '326acdaa507e01e611d4d152e5526782',  # With GDCM
+            'b3662c4bfa24a0c73abb08548c63319b',  # With DCMTK
+        ])
 
 
     def test_bitbucket_issue_168(self):
@@ -1132,10 +1140,134 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(ORTHANC, u'/dicom-web/studies?PatientName=Гусева*',
                                       headers = { 'accept' : 'application/json' })))
 
-        # This line is the isse
+        # This line is the issue
         self.assertEqual(1, len(DoGet(ORTHANC, u'/dicom-web/studies?PatientName=гусева*',
                                       headers = { 'accept' : 'application/json' })))
 
+
+    def test_transcoding(self):
+        ACCEPT = {
+            '1.2.840.10008.1.2' : 'multipart/related; type=application/octet-stream; transfer-syntax=1.2.840.10008.1.2',
+            '1.2.840.10008.1.2.1' : 'multipart/related; type=application/octet-stream; transfer-syntax=1.2.840.10008.1.2.1',
+            '1.2.840.10008.1.2.4.50' : 'multipart/related; type=image/jpeg; transfer-syntax=1.2.840.10008.1.2.4.50',
+            '1.2.840.10008.1.2.4.51' : 'multipart/related; type=image/jpeg; transfer-syntax=1.2.840.10008.1.2.4.51',
+            '1.2.840.10008.1.2.4.57' : 'multipart/related; type=image/jpeg; transfer-syntax=1.2.840.10008.1.2.4.57',
+            '1.2.840.10008.1.2.4.70' : 'multipart/related; type=image/jpeg; transfer-syntax=1.2.840.10008.1.2.4.70',
+            }
+
+        uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
+
+        a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
+                           headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] },
+                           returnHeaders = True)
+        self.assertEqual(1, len(a))
+        self.assertEqual(2, len(a[0]))
+        self.assertEqual('http://localhost:8042%s/frames/1' % uri,
+                         a[0][1]['Content-Location'])
+        self.assertEqual(ACCEPT['1.2.840.10008.1.2.4.50'],
+                         'multipart/related; type=%s' % a[0][1]['Content-Type'])
+        self.assertEqual(53476, len(a[0][0]))
+        self.assertEqual('142fdb8a1dc2aa7e6b8952aa294a6e22', ComputeMD5(a[0][0]))
+
+        a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri)
+        self.assertEqual(1, len(a))
+        self.assertEqual(480 * 640 * 3, len(a[0]))
+        
+        ACCEPT2 = copy.deepcopy(ACCEPT)
+        if ComputeMD5(a[0]) == '654fd026c19daf92bf05137233b4f426':
+            IS_GDCM = True
+            ACCEPT2['1.2.840.10008.1.2.1'] = 'multipart/related; type=application/octet-stream'
+            del ACCEPT2['1.2.840.10008.1.2']
+        else:
+            self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
+            IS_GDCM = False
+
+        a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
+                           headers = { 'Accept' : ACCEPT2['1.2.840.10008.1.2.1'] })
+        self.assertEqual(1, len(a))
+        self.assertEqual(480 * 640 * 3, len(a[0]))
+
+        if IS_GDCM:
+            self.assertEqual('654fd026c19daf92bf05137233b4f426', ComputeMD5(a[0]))
+        else:
+            self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
+
+
+        # Test download using the same transfer syntax
+        RESULTS = {
+            '1.2.840.10008.1.2' : 'f54c7ea520ab3ec32b6303581ecd262f',
+            '1.2.840.10008.1.2.1' : '4b350b9353a93c747917c7c3bf9b8f44',
+            '1.2.840.10008.1.2.4.50' : '142fdb8a1dc2aa7e6b8952aa294a6e22',
+            '1.2.840.10008.1.2.4.51' : '8b37945d75f9d2899ed868bdba429a0d',
+            '1.2.840.10008.1.2.4.57' : '75c84823eddb560d127b1d24c9406f30',
+            '1.2.840.10008.1.2.4.70' : '2c35726328f0200396e583a0038b0269',
+        }
+
+        if IS_GDCM:
+            # This file was failing with GDCM, as it has 2 fragments,
+            # and only the first one was returned => the MD5 below is BAD
+            RESULTS['1.2.840.10008.1.2.4.51'] = '901963a322a817946b074f9ed0afa060'
+        
+        for syntax in ACCEPT2:
+            uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/%s.dcm' % syntax)
+            a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
+                               headers = { 'Accept' : ACCEPT2[syntax] })
+            self.assertEqual(1, len(a))
+            self.assertEqual(RESULTS[syntax], ComputeMD5(a[0]))
+
+        # Test transcoding to all the possible transfer syntaxes
+        uri = '/dicom-web%s' % UploadAndGetWadoPath('KarstenHilbertRF.dcm')
+        for syntax in ACCEPT2:
+            a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
+                               headers = { 'Accept' : ACCEPT2[syntax] },
+                               returnHeaders = True)
+            self.assertEqual(1, len(a))
+            self.assertEqual(2, len(a[0]))
+            self.assertEqual('http://localhost:8042%s/frames/1' % uri,
+                             a[0][1]['Content-Location'])
+            self.assertEqual(ACCEPT[syntax],
+                             'multipart/related; type=%s' % a[0][1]['Content-Type'])
+            if IS_GDCM:
+                self.assertEqual({
+                    '1.2.840.10008.1.2' : '1c8cebde0c74450ce4dfb75dd52ddad7',
+                    '1.2.840.10008.1.2.1' : '1c8cebde0c74450ce4dfb75dd52ddad7',
+                    '1.2.840.10008.1.2.4.50' : 'f4d145e5f33fbd39375ce0f91453d6cc',
+                    '1.2.840.10008.1.2.4.51' : 'f4d145e5f33fbd39375ce0f91453d6cc',
+                    '1.2.840.10008.1.2.4.57' : 'dc55800ce1a8ac556c266cdb26d75757',
+                    '1.2.840.10008.1.2.4.70' : 'dc55800ce1a8ac556c266cdb26d75757',
+                    } [syntax], ComputeMD5(a[0][0]))
+            else:
+                self.assertEqual({
+                    '1.2.840.10008.1.2' : '1c8cebde0c74450ce4dfb75dd52ddad7',
+                    '1.2.840.10008.1.2.1' : '1c8cebde0c74450ce4dfb75dd52ddad7',
+                    '1.2.840.10008.1.2.4.50' : '0a0ab74fe7c68529bdd416fc9e5e742a',
+                    '1.2.840.10008.1.2.4.51' : '33d1ab2fe169c5b5ba932a9bbc3c6306',
+                    '1.2.840.10008.1.2.4.57' : '3d21c969da846ca41e0498a0dcfad061',
+                    '1.2.840.10008.1.2.4.70' : '49d5353c8673208629847ad45a855557',
+                    } [syntax], ComputeMD5(a[0][0]))
+
+
+        # JPEG image with many fragments for 2 frames        
+        uri = '/dicom-web%s' % UploadAndGetWadoPath('LenaTwiceWithFragments.dcm')
+
+        a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
+                           headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] })
+        self.assertEqual(1, len(a))
+        self.assertEqual(69214, len(a[0]))
+        self.assertEqual('0eaf36d4881c513ca70b6684bfaa5b08', ComputeMD5(a[0]))
+        
+        b = DoGetMultipart(ORTHANC, '%s/frames/2' % uri,
+                           headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] })
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[0], b[0])
+        
+        b = DoGetMultipart(ORTHANC, '%s/frames/1,2' % uri,
+                           headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] })
+        self.assertEqual(2, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[0], b[1])
+
+        
         
 try:
     print('\nStarting the tests...')
