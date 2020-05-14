@@ -138,6 +138,10 @@ def GenerateTestSequence():
         ]
 
 
+def HasGdcmPlugin():
+    plugins = DoGet(_REMOTE, '/plugins')
+    return ('gdcm' in plugins)
+
 
 class Orthanc(unittest.TestCase):
     def setUp(self):
@@ -1628,7 +1632,8 @@ class Orthanc(unittest.TestCase):
         # gdcmconv -i /home/jodogne/DICOM/GdcmDatabase/US_DataSet/HDI5000_US/3EAF5E01 -w -o Issue19.dcm
 
         a = UploadInstance(_REMOTE, 'Issue19.dcm')['ID']
-        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview'))
+        if not HasGdcmPlugin():
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview'))
 
 
     def test_googlecode_issue_37(self):
@@ -3071,8 +3076,11 @@ class Orthanc(unittest.TestCase):
         Check('1.2.840.10008.1.2.4.81', '801579ae7cbf28e604ea74f2c99fa2ca')
         Check('1.2.840.10008.1.2.5', '6ff51ae525d362e0d04f550a64075a0e')  # RLE, supported since Orthanc 1.0.1
         Check('1.2.840.10008.1.2', 'd54aed9f67a100984b42942cc2e9939b')
-        Check('1.2.840.10008.1.2.4.90', None)  # JPEG-2000 image, not supported
-        Check('1.2.840.10008.1.2.4.91', None)  # JPEG-2000 image, not supported
+
+        # JPEG2k image, not supported without GDCM plugin
+        if not HasGdcmPlugin():
+            Check('1.2.840.10008.1.2.4.90', None)
+            Check('1.2.840.10008.1.2.4.91', None)
 
 
     def test_raw_frame(self):
@@ -5513,24 +5521,47 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
             DoGet(_REMOTE, '/instances/%s/file' % i)))
 
-        for syntax in [
-                '1.2.840.10008.1.2',        
-                '1.2.840.10008.1.2.1',
-                #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian
-                '1.2.840.10008.1.2.2',
-                '1.2.840.10008.1.2.4.50',
-                '1.2.840.10008.1.2.4.51',
-                '1.2.840.10008.1.2.4.57',
-                '1.2.840.10008.1.2.4.70',
-                #'1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
-                #'1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
-        ]:
+        a = ExtractDicomTags(DoGet(_REMOTE, '/instances/%s/file' % i), [ 'SOPInstanceUID' ]) [0]
+        self.assertTrue(len(a) > 20)
+
+        SYNTAXES = [
+            '1.2.840.10008.1.2',        
+            '1.2.840.10008.1.2.1',
+            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian
+            '1.2.840.10008.1.2.2',
+            '1.2.840.10008.1.2.4.50',
+            '1.2.840.10008.1.2.4.51',
+            '1.2.840.10008.1.2.4.57',
+            '1.2.840.10008.1.2.4.70',
+        ]
+
+        if HasGdcmPlugin():
+            SYNTAXES = SYNTAXES + [
+                '1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
+                '1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
+                '1.2.840.10008.1.2.4.90',  # JPEG2k, unavailable without GDCM
+                '1.2.840.10008.1.2.4.91',  # JPEG2k, unavailable without GDCM
+            ]
+        
+        for syntax in SYNTAXES:
             transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
                 'Transcode' : syntax,
+                'Keep' : [ 'SOPInstanceUID' ],
+                'Force' : True,
                 })
             
             self.assertEqual(syntax, GetTransferSyntax(transcoded))
 
+            b = ExtractDicomTags(transcoded, [ 'SOPInstanceUID' ]) [0]
+            self.assertTrue(len(b) > 20)
+            if syntax in [ '1.2.840.10008.1.2.4.50',
+                           '1.2.840.10008.1.2.4.51',
+                           '1.2.840.10008.1.2.4.81',
+                           '1.2.840.10008.1.2.4.91' ]:
+                # Lossy transcoding: The SOP instance UID must have changed
+                self.assertNotEqual(a, b)
+            else:
+                self.assertEqual(a, b)
 
     def test_archive_transcode(self):
         info = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
