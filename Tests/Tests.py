@@ -5527,7 +5527,7 @@ class Orthanc(unittest.TestCase):
         SYNTAXES = [
             '1.2.840.10008.1.2',        
             '1.2.840.10008.1.2.1',
-            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian
+            #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
             '1.2.840.10008.1.2.2',
             '1.2.840.10008.1.2.4.50',
             '1.2.840.10008.1.2.4.51',
