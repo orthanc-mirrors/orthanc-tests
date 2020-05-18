@@ -5516,7 +5516,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('NORMAL', tags['1337,1001']['Value'])
 
 
-    def test_modify_transcode(self):
+    def test_modify_transcode_instance(self):
         i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
             DoGet(_REMOTE, '/instances/%s/file' % i)))
@@ -5694,3 +5694,22 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(s))
         self.assertFalse(i['ParentStudy'] in s)
         self.assertTrue(j['ID'] in s)
+
+
+    def test_modify_transcode_study(self):
+        i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            DoGet(_REMOTE, '/instances/%s/file' % i['ID'])))
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        j = DoPost(_REMOTE, '/studies/%s/modify' % i['ParentStudy'], {
+            'Transcode' : '1.2.840.10008.1.2.4.50',
+            'KeepSource' : False
+            })
+
+        k = DoGet(_REMOTE, '/instances')
+        self.assertEqual(1, len(k))
+        self.assertEqual(i['ID'], DoGet(_REMOTE, '/instances/%s/metadata?expand' % k[0]) ['ModifiedFrom'])       
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(
+            DoGet(_REMOTE, '/instances/%s/file' % k[0])))
+        
