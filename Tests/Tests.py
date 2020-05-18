@@ -5663,3 +5663,34 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
         
+    def test_modify_keep_source(self):
+        # https://groups.google.com/d/msg/orthanc-users/CgU-Wg8vDio/BY5ZWcDEAgAJ
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+
+        j = DoPost(_REMOTE, '/studies/%s/modify' % i['ParentStudy'], {
+            'Replace' : {
+                'StationName' : 'TEST',
+                },
+            'KeepSource' : True,
+        })
+
+        s = DoGet(_REMOTE, '/studies')
+        self.assertEqual(2, len(s))
+        self.assertTrue(i['ParentStudy'] in s)
+        self.assertTrue(j['ID'] in s)
+
+        DoDelete(_REMOTE, '/studies/%s' % j['ID'])
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+
+        j = DoPost(_REMOTE, '/studies/%s/modify' % i['ParentStudy'], {
+            'Replace' : {
+                'StationName' : 'TEST',
+                },
+            'KeepSource' : False,
+        })
+
+        s = DoGet(_REMOTE, '/studies')
+        self.assertEqual(1, len(s))
+        self.assertFalse(i['ParentStudy'] in s)
+        self.assertTrue(j['ID'] in s)
