@@ -39,6 +39,8 @@ import sys
 import argparse
 import unittest
 import re
+from PIL import ImageChops
+
 from DicomWeb import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
@@ -1001,12 +1003,14 @@ class Orthanc(unittest.TestCase):
         p = DoGetMultipart(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/frames/5')
         self.assertEqual(1, len(p))
         self.assertEqual(743 * 975 * 3, len(p[0]))
-        self.assertTrue(ComputeMD5(p[0]) in [
-            # The actual value depends on the JPEG decompression algorithm
-            #  $ convert -depth 8 -size 975x743 rgb:tutu.raw pic.png
-            'b952d67da9ff004b0adae3982e89d620',  # With GDCM
-            'b3662c4bfa24a0c73abb08548c63319b',  # With DCMTK
-        ])
+
+        if HasGdcmPlugin(ORTHANC):
+            self.assertTrue(ComputeMD5(p[0]) in [
+                'b952d67da9ff004b0adae3982e89d620', # GDCM >= 3.0
+                'b3662c4bfa24a0c73abb08548c63319b'  # Fallback to DCMTK
+                ])
+        else:
+            self.assertEqual('b3662c4bfa24a0c73abb08548c63319b', ComputeMD5(p[0]))  # DCMTK
 
 
     def test_bitbucket_issue_168(self):
@@ -1157,7 +1161,8 @@ class Orthanc(unittest.TestCase):
             }
 
         uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
-
+        truth = Image.open(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.png'))
+        
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
                            headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] },
                            returnHeaders = True)
@@ -1173,9 +1178,13 @@ class Orthanc(unittest.TestCase):
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri)
         self.assertEqual(1, len(a))
         self.assertEqual(480 * 640 * 3, len(a[0]))
-        
+
+        # http://effbot.org/zone/pil-comparing-images.htm
+        img = Image.frombytes('RGB', [ 640, 480 ], a[0])
+        self.assertLessEqual(GetMaxImageDifference(img, truth), 2)
+
         ACCEPT2 = copy.deepcopy(ACCEPT)
-        if ComputeMD5(a[0]) == '654fd026c19daf92bf05137233b4f426':
+        if HasGdcmPlugin(ORTHANC):
             IS_GDCM = True
             ACCEPT2['1.2.840.10008.1.2.1'] = 'multipart/related; type=application/octet-stream'
             del ACCEPT2['1.2.840.10008.1.2']
@@ -1188,9 +1197,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         self.assertEqual(480 * 640 * 3, len(a[0]))
 
-        if IS_GDCM:
-            self.assertEqual('654fd026c19daf92bf05137233b4f426', ComputeMD5(a[0]))
-        else:
+        img = Image.frombytes('RGB', [ 640, 480 ], a[0])
+        self.assertLessEqual(GetMaxImageDifference(img, truth), 2)
+
+        if not IS_GDCM:
             self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
 
 
@@ -1207,8 +1217,9 @@ class Orthanc(unittest.TestCase):
         if IS_GDCM:
             # This file was failing with GDCM, as it has 2 fragments,
             # and only the first one was returned => the MD5 below is BAD
-            RESULTS['1.2.840.10008.1.2.4.51'] = '901963a322a817946b074f9ed0afa060'
-        
+            #RESULTS['1.2.840.10008.1.2.4.51'] = '901963a322a817946b074f9ed0afa060'
+            pass
+            
         for syntax in ACCEPT2:
             uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/%s.dcm' % syntax)
             a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,

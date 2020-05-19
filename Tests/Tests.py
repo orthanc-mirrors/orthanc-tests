@@ -138,11 +138,6 @@ def GenerateTestSequence():
         ]
 
 
-def HasGdcmPlugin():
-    plugins = DoGet(_REMOTE, '/plugins')
-    return ('gdcm' in plugins)
-
-
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -1632,7 +1627,7 @@ class Orthanc(unittest.TestCase):
         # gdcmconv -i /home/jodogne/DICOM/GdcmDatabase/US_DataSet/HDI5000_US/3EAF5E01 -w -o Issue19.dcm
 
         a = UploadInstance(_REMOTE, 'Issue19.dcm')['ID']
-        if not HasGdcmPlugin():
+        if not HasGdcmPlugin(_REMOTE):
             self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/941ad3c8-05d05b88-560459f9-0eae0e20-6cddd533/preview'))
 
 
@@ -3078,7 +3073,7 @@ class Orthanc(unittest.TestCase):
         Check('1.2.840.10008.1.2', 'd54aed9f67a100984b42942cc2e9939b')
 
         # JPEG2k image, not supported without GDCM plugin
-        if not HasGdcmPlugin():
+        if not HasGdcmPlugin(_REMOTE):
             Check('1.2.840.10008.1.2.4.90', None)
             Check('1.2.840.10008.1.2.4.91', None)
 
@@ -5535,7 +5530,7 @@ class Orthanc(unittest.TestCase):
             '1.2.840.10008.1.2.4.70',
         ]
 
-        if HasGdcmPlugin():
+        if HasGdcmPlugin(_REMOTE):
             SYNTAXES = SYNTAXES + [
                 '1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
                 '1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
