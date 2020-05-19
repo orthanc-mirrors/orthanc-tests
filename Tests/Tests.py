@@ -5708,3 +5708,43 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(
             DoGet(_REMOTE, '/instances/%s/file' % k[0])))
         
+
+    def test_store_peer_transcoding(self):
+        i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
+
+        SYNTAXES = [
+            '1.2.840.10008.1.2',        
+            '1.2.840.10008.1.2.1',
+            #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+            '1.2.840.10008.1.2.2',
+            '1.2.840.10008.1.2.4.50',
+            '1.2.840.10008.1.2.4.51',
+            '1.2.840.10008.1.2.4.57',
+            '1.2.840.10008.1.2.4.70',
+        ]
+
+        if HasGdcmPlugin(_REMOTE):
+            SYNTAXES = SYNTAXES + [
+                '1.2.840.10008.1.2.4.80',  # This makes DCMTK 3.6.2 crash
+                '1.2.840.10008.1.2.4.81',  # This makes DCMTK 3.6.2 crash
+                '1.2.840.10008.1.2.4.90',  # JPEG2k, unavailable without GDCM
+                '1.2.840.10008.1.2.4.91',  # JPEG2k, unavailable without GDCM
+            ]
+
+        for syntax in SYNTAXES:
+            body = {
+                'Resources' : [ i ],
+            }
+
+            if syntax != '1.2.840.10008.1.2.1':
+                body['Transcode'] = syntax
+            
+            self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+            DoPost(_REMOTE, '/peers/peer/store', body, 'text/plain')
+            self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+            self.assertEqual(syntax, GetTransferSyntax(
+                DoGet(_LOCAL, '/instances/%s/file' % DoGet(_LOCAL, '/instances') [0])))
+
+            DropOrthanc(_LOCAL)
