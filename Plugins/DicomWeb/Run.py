@@ -1003,7 +1003,8 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(743 * 975 * 3, len(p[0]))
         self.assertTrue(ComputeMD5(p[0]) in [
             # The actual value depends on the JPEG decompression algorithm
-            '326acdaa507e01e611d4d152e5526782',  # With GDCM
+            #  $ convert -depth 8 -size 975x743 rgb:tutu.raw pic.png
+            'b952d67da9ff004b0adae3982e89d620',  # With GDCM
             'b3662c4bfa24a0c73abb08548c63319b',  # With DCMTK
         ])
 
