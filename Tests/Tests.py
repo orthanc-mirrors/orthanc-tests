@@ -35,14 +35,16 @@ from xml.dom import minidom
 
 _LOCAL = None
 _REMOTE = None
+_DOCKER = False
 
 
-def SetOrthancParameters(local, remote):
-    global _LOCAL, _REMOTE
+def SetOrthancParameters(local, remote, withinDocker):
+    global _LOCAL, _REMOTE, _DOCKER
     _LOCAL = local
     _REMOTE = remote
+    _DOCKER = withinDocker
 
-
+    
 def ExtractDicomTags(rawDicom, tags):
     with tempfile.NamedTemporaryFile(delete = True) as f:
         f.write(rawDicom)
@@ -5635,7 +5637,13 @@ class Orthanc(unittest.TestCase):
         
 
     def test_getscu(self):
-        
+        env = {}
+        if _DOCKER:
+            # This is "getscu" from DCMTK 3.6.5 compiled using LSB,
+            # and running in a GNU/Linux distribution running DCMTK
+            # 3.6.0. Tell "getscu" where it can find the DICOM dictionary.
+            env['DCMDICTPATH'] = '/usr/share/libdcmtk2/dicom.dic'
+
         # no transcoding required
         UploadInstance(_REMOTE, 'DummyCT.dcm')
 
@@ -5643,15 +5651,16 @@ class Orthanc(unittest.TestCase):
             shutil.rmtree('/tmp/GETSCU')
         os.makedirs('/tmp/GETSCU')
 
-        subprocess.check_call([ FindExecutable('getscu'),
-                                _REMOTE['Server'], 
-                                str(_REMOTE['DicomPort']),
-                                '-aec', 'ORTHANC',
-                                '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
-                                '-k', '0020,000d=1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
-                                '-k', '0008,0052=STUDY',
-                                '--output-directory', '/tmp/GETSCU/' 
-                             ])
+        subprocess.check_call([
+            FindExecutable('getscu'),
+            _REMOTE['Server'], 
+            str(_REMOTE['DicomPort']),
+            '-aec', 'ORTHANC',
+            '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+            '-k', '0020,000d=1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+            '-k', '0008,0052=STUDY',
+            '--output-directory', '/tmp/GETSCU/' 
+        ], env = env)
 
         self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'))
 
