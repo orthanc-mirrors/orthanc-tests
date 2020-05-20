@@ -5637,6 +5637,11 @@ class Orthanc(unittest.TestCase):
         
 
     def test_getscu(self):
+        def CleanTarget():
+            if os.path.isdir('/tmp/GETSCU'):
+                shutil.rmtree('/tmp/GETSCU')
+            os.makedirs('/tmp/GETSCU')
+        
         env = {}
         if _DOCKER:
             # This is "getscu" from DCMTK 3.6.5 compiled using LSB,
@@ -5645,11 +5650,9 @@ class Orthanc(unittest.TestCase):
             env['DCMDICTPATH'] = '/usr/share/libdcmtk2/dicom.dic'
 
         # no transcoding required
-        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
 
-        if os.path.isdir('/tmp/GETSCU'):
-            shutil.rmtree('/tmp/GETSCU')
-        os.makedirs('/tmp/GETSCU')
+        CleanTarget()
 
         subprocess.check_call([
             FindExecutable('getscu'),
@@ -5657,27 +5660,32 @@ class Orthanc(unittest.TestCase):
             str(_REMOTE['DicomPort']),
             '-aec', 'ORTHANC',
             '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
-            '-k', '0020,000d=1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775',
             '-k', '0008,0052=STUDY',
             '--output-directory', '/tmp/GETSCU/' 
         ], env = env)
 
-        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'))
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
+        CleanTarget()
+        return
 
         # transcoding required
-        # UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
+        UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
 
-        # subprocess.check_call([ FindExecutable('getscu'),
-        #                         _REMOTE['Server'], 
-        #                         str(_REMOTE['DicomPort']),
-        #                         '-aec', 'ORTHANC',
-        #                         '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
-        #                         '-k', '0020,000d=1.2.276.0.7230010.3.1.2.2831176407.19977.1434973482.75580',
-        #                         '-k', '0008,0052=STUDY',
-        #                         '--output-directory', '/tmp/GETSCU/' 
-        #                      ])
+        subprocess.check_call([
+            FindExecutable('getscu'),
+            _REMOTE['Server'], 
+            str(_REMOTE['DicomPort']),
+            '-aec', 'ORTHANC',
+            '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775\\1.2.276.0.7230010.3.1.2.2831176407.19977.1434973482.75580',
+            '-k', '0008,0052=STUDY',
+            '--output-directory', '/tmp/GETSCU/' 
+        ], env = env)
 
-        # self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.276.0.7230010.3.1.4.2831176407.19977.1434973482.75579'))
+        os.system('ls -l /tmp/GETSCU')
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.276.0.7230010.3.1.4.2831176407.19977.1434973482.75579'))
 
 
 
