@@ -32,7 +32,10 @@ import sys
 import time
 import zipfile
 
-from PIL import Image
+from PIL import Image, ImageChops
+import math
+import operator
+
 
 if (sys.version_info >= (3, 0)):
     from urllib.parse import urlencode
@@ -389,3 +392,35 @@ def GetTransferSyntax(dicom):
         data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ])
 
     return re.search('<data-set xfer="(.*?)"', data).group(1)
+
+
+def HasGdcmPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('gdcm' in plugins)
+
+
+def _GetMaxImageDifference(im1, im2):
+    h = ImageChops.difference(im1, im2).histogram()
+
+    if len(h) < 256:
+        raise Exception()
+
+    i = len(h) - 1
+    while h[i] == 0:
+        i -= 1
+
+    return i
+    
+
+def GetMaxImageDifference(im1, im2):
+    if im1.mode != im2.mode:
+        raise Exception('Incompatible image modes')
+
+    if im1.mode == 'RGB':
+        red1, green1, blue1 = im1.split()
+        red2, green2, blue2 = im2.split()
+        return max([ _GetMaxImageDifference(red1, red2), 
+                     _GetMaxImageDifference(green1, green2),
+                     _GetMaxImageDifference(blue1, blue2) ])
+    else:
+        return _GetMaxImageDifference(im1, im2)

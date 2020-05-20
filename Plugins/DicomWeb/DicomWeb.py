@@ -68,7 +68,7 @@ def SendStow(orthanc, uri, dicom):
     return DoPost(orthanc, uri, body, headers = headers)
 
 
-def DoGetMultipart(orthanc, uri, headers = {}):
+def DoGetMultipart(orthanc, uri, headers = {}, returnHeaders = False):
     answer = DoGetRaw(orthanc, uri, headers = headers)
 
     header = ''
@@ -93,6 +93,12 @@ def DoGetMultipart(orthanc, uri, headers = {}):
     for part in msg.walk():
         payload = part.get_payload(decode = True)
         if payload != None:
-            result.append(payload)
+            if returnHeaders:
+                h = {}
+                for (key, value) in part.items():
+                    h[key] = value
+                result.append((payload, h))
+            else:
+                result.append(payload)
 
     return result
