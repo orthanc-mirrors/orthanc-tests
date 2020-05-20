@@ -5782,12 +5782,15 @@ class Orthanc(unittest.TestCase):
             '--output-directory', '/tmp/GETSCU/' 
         ], env = env)
 
-        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
+        f1 = '/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'
+        self.assertTrue(os.path.isfile(f1))
+        with open(f1, 'rb') as f:
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
+
         CleanTarget()
-        return
 
         # transcoding required
-        UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
+        UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
 
         subprocess.check_call([
             FindExecutable('getscu'),
@@ -5795,11 +5798,18 @@ class Orthanc(unittest.TestCase):
             str(_REMOTE['DicomPort']),
             '-aec', 'ORTHANC',
             '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
-            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775\\1.2.276.0.7230010.3.1.2.2831176407.19977.1434973482.75580',
+            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775\\1.2.840.113663.1298.6234813.1.298.20000329.1115122',
             '-k', '0008,0052=STUDY',
             '--output-directory', '/tmp/GETSCU/' 
         ], env = env)
 
-        os.system('ls -l /tmp/GETSCU')
-        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
-        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.276.0.7230010.3.1.4.2831176407.19977.1434973482.75579'))
+        self.assertTrue(os.path.isfile(f1))
+        with open(f1, 'rb') as f:
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
+
+        # This file is transcoded from "1.2.840.10008.1.2.4.50" to "1.2.840.10008.1.2.1"
+        # (LittleEndianExplicit is proposed by default by "getscu")
+        f2 = '/tmp/GETSCU/US.1.2.840.113663.1298.1.3.715.20000329.1115326'
+        self.assertTrue(os.path.isfile(f2))
+        with open(f2, 'rb') as f:
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
