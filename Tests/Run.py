@@ -153,7 +153,7 @@ while True:
 
 try:
     print('\nStarting the tests...')
-    SetOrthancParameters(LOCAL, REMOTE)
+    SetOrthancParameters(LOCAL, REMOTE, args.docker)
 
     unittest.main(argv = [ sys.argv[0] ] + args.options)
 

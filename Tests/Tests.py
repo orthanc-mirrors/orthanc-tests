@@ -27,6 +27,7 @@ import copy
 import pprint
 import tempfile
 import unittest
+import shutil
 
 from PIL import ImageChops
 from Toolbox import *
@@ -34,14 +35,16 @@ from xml.dom import minidom
 
 _LOCAL = None
 _REMOTE = None
+_DOCKER = False
 
 
-def SetOrthancParameters(local, remote):
-    global _LOCAL, _REMOTE
+def SetOrthancParameters(local, remote, withinDocker):
+    global _LOCAL, _REMOTE, _DOCKER
     _LOCAL = local
     _REMOTE = remote
+    _DOCKER = withinDocker
 
-
+    
 def ExtractDicomTags(rawDicom, tags):
     with tempfile.NamedTemporaryFile(delete = True) as f:
         f.write(rawDicom)
@@ -5657,7 +5660,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
-        
+
     def test_modify_keep_source(self):
         # https://groups.google.com/d/msg/orthanc-users/CgU-Wg8vDio/BY5ZWcDEAgAJ
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')
@@ -5748,3 +5751,55 @@ class Orthanc(unittest.TestCase):
                 DoGet(_LOCAL, '/instances/%s/file' % DoGet(_LOCAL, '/instances') [0])))
 
             DropOrthanc(_LOCAL)
+
+        
+    def test_getscu(self):
+        def CleanTarget():
+            if os.path.isdir('/tmp/GETSCU'):
+                shutil.rmtree('/tmp/GETSCU')
+            os.makedirs('/tmp/GETSCU')
+        
+        env = {}
+        if _DOCKER:
+            # This is "getscu" from DCMTK 3.6.5 compiled using LSB,
+            # and running in a GNU/Linux distribution running DCMTK
+            # 3.6.0. Tell "getscu" where it can find the DICOM dictionary.
+            env['DCMDICTPATH'] = '/usr/share/libdcmtk2/dicom.dic'
+
+        # no transcoding required
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+
+        CleanTarget()
+
+        subprocess.check_call([
+            FindExecutable('getscu'),
+            _REMOTE['Server'], 
+            str(_REMOTE['DicomPort']),
+            '-aec', 'ORTHANC',
+            '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775',
+            '-k', '0008,0052=STUDY',
+            '--output-directory', '/tmp/GETSCU/' 
+        ], env = env)
+
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
+        CleanTarget()
+        return
+
+        # transcoding required
+        UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')
+
+        subprocess.check_call([
+            FindExecutable('getscu'),
+            _REMOTE['Server'], 
+            str(_REMOTE['DicomPort']),
+            '-aec', 'ORTHANC',
+            '-aet', 'ORTHANCTEST', # pretend to be the other orthanc
+            '-k', '0020,000d=2.16.840.1.113669.632.20.1211.10000357775\\1.2.276.0.7230010.3.1.2.2831176407.19977.1434973482.75580',
+            '-k', '0008,0052=STUDY',
+            '--output-directory', '/tmp/GETSCU/' 
+        ], env = env)
+
+        os.system('ls -l /tmp/GETSCU')
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'))
+        self.assertTrue(os.path.isfile('/tmp/GETSCU/MR.1.2.276.0.7230010.3.1.4.2831176407.19977.1434973482.75579'))
