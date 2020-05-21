@@ -32,6 +32,7 @@ import shutil
 from PIL import ImageChops
 from Toolbox import *
 from xml.dom import minidom
+from datetime import datetime
 
 _LOCAL = None
 _REMOTE = None
@@ -151,7 +152,7 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
         UninstallLuaCallbacks(_REMOTE)
-        #print "In test", self._testMethodName
+        #print("%s: In test %s" % (datetime.now(), self._testMethodName))
         
     def AssertSameImages(self, truth, url):
         im = GetImage(_REMOTE, url)
