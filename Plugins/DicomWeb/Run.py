@@ -541,6 +541,9 @@ class Orthanc(unittest.TestCase):
         # Wrong serialization of PN VR
         # https://bitbucket.org/sjodogne/orthanc/issues/113
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/2/
+
+        # Make sure UTF-8 encoding is used
+        self.assertEqual('Utf8', DoPut(ORTHANC, '/tools/default-encoding', 'Utf8'))
         
         UploadInstance(ORTHANC, 'Encodings/DavidClunie/SCSX1')
         study = '1.3.6.1.4.1.5962.1.2.0.1175775771.5711.0'
@@ -802,6 +805,9 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertEqual(3, len(qido[0]['00100010']['Value'][0]))
             return qido[0]['00100010']['Value'][0]
+
+        # Make sure UTF-8 encoding is used
+        self.assertEqual('Utf8', DoPut(ORTHANC, '/tools/default-encoding', 'Utf8'))
 
         # Check out "test_issue_95_encodings" in "../../Tests/Tests.py"
 

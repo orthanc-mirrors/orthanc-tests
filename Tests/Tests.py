@@ -2372,6 +2372,9 @@ class Orthanc(unittest.TestCase):
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
         self.assertNotEqual(u'Рентгенография', tags['SeriesDescription'])
 
+        # Back to UTF-8
+        self.assertEqual('Utf8', DoPut(_REMOTE, '/tools/default-encoding', 'Utf8'))
+
         
     def test_encodings(self):
         # Latin-1 (ISO_IR 100)
@@ -3361,6 +3364,9 @@ class Orthanc(unittest.TestCase):
 
                 tmp = ENCODINGS[name][1]
                 self.assertEqual(TEST.encode(tmp, 'ignore').decode(tmp), a[0]["PatientMainDicomTags"]["PatientName"])
+
+        # Back to UTF-8
+        self.assertEqual('Utf8', DoPut(_REMOTE, '/tools/default-encoding', 'Utf8'))
 
 
     def test_reconstruct(self):
