@@ -3946,14 +3946,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i))
         self.assertNotEqual('', DoGet(_REMOTE, '/instances/%s/metadata/RemoteIP' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/CalledAET' % i))
-        self.assertEqual('alice', DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i))
 
+        # "HttpUsername" is empty iff "AuthenticationEnabled" is "false"
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/metadata/HttpUsername' % i) in [ '', 'alice' ])
+        
         m = DoGet(_REMOTE, '/instances/%s/metadata?expand' % i)
         self.assertEqual('RestApi', m['Origin'])
         self.assertEqual('', m['RemoteAET'])
         self.assertNotEqual('', m['RemoteIP'])
         self.assertFalse('CalledAET' in m)
-        self.assertEqual('alice', m['HttpUsername'])
+        self.assertTrue('HttpUsername' in m)
+        self.assertTrue(m['HttpUsername'] in [ '', 'alice' ])
 
         self.assertEqual('1.2.840.10008.1.2.4.91', m['TransferSyntax'])
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', m['SopClassUid'])
