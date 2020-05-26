@@ -113,14 +113,21 @@ def CallDicomizer(suffix):
 
     
 def CallDicomToTiff(suffix):
-    CallCommand([ args.to_tiff ] + suffix)
+    CallCommand([ args.to_tiff,
+                  '--username=%s' % args.username,
+                  '--password=%s' % args.password ] + suffix)
 
 
 def CallTiffInfoOnSeries(series):
     with tempfile.NamedTemporaryFile(delete = False) as temp:
         temp.close()
         CallDicomToTiff([ series, temp.name ])
-        tiff = subprocess.check_output([ 'tiffinfo', temp.name ])
+        try:
+            tiff = subprocess.check_output([ 'tiffinfo', temp.name ])
+        except:
+            print('\ntiffinfo is probably not installed => sudo apt-get install libtiff-tools\n')
+            tiff = None
+            
         os.unlink(temp.name)
 
     return tiff
