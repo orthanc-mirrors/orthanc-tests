@@ -1156,7 +1156,7 @@ class Orthanc(unittest.TestCase):
                                       headers = { 'accept' : 'application/json' })))
 
 
-    def test_transcoding(self):
+    def test_frames_transcoding(self):
         ACCEPT = {
             '1.2.840.10008.1.2' : 'multipart/related; type=application/octet-stream; transfer-syntax=1.2.840.10008.1.2',
             '1.2.840.10008.1.2.1' : 'multipart/related; type=application/octet-stream; transfer-syntax=1.2.840.10008.1.2.1',
@@ -1285,7 +1285,45 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(a[0], b[0])
         self.assertEqual(a[0], b[1])
 
+
+    def test_wado_transcoding(self):
+        uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
+
+        self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s' % uri,
+                                                            headers = { 'Accept' : 'nope' }))
+
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = {  })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+        s = len(a[0])
         
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related; type=application/dicom' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=*' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+        self.assertEqual(s, len(a[0]))
+
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.4.50' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.1' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
+        self.assertTrue(10 * s < len(a[0]))
         
 try:
     print('\nStarting the tests...')

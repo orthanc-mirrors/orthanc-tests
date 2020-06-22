@@ -111,7 +111,7 @@ def GetMoveScuCommand():
 def CallMoveScu(args):
     try:
         subprocess.check_call(GetMoveScuCommand() + args,
-                              stderr=subprocess.PIPE)
+                              stderr = subprocess.PIPE)
     except subprocess.CalledProcessError as e:
         # The error code "69" corresponds to "EXITCODE_CMOVE_ERROR",
         # that has been introduced in DCMTK 3.6.2. This error code is

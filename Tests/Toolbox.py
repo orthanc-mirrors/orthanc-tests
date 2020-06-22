@@ -342,14 +342,15 @@ def IsOrthancVersionAbove(orthanc, major, minor, revision):
 class ExternalCommandThread:
     @staticmethod
     def ExternalCommandFunction(arg, stop_event, command, env):
-        external = subprocess.Popen(command, env = env)
+        with open(os.devnull, 'w') as devnull:
+            external = subprocess.Popen(command, env = env, stderr = devnull)
 
-        while (not stop_event.is_set()):
-            error = external.poll()
-            if error != None:
-                # http://stackoverflow.com/a/1489838/881731
-                os._exit(-1)
-            stop_event.wait(0.1)
+            while (not stop_event.is_set()):
+                error = external.poll()
+                if error != None:
+                    # http://stackoverflow.com/a/1489838/881731
+                    os._exit(-1)
+                stop_event.wait(0.1)
 
         print('Stopping the external command')
         external.terminate()
@@ -389,7 +390,10 @@ def GetTransferSyntax(dicom):
     with tempfile.NamedTemporaryFile(delete = True) as f:
         f.write(dicom)
         f.flush()
-        data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ])
+
+        with open(os.devnull, 'w') as devnull:
+            data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ],
+                                           stderr = devnull)
 
     return re.search('<data-set xfer="(.*?)"', data).group(1)
 
