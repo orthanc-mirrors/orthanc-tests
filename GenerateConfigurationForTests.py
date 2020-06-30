@@ -81,7 +81,8 @@ ip = socket.gethostbyname(socket.gethostname())
 
 # Download the content of the default configuration file
 with open(args.target, 'w') as f:
-    url = 'https://hg.orthanc-server.com/orthanc/raw-file/default/Resources/Configuration.json'
+    url = 'https://hg.orthanc-server.com/orthanc/raw-file/default/OrthancServer/Resources/Configuration.json'
+    #url = 'https://hg.orthanc-server.com/orthanc/raw-file/default/Resources/Configuration.json'
     #url = 'https://bitbucket.org/sjodogne/orthanc/raw/default/Resources/Configuration.json'
     http = urllib.urlopen(url)
     if http.getcode() != 200:

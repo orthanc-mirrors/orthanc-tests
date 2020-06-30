@@ -3421,7 +3421,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_44(self):
-        # https://bitbucket.org/sjodogne/orthanc/issues/44/bad-interpretation-of-photometric
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=44
         UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
         UploadInstance(_REMOTE, 'Issue44/Monochrome2.dcm')
 
@@ -3461,7 +3461,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_42(self):
-        # https://bitbucket.org/sjodogne/orthanc/issues/42/fails-to-modify-a-dicom-video-file
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=42
         # This test fails on DCMTK 3.6.0, but succeeds in DCMTK 3.6.1 snapshots and DCMTK 3.6.2
         UploadInstance(_REMOTE, 'Issue42.dcm')['ID']
         modified = DoPost(_REMOTE,
@@ -3473,7 +3473,7 @@ class Orthanc(unittest.TestCase):
 
     def test_rest_find_limit(self):
         # Check the "Since" and "Limit" parameters in URI "/tools/find"
-        # Related to issue 53: https://bitbucket.org/sjodogne/orthanc/issues/53
+        # Related to issue 53: https://bugs.orthanc-server.com/show_bug.cgi?id=53
         
         # Upload 6 instances
         brainix = []
@@ -3542,7 +3542,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_46(self):
         # "PHI remaining after anonymization"
-        # https://bitbucket.org/sjodogne/orthanc/issues/46
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=46
 
         def GetAnonymizedTags(study, version):
             anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
@@ -3631,7 +3631,7 @@ class Orthanc(unittest.TestCase):
         # Case-insensitive matching over accents. This test assumes
         # that the "CaseSensitivePN" configuration option of Orthanc
         # is set to "false" (default value).
-        # https://bitbucket.org/sjodogne/orthanc/issues/56
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=56
 
         def Check(name, expected, expectedSensitive):
             a = CallFindScu([ '-k', '0008,0005=ISO_IR 192',  # Use UTF-8
@@ -3916,7 +3916,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_94(self):
         # "a simple instance modification should not modify FrameOfReferenceUID + ..."
-        # https://bitbucket.org/sjodogne/orthanc/issues/94
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=94
         i = UploadInstance(_REMOTE, 'Issue94.dcm')['ID']
 
         source = DoGet(_REMOTE, '/instances/%s/attachments/dicom/data' % i)
@@ -4501,7 +4501,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_issue_95_encodings(self):
-        # https://bitbucket.org/sjodogne/orthanc/issues/95/server-cant-support-chinese
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=95
         # Check out image: "../Database/Encodings/DavidClunie/charsettests.screenshot.png"
 
         # Very useful tool: "file2" from package "file-kanji"
@@ -4580,7 +4580,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_131(self):
         # "Orthanc PACS silently fails to C-MOVE due to duplicate
         # StudyInstanceUID in it's database."
-        # https://bitbucket.org/sjodogne/orthanc/issues/131/orthanc-pacs-silently-fails-to-c-move-due
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=131
 
         # Insert 2 instances, with the same StudyInstanceUID, but with
         # different patient IDs. Orthanc will create 2 distincts
@@ -4793,7 +4793,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_140(self):
         # "Modifying private tags with REST API changes VR from LO to
         # UN." This test fails if DCMTK <= 3.6.1 (e.g. fails on Ubuntu 16.04).
-        # https://bitbucket.org/sjodogne/orthanc/issues/140
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=140
         source = UploadInstance(_REMOTE, 'Issue140.dcm') ['ID']
         series = DoGet(_REMOTE, '/instances/%s' % source) ['ParentSeries']
 
@@ -4874,7 +4874,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_141(self):
-        # https://bitbucket.org/sjodogne/orthanc/issues/141/
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=141
         a = UploadInstance(_REMOTE, 'Issue141.dcm') ['ID']
         study = '494c8037-b237f263-d8f15075-c8cb2280-daf39bd1'
 
@@ -4900,7 +4900,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_log_level(self):
-        # https://bitbucket.org/sjodogne/orthanc/issues/65/
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=65
         original = DoGet(_REMOTE, '/tools/log-level')
         
         DoPut(_REMOTE, '/tools/log-level', 'default')
@@ -5270,7 +5270,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_154(self):
         # "Matching against list of UID-s by C-MOVE"
-        # https://bitbucket.org/sjodogne/orthanc/issues/154/
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=154
         a = UploadInstance(_REMOTE, 'Issue154-d1.dcm') ['ID']
         b = UploadInstance(_REMOTE, 'Issue154-d2.dcm') ['ID']
 
