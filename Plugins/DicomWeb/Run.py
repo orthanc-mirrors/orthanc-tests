@@ -1166,7 +1166,7 @@ class Orthanc(unittest.TestCase):
             '1.2.840.10008.1.2.4.70' : 'multipart/related; type=image/jpeg; transfer-syntax=1.2.840.10008.1.2.4.70',
             }
 
-        uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
+        uri = 'dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
         truth = Image.open(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.png'))
         
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
@@ -1174,7 +1174,7 @@ class Orthanc(unittest.TestCase):
                            returnHeaders = True)
         self.assertEqual(1, len(a))
         self.assertEqual(2, len(a[0]))
-        self.assertEqual('http://localhost:8042%s/frames/1' % uri,
+        self.assertEqual('%s%s/frames/1' % (ORTHANC['Url'], uri),
                          a[0][1]['Content-Location'])
         self.assertEqual(ACCEPT['1.2.840.10008.1.2.4.50'],
                          'multipart/related; type=%s' % a[0][1]['Content-Type'])
@@ -1234,14 +1234,14 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(RESULTS[syntax], ComputeMD5(a[0]))
 
         # Test transcoding to all the possible transfer syntaxes
-        uri = '/dicom-web%s' % UploadAndGetWadoPath('KarstenHilbertRF.dcm')
+        uri = 'dicom-web%s' % UploadAndGetWadoPath('KarstenHilbertRF.dcm')
         for syntax in ACCEPT2:
             a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
                                headers = { 'Accept' : ACCEPT2[syntax] },
                                returnHeaders = True)
             self.assertEqual(1, len(a))
             self.assertEqual(2, len(a[0]))
-            self.assertEqual('http://localhost:8042%s/frames/1' % uri,
+            self.assertEqual('%s%s/frames/1' % (ORTHANC['Url'], uri),
                              a[0][1]['Content-Location'])
             self.assertEqual(ACCEPT[syntax],
                              'multipart/related; type=%s' % a[0][1]['Content-Type'])
