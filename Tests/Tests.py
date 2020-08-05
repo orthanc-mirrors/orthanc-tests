@@ -3070,7 +3070,7 @@ class Orthanc(unittest.TestCase):
 
         Check('1.2.840.10008.1.2.1', 'fae08d5415c4c0cd2cdbae4522408631')
         Check('1.2.840.10008.1.2.2', 'f3d9784768b8feb54d6a50b6d5c37682')
-        Check('1.2.840.10008.1.2.4.50', '496326046974eea718dbc16b997c646b')
+        Check('1.2.840.10008.1.2.4.50', '496326046974eea718dbc16b997c646b')  # TODO - Doesn't work with GDCM 3.0.7 only
         Check('1.2.840.10008.1.2.4.51', 'ccbe75909fe5c9f7361b48416a53fc41')
         Check('1.2.840.10008.1.2.4.57', '7bbefe11d976b1be4e568915c6a82fc3')
         Check('1.2.840.10008.1.2.4.70', '7132cfbc457305b04b59787030c785d2')
@@ -3116,7 +3116,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual("RGB", im.mode)
         self.assertEqual(512, im.size[0])
         self.assertEqual(512, im.size[1])
-        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % s)
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % s)  # TODO - Doesn't work with GDCM 3.0.7 only
         self.assertEqual("RGB", im.mode)
         self.assertEqual(512, im.size[0])
         self.assertEqual(512, im.size[1])
