@@ -5823,3 +5823,36 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(os.path.isfile(f2))
         with open(f2, 'rb') as f:
             self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
+
+
+    def test_findscu_truncation(self):
+        # https://groups.google.com/forum/#!msg/orthanc-users/FkckWAHvso8/UbRBAhQ5CwAJ
+        # Fixed by: https://hg.orthanc-server.com/orthanc/rev/2724977419fb
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
+
+        study = '1.3.46.670589.7.5.8.80001255161.20000323.151537.1'
+        
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyInstanceUID' ])
+        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(result))
+
+        # The "StudyInstanceUID" is set as a list of 5 times the same
+        # study, leading to a string of 249 characters
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k',
+                          'StudyInstanceUID=%s\\%s\\%s\\%s\\%s' % (( study, ) * 5) ])
+        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(result))
+        
+        # The "StudyInstanceUID" is set as a list of 6 times the same
+        # study, leading to a string of 299 characters. In Orthanc <=
+        # 1.7.2, this is above the value of ORTHANC_MAXIMUM_TAG_LENGTH
+        # == 256, and is thus wiped out by C-FIND SCP. As a
+        # consequence, Orthanc <= 1.7.2 doesn't apply the filter on
+        # "StudyInstanceUID" and returns all the available
+        # studies (i.e. 2). This issue was fixed in Orthanc 1.7.3.
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k',
+                          'StudyInstanceUID=%s\\%s\\%s\\%s\\%s\\%s' % (( study, ) * 6) ])
+        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(result))
+        
