@@ -1036,7 +1036,7 @@ class Orthanc(unittest.TestCase):
         a = DoGet(ORTHANC, '/dicom-web/studies?includefield=00091001')
         self.assertEqual(1, len(a))
         self.assertFalse('00090010' in a[0])
-        self.assertTrue('00091001' in a[0])
+        self.assertTrue('00091001' in a[0])   # This fails if DCMTK <= 3.6.1
         self.assertEqual('DS', a[0]['00091001']['vr'])
         self.assertEqual(1, len(a[0]['00091001']['Value']))
         self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
@@ -1324,6 +1324,62 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
         self.assertTrue(10 * s < len(a[0]))
+
+
+    def test_compare_wado_uri_and_rs(self):
+        # https://groups.google.com/d/msg/orthanc-users/mKgr2QAKTCU/R7u4I1LvBAAJ
+
+        # Image "2020-08-12-Christopher.dcm" corresponds to the result of:
+        #  $ gdcmconv --raw 1.2.840.113704.9.1000.16.2.20190613104005642000100010001.dcm 2020-08-12-Christopher.dcm
+        # Image "2020-08-12-Christopher.png" corresponds to "2.png"
+        
+        i = UploadInstance(ORTHANC, '2020-08-12-Christopher.dcm') ['ID']
+        STUDY = '1.2.840.113704.9.1000.16.0.20190613103939444'
+        SERIES = '1.2.840.113704.9.1000.16.1.2019061310394289000010001'
+        INSTANCE = '1.2.840.113704.9.1000.16.2.20190613104005642000100010001'
+
+        with open(GetDatabasePath('2020-08-12-Christopher.png'), 'rb') as f:
+            truth = UncompressImage(f.read())
+        
+        im1 = GetImage(ORTHANC, args.wado + '?requestType=WADO&objectUID=%s&contentType=image/jpg' % INSTANCE)
+        self.assertEqual('JPEG', im1.format)
+        
+        im2 = GetImage(ORTHANC, args.wado + '?requestType=WADO&objectUID=%s&contentType=image/png' % INSTANCE)
+        self.assertEqual('PNG', im2.format)
+        
+        im3 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered' % (STUDY, SERIES, INSTANCE))
+        self.assertEqual('JPEG', im3.format)
+
+        im4 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/rendered' % (STUDY, SERIES, INSTANCE),
+                       headers = { 'Accept' : 'image/png' })
+        self.assertEqual('PNG', im4.format)
+
+        im5 = GetImage(ORTHANC, '/instances/%s/rendered' % i, { 'Accept' : 'image/jpeg' })
+        self.assertEqual('JPEG', im5.format)
+
+        im6 = GetImage(ORTHANC, '/instances/%s/rendered' % i)
+        self.assertEqual('PNG', im6.format)
+
+        for im in [ truth, im1, im2, im3, im4, im5, im6 ]:
+            self.assertEqual('L', im.mode)
+            self.assertEqual(512, im.size[0])
+            self.assertEqual(512, im.size[1])
+
+        im2.save('/tmp/a.png')
+        im4.save('/tmp/b.png')
+        im6.save('/tmp/c.png')
+
+        # The following fails in DICOMweb plugin <= 1.2, as "/rendered"
+        # was redirecting to the "/preview" route of Orthanc
+        # http://effbot.org/zone/pil-comparing-images.htm
+        self.assertTrue(ImageChops.difference(im2, truth).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im1, im3).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im1, im5).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im2, im4).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im2, im6).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im3, im5).getbbox() is None)
+        self.assertTrue(ImageChops.difference(im4, im6).getbbox() is None)
+        
         
 try:
     print('\nStarting the tests...')
