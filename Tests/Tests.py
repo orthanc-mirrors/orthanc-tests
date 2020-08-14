@@ -1213,6 +1213,14 @@ class Orthanc(unittest.TestCase):
         studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(studies))
         self.assertTrue('19980312' in studies)
+
+        # Test that "Retrieve AE Title (0008,0054)" is present, which
+        # was *not* the case in Orthanc <= 1.7.2
+        i = CallFindScu([ '-k', '0008,0052=INSTANCE' ])
+        instances = re.findall('\(0008,0054\).*?\[\s*(.*?)\s*\]', i)
+        self.assertEqual(2, len(instances))
+        self.assertEqual('ORTHANC', instances[0].strip())
+        self.assertEqual('ORTHANC', instances[1].strip())
         
 
     def test_incoming_findscu_2(self):
