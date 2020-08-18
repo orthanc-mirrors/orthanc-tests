@@ -4822,7 +4822,7 @@ class Orthanc(unittest.TestCase):
 
         tags = DoGet(_REMOTE, '/instances/%s/tags' % instances[0]['ID'])
         t = tags['4321,1012']
-        self.assertEqual('String', t['Type'])
+        self.assertEqual('String', t['Type'])   # This fails if DCMTK <= 3.6.1
         self.assertEqual('RadioButton3', t['Name'])
         self.assertEqual('RadioLogic', t['PrivateCreator'])
         self.assertEqual('aaabbbccc', t['Value'])
