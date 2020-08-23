@@ -5863,4 +5863,50 @@ class Orthanc(unittest.TestCase):
                           'StudyInstanceUID=%s\\%s\\%s\\%s\\%s\\%s' % (( study, ) * 6) ])
         result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(result))
+
+
+    def test_store_compressed(self):
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            dicom = f.read()
+            i = DoPost(_REMOTE, '/instances', dicom) ['ID']
+            sourceSize = len(dicom)
         
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        # Sending to the local Orthanc 0.8.6 server, without compression: OK
+        jobId = MonitorJob2(_REMOTE, lambda: DoPost(
+            _REMOTE, '/peers/peer/store', {
+                'Resources' : [ i ],
+                'Synchronous' : False,
+            }))
+
+        job = DoGet(_REMOTE, '/jobs/%s' % jobId)
+        self.assertFalse(job['Content']['Compress'])
+        self.assertEqual('', job['Content']['Peer'][2])  # Password must not be reported
+        self.assertEqual(str(sourceSize), job['Content']['Size'])
+
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        DropOrthanc(_LOCAL)
+
+        # Sending to the local Orthanc 0.8.6 server, with compression:
+        # Not supported by Orthanc 0.8.6 => failure
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/peers/peer/store', {
+            'Resources' : [ i ],
+            'Compress' : True,
+        }))
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+        # Sending to the tested remote server, with compression: OK
+        jobId = MonitorJob2(_REMOTE, lambda: DoPost(
+            _REMOTE, '/peers/self/store', {
+                'Resources' : [ i ],
+                'Compress' : True,
+                'Synchronous' : False,
+            }))
+
+        job = DoGet(_REMOTE, '/jobs/%s' % jobId)
+        self.assertTrue(job['Content']['Compress'])
+
+        # Compression must have divided the size of the sent data at least twice
+        self.assertLess(int(job['Content']['Size']), sourceSize / 2)

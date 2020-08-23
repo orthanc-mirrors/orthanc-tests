@@ -124,6 +124,11 @@ config['OrthancPeers'] = {
         'Url' : 'http://localhost:8042/',
         'Username' : 'alice',
         'Password' : 'orthanctest'
+    },
+    'self' : {
+        'Url' : 'http://localhost:8042/',
+        'Username' : 'alice',
+        'Password' : 'orthanctest'
     }
 }
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
