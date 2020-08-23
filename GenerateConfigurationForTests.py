@@ -126,7 +126,7 @@ config['OrthancPeers'] = {
         'Password' : 'orthanctest'
     },
     'self' : {
-        'Url' : 'http://localhost:8042/',
+        'Url' : 'http://127.0.0.1:8042/',
         'Username' : 'alice',
         'Password' : 'orthanctest'
     }
