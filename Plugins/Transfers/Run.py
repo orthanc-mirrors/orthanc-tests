@@ -98,7 +98,7 @@ class Orthanc(unittest.TestCase):
 
     def test_list_peers(self):
         peers = DoGet(ORTHANC, '/transfers/peers')
-        self.assertEqual(3, len(peers))
+        self.assertEqual(4, len(peers)) # "self" peer was added in Orthanc 1.7.3
         self.assertEqual('disabled', peers['peer'])
         self.assertEqual('installed', peers['transfers-simple'])
         self.assertEqual('bidirectional', peers['transfers-bidirectional'])
