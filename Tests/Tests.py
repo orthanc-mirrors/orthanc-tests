@@ -5910,3 +5910,54 @@ class Orthanc(unittest.TestCase):
 
         # Compression must have divided the size of the sent data at least twice
         self.assertLess(int(job['Content']['Size']), sourceSize / 2)
+
+
+    def test_move_ambra(self):
+        # "Orthanc + Ambra: Query/Retrieve" (2020-08-25)
+        # https://groups.google.com/g/orthanc-users/c/yIUnZ9v9-Zs/m/GQPXiAOiCQAJ
+
+        UploadInstance(_REMOTE, '2019-06-17-VedranZdesic.dcm')
+        
+        self.assertFalse(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'StudyInstanceUID='
+        ])))
+        
+        self.assertFalse(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'AccessionNumber=',
+        ])))
+        
+        self.assertFalse(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'AccessionNumber=',
+            '-k', 'StudyInstanceUID='
+        ])))
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'AccessionNumber=CT16000988',
+            '-k', 'StudyInstanceUID=',
+        ])))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        DropOrthanc(_LOCAL)
+        
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'AccessionNumber=CT16000988',
+            '-k', 'StudyInstanceUID=1.2.840.113619.2.278.3.4194965761.659.1468842739.39',
+        ])))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        DropOrthanc(_LOCAL)
+
+        # This fails on Orthanc <= 1.7.3
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+        self.assertTrue(MonitorJob(_REMOTE, lambda: CallMoveScu([
+            '--study',
+            '-k', 'AccessionNumber=',
+            '-k', 'StudyInstanceUID=1.2.840.113619.2.278.3.4194965761.659.1468842739.39'
+        ])))
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+        DropOrthanc(_LOCAL)
