@@ -54,14 +54,15 @@ Content
 
 Here is the source of each set of sample images:
 
+- 2020-09-12-ELSCINT1-PMSCT_RLE1.dcm: Anonymized from https://discourse.slicer.org/t/fail-to-load-pet-ct-gemini/8158
 - Beaufix/* : From OsiriX, "BEAUFIX" (sample of JPEG2000).
 - Brainix/* : From OsiriX, "BRAINIX" (sample of uncompressed data).
 - ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm
 - ColorTestMalaterre.dcm : From Mathieu Malaterre <mathieu.malaterre@gmail.com>, Debian bug #698417
 - Comunix/* : From OsiriX, "COMUNIX" (sample of PET/CT study).
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
-- HierarchicalAnonymization/StructuredReports/* : Courtesy of Collective Minds Radiology AB
 - HierarchicalAnonymization/RTH/* : From https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017
+- HierarchicalAnonymization/StructuredReports/* : Courtesy of Collective Minds Radiology AB
 - Issue16.dcm : From Chris Hafey on Google Code (AT VR's are not returned properly as JSON)
 - Issue19.dcm : From Chris Hafey on Google Code (YBR_FULL are not decoded incorrectly)
 - Issue22.dcm : From Emsy Chan on Google Code (Error decoding multi-frame instances)
@@ -78,7 +79,6 @@ Here is the source of each set of sample images:
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - SignedCT.dcm : From Sébastien Jodogne.
-- TransferSyntaxes/1.2.840.10008.1.2.dcm : From Sébastien Barré (MR-MONO2-12-an2)
 - TransferSyntaxes/1.2.840.10008.1.2.1.dcm : From Sébastien Barré (US-RGB-8-esopecho)
 - TransferSyntaxes/1.2.840.10008.1.2.2.dcm : From Sébastien Barré (US-RGB-8-epicard)
 - TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm : From GDCM, "US_DataSet/Philips_US/3EAF5680_8b_YBR_jpeg.dcm"
@@ -90,4 +90,9 @@ Here is the source of each set of sample images:
 - TransferSyntaxes/1.2.840.10008.1.2.4.90.dcm : From DICOM WG04 (IMAGES/J2KR/NM1_J2KR)
 - TransferSyntaxes/1.2.840.10008.1.2.4.91.dcm : From DICOM WG04 (IMAGES/J2KI/CT1_J2KI)
 - TransferSyntaxes/1.2.840.10008.1.2.5.dcm : From DICOM WG04 (IMAGES/RLE/NM1_RLE)
+- TransferSyntaxes/1.2.840.10008.1.2.dcm : From Sébastien Barré (MR-MONO2-12-an2)
 - UnknownSopClassUid.dcm : Same as "ColorTestMalaterre.dcm", with arbitrary SOP class UID.
+
+Sample images that are not listed above, were submitted by Orthanc
+users, either in the "Orthanc Users" public discussion group or in the
+Orthanc bug tracker.

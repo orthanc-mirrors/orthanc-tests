@@ -5961,3 +5961,27 @@ class Orthanc(unittest.TestCase):
         ])))
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         DropOrthanc(_LOCAL)
+
+
+    def test_decode_elscint(self):
+        # https://groups.google.com/g/orthanc-users/c/d9anAx6lSis/m/qEzm1x3PAAAJ
+        a = UploadInstance(_REMOTE, '2020-09-12-ELSCINT1-PMSCT_RLE1.dcm')['ID']
+        b = UploadInstance(_REMOTE, '2020-09-11-Christopher-ELSCINT1-Raw.dcm')['ID']
+        
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % a)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/preview' % b)
+        self.assertEqual("L", im.mode)
+        self.assertEqual(512, im.size[0])
+        self.assertEqual(512, im.size[1])
+
+        # The two tests below fail on Orthanc <= 1.7.3
+        raw = DoGet(_REMOTE, '/instances/%s/frames/0/raw' % a)
+        self.assertEqual(512 * 512 * 2, len(raw))
+
+        raw = DoGet(_REMOTE, '/instances/%s/frames/0/raw' % b)
+        self.assertEqual(512 * 512 * 2, len(raw))
+        
