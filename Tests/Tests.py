@@ -5985,3 +5985,30 @@ class Orthanc(unittest.TestCase):
         raw = DoGet(_REMOTE, '/instances/%s/frames/0/raw' % b)
         self.assertEqual(512 * 512 * 2, len(raw))
         
+
+    def test_rest_modalities_in_study_2(self):
+        # Problem reported by Alain Mazy on 2020-09-15
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'ModalitiesInStudy' : 'UX' }})
+        self.assertEqual(0, len(a))
+
+        for i in [ '', 'PT', 'CT\\PT', 'UX\\PT', 'CT\\PT' ]:
+            # The empty string '' corresponds to universal matching
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                                 'Query' : { 'ModalitiesInStudy' : i }})
+            self.assertEqual(1, len(a))
+
+            i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=%s' % i ])
+            studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(studyInstanceUid))
+            
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'ModalitiesInStudy' : 'CT' }})
+        self.assertEqual(1, len(a))  # Fails in Orthanc <= 1.7.3
+
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=CT' ])
+        studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(studyInstanceUid))  # Fails in Orthanc <= 1.7.3
