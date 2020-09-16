@@ -1185,7 +1185,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('20070208' in series)
         self.assertTrue('19980312' in series)
         
-        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021', '-k', 'ModalitiesInStudy=MR\\XA' ])
+        i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021', '-k', 'Modality=MR\\XA' ])
         series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
         self.assertTrue('19980312' in series)
@@ -5991,24 +5991,24 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Query' : { 'ModalitiesInStudy' : 'UX' }})
-        self.assertEqual(0, len(a))
+        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=' ])
+        modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(modalitiesInStudy))
+        self.assertEqual('CT\\PT ', modalitiesInStudy[0])
+        
+        for i in [ '', 'CT', 'PT', 'UX', 'UX\\MR', 'CT\\PT', 'UX\\PT', 'CT\\PT', 'UX\\CT\\PT' ]:
+            # The empty string '' corresponds to universal matching.
+            # The case where "i == 'CT'" failed in Orthanc <= 1.7.3.
+            
+            if i in [ 'UX', 'UX\\MR' ]:
+                expected = 0
+            else:
+                expected = 1
 
-        for i in [ '', 'PT', 'CT\\PT', 'UX\\PT', 'CT\\PT' ]:
-            # The empty string '' corresponds to universal matching
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
                                                  'Query' : { 'ModalitiesInStudy' : i }})
-            self.assertEqual(1, len(a))
+            self.assertEqual(expected, len(a))
 
             i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=%s' % i ])
             studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
-            self.assertEqual(1, len(studyInstanceUid))
-            
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Query' : { 'ModalitiesInStudy' : 'CT' }})
-        self.assertEqual(1, len(a))  # Fails in Orthanc <= 1.7.3
-
-        i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=CT' ])
-        studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
-        self.assertEqual(1, len(studyInstanceUid))  # Fails in Orthanc <= 1.7.3
+            self.assertEqual(expected, len(studyInstanceUid))

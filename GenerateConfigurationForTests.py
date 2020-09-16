@@ -140,6 +140,7 @@ config['MediaArchiveSize'] = 1
 config['SaveJobs'] = False
 config['ExecuteLuaEnabled'] = True
 config['HttpTimeout'] = 2
+config['SyncStorageArea'] = False  # For tests to run more quickly
 del config['KeepAlive']
 
 config['Dictionary'] = {
