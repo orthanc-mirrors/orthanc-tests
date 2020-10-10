@@ -32,6 +32,8 @@ import sys
 import time
 import zipfile
 
+from xml.dom import minidom
+
 from PIL import Image, ImageChops
 import math
 import operator
@@ -428,3 +430,17 @@ def GetMaxImageDifference(im1, im2):
                      _GetMaxImageDifference(blue1, blue2) ])
     else:
         return _GetMaxImageDifference(im1, im2)
+
+
+def DoPropFind(orthanc, uri, depth):
+    http = httplib2.Http()
+    http.follow_redirects = False
+    _SetupCredentials(orthanc, http)
+
+    resp, content = http.request(orthanc['Url'] + uri, 'PROPFIND', headers = { 'Depth' : str(depth) })
+
+    if not (resp.status in [ 207 ]):
+        raise Exception(resp.status, resp)
+    else:
+        return minidom.parseString(content)
+

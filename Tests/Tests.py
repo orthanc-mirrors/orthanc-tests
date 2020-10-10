@@ -6012,3 +6012,18 @@ class Orthanc(unittest.TestCase):
             i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=%s' % i ])
             studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
             self.assertEqual(expected, len(studyInstanceUid))
+        
+
+    def test_webdav(self):
+        self.assertRaises(Exception, lambda: DoPropFind(_REMOTE, '/webdav/', 2))
+
+        xml = DoPropFind(_REMOTE, '/webdav/', 1)
+        #print(xml.toprettyxml())
+        for i in xml.getElementsByTagName('D:response'):
+            print(i.getElementsByTagName('D:href')[0].childNodes[0].data)
+        #    print(i.getElementsByTagName('D:prop')[0].toprettyxml())
+
+
+            
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')

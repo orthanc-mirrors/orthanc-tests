@@ -141,6 +141,10 @@ config['SaveJobs'] = False
 config['ExecuteLuaEnabled'] = True
 config['HttpTimeout'] = 2
 config['SyncStorageArea'] = False  # For tests to run more quickly
+config['WebDavEnabled'] = True
+config['WebDavDeleteAllowed'] = True
+config['WebDavUploadAllowed'] = True
+
 del config['KeepAlive']
 
 config['Dictionary'] = {
