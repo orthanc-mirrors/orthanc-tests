@@ -29,6 +29,12 @@ import re
 import sys
 import unittest
 
+# https://stackoverflow.com/a/49336105/881731
+if ((3, 0) <= sys.version_info <= (3, 9)):
+    from urllib.parse import unquote
+elif ((2, 0) <= sys.version_info <= (2, 9)):
+    from urlparse import unquote
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
 from Toolbox import *
 
@@ -200,10 +206,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
 
         i = UploadInstance(ORTHANC, 'DummyCT.dcm')['ID']
-        instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i)
-        studyUid = instance['StudyInstanceUID']
-        seriesUid = instance['SeriesInstanceUID']
-        sopUid = instance['SOPInstanceUID']
+        tags = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i)
+        studyUid = tags['StudyInstanceUID']
+        seriesUid = tags['SeriesInstanceUID']
+        sopUid = tags['SOPInstanceUID']
 
         self.assertEqual(0, len(ListFiles('/webdav/by-uids/', False)))
         self.assertEqual(1, len(ListFiles('/webdav/by-uids/%s/' % studyUid, False)))
@@ -240,7 +246,94 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
         WEBDAV.delete('/webdav/by-uids/%s/%s/%s.dcm' % (studyUid, seriesUid, sopUid))
         self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
-            
+        self.assertEqual(0, len(ListFiles('/webdav/by-uids/', True)))
+
+
+    def test_by_patients(self):
+        self.assertEqual(0, len(ListFiles('/webdav/by-dates/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-patients/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-uids/', True)))
+
+        self.assertEqual(1, len(WEBDAV.ls('/webdav/by-patients/')))
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+
+        i = UploadInstance(ORTHANC, 'DummyCT.dcm')['ID']
+        tags = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i)
+        patient = '%s - %s' % (tags['PatientID'], tags['PatientName'])
+        study = '%s - %s' % (tags['StudyDate'], tags['StudyDescription'])
+        series = '%s - %s' % (tags['Modality'], tags['SeriesDescription'])
+        self.assertEqual('ozp00SjY2xG - KNIX', patient)
+        self.assertEqual('20070101 - Knee (R)', study)
+        self.assertEqual('MR - AX.  FSE PD', series)
+
+        self.assertEqual(1, len(ListFiles('/webdav/by-dates/', True)))
+        self.assertEqual(1, len(ListFiles('/webdav/by-patients/', True)))
+        self.assertEqual(1, len(ListFiles('/webdav/by-studies/', True)))
+        self.assertEqual(3, len(ListFiles('/webdav/by-uids/', True)))
+        
+        self.assertEqual(0, len(ListFiles('/webdav/by-patients/', False)))
+        self.assertEqual(2, len(WEBDAV.ls('/webdav/by-patients/')))
+        self.assertEqual(0, len(ListFiles('/webdav/by-patients/%s' % patient, False)))
+        self.assertEqual(2, len(WEBDAV.ls('/webdav/by-patients/%s' % patient)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-patients/%s/%s' % (patient, study), False)))
+        self.assertEqual(2, len(WEBDAV.ls('/webdav/by-patients/%s/%s' % (patient, study))))
+
+        folder = '/webdav/by-patients/%s/%s/%s' % (patient, study, series)
+        self.assertEqual(1, len(ListFiles(folder, False)))
+        self.assertEqual(2, len(WEBDAV.ls(folder)))
+        self.assertEqual('%s/%s.dcm' % (folder, i), unquote(ListFiles(folder, False) [0]))
+
+        a = DownloadFile('%s/%s.dcm' % (folder, i))
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            self.assertEqual(a, f.read())
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+        WEBDAV.delete('%s/%s.dcm' % (folder, i))
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+
+        self.assertEqual(0, len(ListFiles('/webdav/by-dates/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-patients/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/', True)))
+        self.assertEqual(0, len(ListFiles('/webdav/by-uids/', True)))
+
+
+    def test_by_studies(self):
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/', True)))
+        self.assertEqual(1, len(WEBDAV.ls('/webdav/by-patients/')))
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+
+        i = UploadInstance(ORTHANC, 'DummyCT.dcm')['ID']
+        tags = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i)
+        study = '%s - %s - %s' % (tags['PatientID'], tags['PatientName'], tags['StudyDescription'])
+        series = '%s - %s' % (tags['Modality'], tags['SeriesDescription'])
+        self.assertEqual('ozp00SjY2xG - KNIX - Knee (R)', study)
+        self.assertEqual('MR - AX.  FSE PD', series)
+
+        self.assertEqual(1, len(ListFiles('/webdav/by-studies/', True)))
+        
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/', False)))
+        self.assertEqual(2, len(WEBDAV.ls('/webdav/by-studies/')))
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/%s' % study, False)))
+        self.assertEqual(2, len(WEBDAV.ls('/webdav/by-studies/%s' % study)))
+
+        folder = '/webdav/by-studies/%s/%s' % (study, series)
+        self.assertEqual(1, len(ListFiles(folder, False)))
+        self.assertEqual(2, len(WEBDAV.ls(folder)))
+        self.assertEqual('%s/%s.dcm' % (folder, i), unquote(ListFiles(folder, False) [0]))
+
+        a = DownloadFile('%s/%s.dcm' % (folder, i))
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            self.assertEqual(a, f.read())
+
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+        WEBDAV.delete('%s/%s.dcm' % (folder, i))
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+        self.assertEqual(0, len(ListFiles('/webdav/by-studies/', True)))
+
+
+
+        
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
