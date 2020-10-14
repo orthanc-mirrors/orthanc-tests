@@ -43,9 +43,11 @@ if (sys.version_info >= (3, 0)):
     from urllib.parse import urlencode
     from io import StringIO
     from io import BytesIO
+    from urllib.parse import unquote
 
 else:
     from urllib import urlencode
+    from urlparse import unquote
 
     # http://stackoverflow.com/a/1313868/881731
     try:
@@ -53,7 +55,7 @@ else:
     except:
         from StringIO import StringIO
 
-
+    
 def _DecodeJson(s):
     t = s
 
@@ -442,5 +444,43 @@ def DoPropFind(orthanc, uri, depth):
     if not (resp.status in [ 207 ]):
         raise Exception(resp.status, resp)
     else:
-        return minidom.parseString(content)
+        xml = minidom.parseString(content)
 
+        if (xml.documentElement.nodeName != 'D:multistatus' or
+            xml.documentElement.attributes['xmlns:D'].value != 'DAV:'):
+            raise Exception()
+
+        result = {}
+        
+        for i in xml.documentElement.childNodes:
+            if i.nodeType == minidom.Node.ELEMENT_NODE:
+                if i.nodeName != 'D:response':
+                    raise Exception()
+                href = None
+                prop = None
+                for j in i.childNodes:
+                    if j.nodeType == minidom.Node.ELEMENT_NODE:
+                        if j.nodeName == 'D:href':
+                            if href == None:
+                                href = unquote(j.firstChild.nodeValue)
+                            else:
+                                raise Exception()
+                        elif j.nodeName == 'D:propstat':
+                            for k in j.childNodes:
+                                if k.nodeName == 'D:status':
+                                    if k.firstChild.nodeValue != 'HTTP/1.1 200 OK':
+                                        raise Exception()
+                                elif k.nodeType == minidom.Node.ELEMENT_NODE:
+                                    if (k.nodeName != 'D:prop' or
+                                        prop != None):
+                                        raise Exception()
+                                    prop = k
+                        else:
+                            raise Exception()
+                if href == None or prop == None:
+                    raise Exception()
+                result[href] = prop
+            elif i.nodeType != minidom.Node.TEXT_NODE:
+                raise Exception()
+        
+        return result

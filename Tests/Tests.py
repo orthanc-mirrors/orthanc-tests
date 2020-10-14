@@ -6018,9 +6018,12 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoPropFind(_REMOTE, '/webdav/', 2))
 
         xml = DoPropFind(_REMOTE, '/webdav/', 1)
+        pprint.pprint(xml.keys())
+        print(xml['/webdav/'].toprettyxml())
+        
         #print(xml.toprettyxml())
-        for i in xml.getElementsByTagName('D:response'):
-            print(i.getElementsByTagName('D:href')[0].childNodes[0].data)
+        #for i in xml.getElementsByTagName('D:response'):
+        #    print(i.getElementsByTagName('D:href')[0].childNodes[0].data)
         #    print(i.getElementsByTagName('D:prop')[0].toprettyxml())
 
 
