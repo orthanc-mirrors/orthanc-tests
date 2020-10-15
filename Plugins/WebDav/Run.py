@@ -158,6 +158,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, patients[0].size)
         self.assertEqual('', patients[0].contenttype)
 
+        self.assertRaises(Exception, lambda: WEBDAV.delete('/webdav/nope'))
+        self.assertRaises(Exception, lambda: WEBDAV.delete('/webdav/by-uids'))
+
 
     def test_upload(self):
         self.assertEqual(0, len(ListFiles('/webdav/uploads/', True)))
@@ -220,6 +223,11 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(('/webdav/by-uids/%s/study.json' % studyUid) in content)
         self.assertTrue(('/webdav/by-uids/%s/%s/series.json' % (studyUid, seriesUid)) in content)
         self.assertTrue(('/webdav/by-uids/%s/%s/%s.dcm' % (studyUid, seriesUid, sopUid)) in content)
+
+        # Deleting the virtual files "study|series.json" has no
+        # effect, but is needed for recursive DELETE in some file explorers
+        WEBDAV.delete('/webdav/by-uids/%s/study.json' % studyUid)
+        WEBDAV.delete('/webdav/by-uids/%s/%s/series.json' % (studyUid, seriesUid))
 
         info = GetFileInfo('/webdav/by-uids/%s/study.json' % studyUid)
         self.assertEqual(info.contenttype, 'application/json')
@@ -376,6 +384,31 @@ class Orthanc(unittest.TestCase):
         WEBDAV.delete('%s/%s.dcm' % (folder, i))
         self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
         self.assertEqual(0, len(ListFiles('/webdav/by-dates/', True)))
+
+
+    def test_delete_folder(self):
+        # These deletes should have no effect
+        UploadInstance(ORTHANC, 'DummyCT.dcm')
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+        WEBDAV.delete('/webdav/by-uids/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/study.json')
+        WEBDAV.delete('/webdav/by-uids/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/1.2.840.113619.2.176.2025.1499492.7391.1171285944.394/series.json')
+        WEBDAV.delete('/webdav/by-dates/2007/2007-02')
+        WEBDAV.delete('/webdav/by-dates/2006')
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+
+        for path in [
+                '/webdav/by-uids/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/1.2.840.113619.2.176.2025.1499492.7391.1171285944.394/1.2.840.113619.2.176.2025.1499492.7040.1171286242.109.dcm',
+                '/webdav/by-patients/ozp00SjY2xG - KNIX/20070101 - Knee (R)/MR - AX.  FSE PD/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d.dcm',
+                '/webdav/by-studies/ozp00SjY2xG - KNIX - Knee (R)/MR - AX.  FSE PD/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d.dcm',
+                '/webdav/by-dates/2007/2007-01/ozp00SjY2xG - KNIX - Knee (R)/MR - AX.  FSE PD/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d.dcm',
+                ]:
+            tokens = path.split('/')
+            for i in range(4, len(tokens) + 1):
+                p = '/'.join(tokens[0:i])
+                UploadInstance(ORTHANC, 'DummyCT.dcm')
+                self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))        
+                WEBDAV.delete(p)
+                self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
 
         
 try:

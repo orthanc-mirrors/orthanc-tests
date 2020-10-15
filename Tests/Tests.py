@@ -5330,7 +5330,7 @@ class Orthanc(unittest.TestCase):
                 if s['Status'] != 'Pending':
                     return s
                 else:
-                    time.sleep(0.1)
+                    time.sleep(0.01)
         
         instance = UploadInstance(_REMOTE, 'DummyCT.dcm')
         sopClassUid = '1.2.840.10008.5.1.4.1.1.4'
@@ -5414,7 +5414,7 @@ class Orthanc(unittest.TestCase):
                 if s['Status'] != 'Pending':
                     return s
                 else:
-                    time.sleep(0.1)
+                    time.sleep(0.01)
 
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
@@ -6017,16 +6017,43 @@ class Orthanc(unittest.TestCase):
     def test_webdav(self):
         self.assertRaises(Exception, lambda: DoPropFind(_REMOTE, '/webdav/', 2))
 
-        xml = DoPropFind(_REMOTE, '/webdav/', 1)
-        pprint.pprint(xml.keys())
-        print(xml['/webdav/'].toprettyxml())
-        
-        #print(xml.toprettyxml())
-        #for i in xml.getElementsByTagName('D:response'):
-        #    print(i.getElementsByTagName('D:href')[0].childNodes[0].data)
-        #    print(i.getElementsByTagName('D:prop')[0].toprettyxml())
+        for suffix in [ '', '/' ]:
+            f = DoPropFind(_REMOTE, '/webdav' + suffix, 0)
+            self.assertEqual(1, len(f))
+            self.assertTrue('/webdav/' in f.keys())
+            self.assertTrue(f['/webdav/']['folder'])
+            self.assertEqual('webdav', f['/webdav/']['displayname'])
 
-
+            f = DoPropFind(_REMOTE, '/webdav' + suffix, 1)
+            self.assertEqual(6, len(f))
+            self.assertTrue(f['/webdav/']['folder'])
+            self.assertEqual('webdav', f['/webdav/']['displayname'])
             
+            for i in [ 'by-dates', 'by-patients', 'by-studies', 'by-uids', 'uploads' ]:
+                self.assertTrue(f['/webdav/%s' % i]['folder'])
+                self.assertEqual(i, f['/webdav/%s' % i]['displayname'])
+
+                for depth in [ 0, 1 ]:
+                    for suffix2 in [ '', '/' ]:
+                        g = DoPropFind(_REMOTE, '/webdav/%s%s' % (i, suffix2), depth)
+
+                        if i == 'uploads':
+                            # Empty folders might still exist in "/uploads/"
+                            self.assertTrue('/webdav/uploads/' in g)
+                            self.assertEqual('uploads', g['/webdav/uploads/']['displayname'])
+                            for j in g.items():
+                                self.assertTrue(g.items()[0][1]['folder'])
+                        else:
+                            self.assertEqual(1, len(g))
+                            self.assertEqual('/webdav/%s/' % i, g.items()[0][0])
+                            self.assertTrue(g.items()[0][1]['folder'])
+                            self.assertEqual(i, g.items()[0][1]['displayname'])
+        
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            DoPut(_REMOTE, '/webdav/uploads/dummy', f.read(), 'text/plain')        
+
+        while len(DoGet(_REMOTE, '/patients')) == 0:
+            time.sleep(0.01)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+            

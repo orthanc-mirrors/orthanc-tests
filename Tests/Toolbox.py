@@ -141,7 +141,7 @@ def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     resp, content = http.request(orthanc['Url'] + uri, method,
                                  body = body,
                                  headers = headers)
-    if not (resp.status in [ 200, 302 ]):
+    if not (resp.status in [ 200, 201, 302 ]):
         raise Exception(resp.status, resp)
     else:
         return _DecodeJson(content)
@@ -241,7 +241,7 @@ def WaitEmpty(orthanc):
     while True:
         if len(DoGet(orthanc, '/instances')) == 0:
             return
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 def WaitJobDone(orthanc, job):
     while True:
@@ -252,7 +252,7 @@ def WaitJobDone(orthanc, job):
         elif s == 'Failure':
             return False
         
-        time.sleep(0.1)
+        time.sleep(0.01)
 
 def MonitorJob(orthanc, func):  # "func" is a lambda
     a = set(DoGet(orthanc, '/jobs'))
@@ -479,7 +479,22 @@ def DoPropFind(orthanc, uri, depth):
                             raise Exception()
                 if href == None or prop == None:
                     raise Exception()
-                result[href] = prop
+
+                info = {}
+
+                for j in prop.childNodes:
+                    if j.nodeType == minidom.Node.ELEMENT_NODE:
+                        if j.nodeName == 'D:displayname':
+                            info['displayname'] = j.firstChild.nodeValue if j.firstChild != None else ''
+                        elif j.nodeName == 'D:creationdate':
+                            info['creationdate'] = j.firstChild.nodeValue
+                        elif j.nodeName == 'D:getlastmodified':
+                            info['lastmodified'] = j.firstChild.nodeValue
+                        elif j.nodeName == 'D:resourcetype':
+                            k = j.getElementsByTagName('D:collection')
+                            info['folder'] = (len(k) == 1)
+
+                result[href] = info
             elif i.nodeType != minidom.Node.TEXT_NODE:
                 raise Exception()
         

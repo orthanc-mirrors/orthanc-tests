@@ -59,6 +59,9 @@ parser.add_argument('--force', help = 'Do not warn the user',
                     action = 'store_true')
 parser.add_argument('--docker', help = 'These tests are run from Docker',
                     action = 'store_true')
+parser.add_argument('--orthanc',
+                    default = 'Orthanc',
+                    help = 'Path to the executable of Orthanc')
 parser.add_argument('options', metavar = 'N', nargs = '*',
                     help='Arguments to Python unittest')
 
@@ -83,7 +86,7 @@ Are you sure ["yes" to go on]?""" % args.server)
 ##
 
 CONFIG = '/tmp/IntegrationTestsConfiguration.json'
-subprocess.check_call([ Toolbox.FindExecutable('Orthanc'), 
+subprocess.check_call([ Toolbox.FindExecutable(args.orthanc),
                         '--config=%s' % CONFIG ])
 
 with open(CONFIG, 'rt') as f:
@@ -113,8 +116,8 @@ with open(CONFIG, 'wt') as f:
     f.write(config)
 
 localOrthanc = ExternalCommandThread([ 
-    'Orthanc', 
-    CONFIG, 
+    Toolbox.FindExecutable(args.orthanc),
+    CONFIG,
     #'--verbose', 
     #'--no-jobs'
     #'/home/jodogne/Subversion/Orthanc/i/Orthanc', CONFIG, '--verbose'
