@@ -174,6 +174,7 @@ class Orthanc(unittest.TestCase):
 
         while len(ListFiles('/webdav/uploads/', True)) > 1:
             time.sleep(0.1)
+        time.sleep(0.1)  # Give some more delay to be sure that the store has succeeded (necessary for Wine)
         
         instances = DoGet(ORTHANC, '/instances?expand')
         self.assertEqual(1, len(instances))
@@ -199,6 +200,7 @@ class Orthanc(unittest.TestCase):
         
         while len(ListFiles('/webdav/uploads/', True)) > 1:
             time.sleep(0.1)
+        time.sleep(0.1)  # Give some more delay to be sure that the store has succeeded (necessary for Wine)
         
         self.assertEqual(2, len(DoGet(ORTHANC, '/instances')))
 
