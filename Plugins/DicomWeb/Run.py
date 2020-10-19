@@ -1379,12 +1379,13 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(ImageChops.difference(im3, im5).getbbox() is None)
         self.assertTrue(ImageChops.difference(im4, im6).getbbox() is None)
 
-        # Tolerance of just 1 pixel of difference (needed on Windows)
-        #print(im2.getpixel((238,275)))   # => 255
-        #print(truth.getpixel((238,275))) # => 254
         bbox = ImageChops.difference(im2, truth).getbbox()
-        self.assertLessEqual(abs(bbox[2] - bbox[0]), 1)
-        self.assertLessEqual(abs(bbox[3] - bbox[1]), 1)
+        if bbox != None:
+            # Tolerance of just 1 pixel of difference (needed on Windows)
+            #print(im2.getpixel((238,275)))   # => 255
+            #print(truth.getpixel((238,275))) # => 254
+            self.assertLessEqual(abs(bbox[2] - bbox[0]), 1)
+            self.assertLessEqual(abs(bbox[3] - bbox[1]), 1)
         
         
 try:
