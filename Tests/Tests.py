@@ -1397,6 +1397,7 @@ class Orthanc(unittest.TestCase):
         except:
             pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
+        self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/modalities/toto'))
         DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000 ])
         DoPut(_REMOTE, '/modalities/tata', [ "STORESCP", "localhost", 2000, 'MedInria' ]) # check backward compatiblity with obsolete manufacturer
         DoDelete(_REMOTE, '/modalities/tata')
@@ -1428,6 +1429,7 @@ class Orthanc(unittest.TestCase):
         except:
             pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
+        self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/peers/toto'))
         DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/' ])
         DoPut(_REMOTE, '/peers/tata', { 'Url': 'http://localhost:8042/',
                                         'Username': 'user',
