@@ -6059,3 +6059,28 @@ class Orthanc(unittest.TestCase):
             time.sleep(0.01)
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
             
+
+    def test_log_categories(self):
+        original = DoGet(_REMOTE, '/tools/log-level-rest')
+        
+        DoPut(_REMOTE, '/tools/log-level-rest', 'default')
+        self.assertEqual('default', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoGet(_REMOTE, '/system')
+
+        DoPut(_REMOTE, '/tools/log-level-rest', 'verbose')
+        self.assertEqual('verbose', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoGet(_REMOTE, '/system')
+
+        DoPut(_REMOTE, '/tools/log-level-rest', 'trace')
+        self.assertEqual('trace', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoGet(_REMOTE, '/system')
+
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-rest', 'nope'))
+        
+        # Switch back to the original log level
+        DoPut(_REMOTE, '/tools/log-level-rest', original)
+
+        for c in [ 'generic', 'rest', 'dicom', 'plugins', 'sqlite' ]:
+            DoPut(_REMOTE, '/tools/log-level-%s' % c, DoGet(_REMOTE, '/tools/log-level-%s' % c))
+
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-nope', 'default'))
