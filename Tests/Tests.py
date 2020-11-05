@@ -6061,26 +6061,26 @@ class Orthanc(unittest.TestCase):
             
 
     def test_log_categories(self):
-        original = DoGet(_REMOTE, '/tools/log-level-rest')
+        original = DoGet(_REMOTE, '/tools/log-level-http')
         
-        DoPut(_REMOTE, '/tools/log-level-rest', 'default')
-        self.assertEqual('default', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoPut(_REMOTE, '/tools/log-level-http', 'default')
+        self.assertEqual('default', DoGet(_REMOTE, '/tools/log-level-http'))
         DoGet(_REMOTE, '/system')
 
-        DoPut(_REMOTE, '/tools/log-level-rest', 'verbose')
-        self.assertEqual('verbose', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoPut(_REMOTE, '/tools/log-level-http', 'verbose')
+        self.assertEqual('verbose', DoGet(_REMOTE, '/tools/log-level-http'))
         DoGet(_REMOTE, '/system')
 
-        DoPut(_REMOTE, '/tools/log-level-rest', 'trace')
-        self.assertEqual('trace', DoGet(_REMOTE, '/tools/log-level-rest'))
+        DoPut(_REMOTE, '/tools/log-level-http', 'trace')
+        self.assertEqual('trace', DoGet(_REMOTE, '/tools/log-level-http'))
         DoGet(_REMOTE, '/system')
 
-        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-rest', 'nope'))
+        self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-http', 'nope'))
         
         # Switch back to the original log level
-        DoPut(_REMOTE, '/tools/log-level-rest', original)
+        DoPut(_REMOTE, '/tools/log-level-http', original)
 
-        for c in [ 'generic', 'rest', 'dicom', 'plugins', 'sqlite' ]:
+        for c in [ 'generic', 'http', 'dicom', 'plugins', 'sqlite', 'lua', 'jobs' ]:
             DoPut(_REMOTE, '/tools/log-level-%s' % c, DoGet(_REMOTE, '/tools/log-level-%s' % c))
 
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-nope', 'default'))
