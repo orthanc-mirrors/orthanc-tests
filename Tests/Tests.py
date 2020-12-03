@@ -1412,6 +1412,11 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000, 'InvalidManufacturerName' ]))
         self.assertTrue('store' in DoGet(_REMOTE, '/modalities/toto'))
         self.assertTrue('store' in DoGet(_REMOTE, '/modalities/tata'))
+
+        # New in Orthanc 1.8.1
+        self.assertTrue('configuration' in DoGet(_REMOTE, '/modalities/tata'))
+        self.assertEqual(modalitiesReadback['tata'], DoGet(_REMOTE, '/modalities/tata/configuration'))
+        
         DoDelete(_REMOTE, '/modalities/toto')
         DoDelete(_REMOTE, '/modalities/tata')
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
@@ -1457,6 +1462,11 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/', 'a', 'b', 'c' ]))
         self.assertTrue('store' in DoGet(_REMOTE, '/peers/toto'))
         self.assertTrue('store' in DoGet(_REMOTE, '/peers/tata'))
+
+        # New in Orthanc 1.8.1
+        self.assertTrue('configuration' in DoGet(_REMOTE, '/peers/tata'))
+        self.assertEqual(peersReadback['tata'], DoGet(_REMOTE, '/peers/tata/configuration'))
+
         DoDelete(_REMOTE, '/peers/toto')
         DoDelete(_REMOTE, '/peers/tata')
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
