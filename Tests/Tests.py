@@ -4201,6 +4201,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(z.namelist()))
         self.assertFalse('DICOMDIR' in z.namelist())
 
+        info = DoGet(_REMOTE, '/jobs/%s' % job)
+        self.assertEqual(0, info['Content']['ArchiveSizeMB'])  # New in Orthanc 1.8.1
+        self.assertEqual(1, info['Content']['InstancesCount'])
+        self.assertEqual(0, info['Content']['UncompressedSizeMB'])
+        
         job2 = MonitorJob2(_REMOTE, lambda: DoPost
                            (_REMOTE, '/studies/%s/media' % kneeT1, {
                                'Synchronous' : False
@@ -4214,6 +4219,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(z.namelist()))
         self.assertTrue('DICOMDIR' in z.namelist())
 
+        info = DoGet(_REMOTE, '/jobs/%s' % job2)
+        self.assertEqual(0, info['Content']['ArchiveSizeMB'])  # New in Orthanc 1.8.1
+        self.assertEqual(1, info['Content']['InstancesCount'])
+        self.assertEqual(0, info['Content']['UncompressedSizeMB'])
+
         job = MonitorJob2(_REMOTE, lambda: DoPost
                           (_REMOTE, '/tools/create-archive', {
                               'Synchronous' : False,
@@ -4224,6 +4234,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(z.namelist()))
         self.assertFalse('DICOMDIR' in z.namelist())
         
+        info = DoGet(_REMOTE, '/jobs/%s' % job)
+        self.assertEqual(0, info['Content']['ArchiveSizeMB'])  # New in Orthanc 1.8.1
+        self.assertEqual(2, info['Content']['InstancesCount'])
+        self.assertEqual(0, info['Content']['UncompressedSizeMB'])
+
         job = MonitorJob2(_REMOTE, lambda: DoPost
                           (_REMOTE, '/tools/create-media', {
                               'Synchronous' : False,
@@ -4234,6 +4249,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(3, len(z.namelist()))
         self.assertTrue('DICOMDIR' in z.namelist())
 
+        self.assertEqual(0, info['Content']['ArchiveSizeMB'])  # New in Orthanc 1.8.1
+        self.assertEqual(2, info['Content']['InstancesCount'])
+        self.assertEqual(0, info['Content']['UncompressedSizeMB'])
+        
         
     def test_queries_hierarchy(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
