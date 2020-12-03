@@ -1587,6 +1587,12 @@ class Orthanc(unittest.TestCase):
 
     def test_echo(self):
         DoPost(_REMOTE, '/modalities/orthanctest/echo')
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/nope/echo'))
+
+        # New in Orthanc 1.8.1
+        DoPost(_REMOTE, '/tools/dicom-echo', [
+            _LOCAL["DicomAet"], _LOCAL["Server"], _LOCAL["DicomPort"] ])
+        DoPost(_REMOTE, '/tools/dicom-echo', DoGet(_REMOTE, '/modalities/orthanctest/configuration'))
 
 
     def test_xml(self):
