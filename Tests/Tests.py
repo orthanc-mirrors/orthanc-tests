@@ -1591,9 +1591,18 @@ class Orthanc(unittest.TestCase):
 
         # New in Orthanc 1.8.1
         DoPost(_REMOTE, '/tools/dicom-echo', [
-            _LOCAL["DicomAet"], _LOCAL["Server"], _LOCAL["DicomPort"] ])
+            _LOCAL['DicomAet'], _LOCAL['Server'], _LOCAL['DicomPort'] ])
         DoPost(_REMOTE, '/tools/dicom-echo', DoGet(_REMOTE, '/modalities/orthanctest/configuration'))
 
+        # Use the 'CheckFind' new option in Orthanc 1.8.1
+        DoPost(_REMOTE, '/modalities/self/echo', { 'CheckFind' : True })
+        DoPost(_REMOTE, '/tools/dicom-echo', {
+            'AET' : _REMOTE['DicomAet'],
+            'Host' : _REMOTE['Server'],
+            'Port' : _REMOTE['DicomPort'],
+            'CheckFind' : True
+            })
+        
 
     def test_xml(self):
         json = DoGet(_REMOTE, '/tools', headers = { 'accept' : 'application/json' })
