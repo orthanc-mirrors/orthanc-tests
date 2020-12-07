@@ -1591,7 +1591,7 @@ class Orthanc(unittest.TestCase):
 
         # New in Orthanc 1.8.1
         DoPost(_REMOTE, '/tools/dicom-echo', [
-            _LOCAL['DicomAet'], _LOCAL['Server'], _LOCAL['DicomPort'] ])
+            _REMOTE['DicomAet'], _REMOTE['Server'], _REMOTE['DicomPort'] ])
         DoPost(_REMOTE, '/tools/dicom-echo', DoGet(_REMOTE, '/modalities/orthanctest/configuration'))
 
         # Use the 'CheckFind' new option in Orthanc 1.8.1
