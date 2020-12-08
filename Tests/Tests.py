@@ -6128,3 +6128,28 @@ class Orthanc(unittest.TestCase):
             DoPut(_REMOTE, '/tools/log-level-%s' % c, DoGet(_REMOTE, '/tools/log-level-%s' % c))
 
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/log-level-nope', 'default'))
+
+
+    def test_upload_zip(self):
+        f = StringIO()
+        with zipfile.ZipFile(f, 'w') as z:
+            z.writestr('hello/world/invalid.txt', 'Hello world')
+            with open(GetDatabasePath('DummyCT.dcm'), 'rb') as g:
+                c = g.read()
+                z.writestr('hello/world/dicom1.dcm', c)
+                z.writestr('hello/world/dicom2.dcm', c)
+
+        f.seek(0)
+        i = DoPost(_REMOTE, '/instances', f.read())
+
+        self.assertEqual(2, len(i))
+        self.assertEqual(i[0], i[1])
+        self.assertEqual(6, len(i[0]))
+        self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', i[0]['ID'])
+        self.assertEqual('f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', i[0]['ParentSeries'])
+        self.assertEqual('b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', i[0]['ParentStudy'])
+        self.assertEqual('6816cb19-844d5aee-85245eba-28e841e6-2414fae2', i[0]['ParentPatient'])
+        self.assertEqual('/instances/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', i[0]['Path'])
+
+        # Both are "Success" (instead of one "AlreadyStored"), because "OverwriteInstance" is true
+        self.assertEqual('Success', i[0]['Status']) 
