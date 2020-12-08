@@ -412,6 +412,36 @@ class Orthanc(unittest.TestCase):
                 WEBDAV.delete(p)
                 self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
 
+
+    def test_upload_zip(self):
+        f = StringIO()
+        with zipfile.ZipFile(f, 'w') as z:
+            z.writestr('hello/world/invalid.txt', 'Hello world')
+            with open(GetDatabasePath('DummyCT.dcm'), 'rb') as g:
+                c = g.read()
+                z.writestr('hello/world/dicom1.dcm', c)
+                z.writestr('hello/world/dicom2.dcm', c)
+
+        f.seek(0)
+        archive = f.read()
+        
+        self.assertEqual(0, len(DoGet(ORTHANC, '/studies')))
+
+        with tempfile.NamedTemporaryFile(delete = True) as f:
+            f.close()
+            with open(f.name, 'wb') as g:
+                g.write(archive)
+            WEBDAV.upload(f.name, '/webdav/uploads/DummyCT.zip')
+            os.unlink(f.name)
+
+        while len(ListFiles('/webdav/uploads/', True)) > 1:
+            time.sleep(0.1)
+        time.sleep(0.1)  # Give some more delay to be sure that the store has succeeded (necessary for Wine)
+        
+        instances = DoGet(ORTHANC, '/instances')
+        self.assertEqual(1, len(instances))
+        self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', instances[0])
+                
         
 try:
     print('\nStarting the tests...')
