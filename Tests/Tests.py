@@ -1587,6 +1587,10 @@ class Orthanc(unittest.TestCase):
 
     def test_echo(self):
         DoPost(_REMOTE, '/modalities/orthanctest/echo')
+        DoPost(_REMOTE, '/modalities/orthanctest/echo', '{}')
+
+        # The following was not working in Orthanc 1.7.0 -> 1.8.1
+        DoPost(_REMOTE, '/modalities/orthanctest/echo', '')
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/nope/echo'))
 
         # New in Orthanc 1.8.1
