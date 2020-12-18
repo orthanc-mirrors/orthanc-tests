@@ -6157,3 +6157,13 @@ class Orthanc(unittest.TestCase):
 
         # Both are "Success" (instead of one "AlreadyStored"), because "OverwriteInstance" is true
         self.assertEqual('Success', i[0]['Status']) 
+
+
+    def test_transfer_syntax_no_metaheader(self):
+        a = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.dcm')['ID']
+        m = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', m['SopClassUid'])
+
+        # This fails on Orthanc <= 1.8.1
+        self.assertTrue('TransferSyntax' in m)
+        self.assertEqual('1.2.840.10008.1.2', m['TransferSyntax'])
