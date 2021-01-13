@@ -166,8 +166,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, pyramid['Resolutions'][0])
         self.assertEqual(512, pyramid['Sizes'][0][0])
         self.assertEqual(512, pyramid['Sizes'][0][1])
-        self.assertEqual(512, pyramid['TileWidth'])
-        self.assertEqual(512, pyramid['TileHeight'])
+        self.assertEqual(1, len(pyramid['TilesSizes']))
+        self.assertEqual(2, len(pyramid['TilesSizes'][0]))
+        self.assertEqual(512, pyramid['TilesSizes'][0][0])
+        self.assertEqual(512, pyramid['TilesSizes'][0][1])
         self.assertEqual(512, pyramid['TotalWidth'])
         self.assertEqual(512, pyramid['TotalHeight'])
         self.assertEqual(1, pyramid['TilesCount'][0][0])
@@ -199,6 +201,8 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
         self.assertEqual(4, len(pyramid['Sizes']))
         self.assertEqual(4, len(pyramid['TilesCount']))
+        self.assertEqual(4, len(pyramid['TilesSizes']))
+
         self.assertEqual(1, pyramid['Resolutions'][0])
         self.assertEqual(2, pyramid['Resolutions'][1])
         self.assertEqual(4, pyramid['Resolutions'][2])
@@ -211,8 +215,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(128, pyramid['Sizes'][2][1])
         self.assertEqual(64, pyramid['Sizes'][3][0])
         self.assertEqual(64, pyramid['Sizes'][3][1])
-        self.assertEqual(64, pyramid['TileWidth'])
-        self.assertEqual(64, pyramid['TileHeight'])
+        for i in range(4):
+            self.assertEqual(2, len(pyramid['TilesSizes'][i]))
+            self.assertEqual(64, pyramid['TilesSizes'][i][0])
+            self.assertEqual(64, pyramid['TilesSizes'][i][1])
         self.assertEqual(512, pyramid['TotalWidth'])
         self.assertEqual(512, pyramid['TotalHeight'])
         self.assertEqual(8, pyramid['TilesCount'][0][0])
@@ -278,7 +284,57 @@ class Orthanc(unittest.TestCase):
         for j in range(4):
             self.assertTrue('RGB' in p[j])
 
-        
+
+    def test_concatenation(self):
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=145
+        CallDicomizer([ GetDatabasePath('LenaGrayscale.png'), '--levels=1', ])
+        i = DoGet(ORTHANC, '/instances')
+        self.assertEqual(1, len(i))
+        tags = DoGet(ORTHANC, '/instances/%s/tags?short' % i[0])
+        self.assertTrue('0020,0242' in tags)  # SOP Instance UID of Concatenation Source
+        self.assertTrue('0020,9161' in tags)  # Concatenation UID
+        self.assertTrue('0020,9162' in tags)  # In-concatenation Number
+        self.assertTrue('0020,9228' in tags)  # Concatenation Frame Offset Number
+        self.assertEqual('1', tags['0020,9162'])
+        self.assertEqual('0', tags['0020,9228'])
+
+        DropOrthanc(ORTHANC)
+
+        # "--max-size" disables the concatenation
+        CallDicomizer([ GetDatabasePath('LenaGrayscale.png'), '--levels=1', '--max-size=0' ])
+        i = DoGet(ORTHANC, '/instances')
+        self.assertEqual(1, len(i))
+        tags = DoGet(ORTHANC, '/instances/%s/tags?short' % i[0])
+        self.assertFalse('0020,0242' in tags)
+        self.assertFalse('0020,9161' in tags)
+        self.assertFalse('0020,9162' in tags)
+        self.assertFalse('0020,9228' in tags)
+            
+        DropOrthanc(ORTHANC)
+
+        # This creates a series with 2 instances of roughly 1.5MB (= 2 frames x 512 x 512 x 3 (RGB24) + DICOM overhead)
+        CallDicomizer([ GetDatabasePath('WSI/Lena2x2.png'), '--levels=1', '--max-size=1', '--compression=none' ])
+        i = DoGet(ORTHANC, '/instances')
+        self.assertEqual(2, len(i))
+        t1 = DoGet(ORTHANC, '/instances/%s/tags?short' % i[0])
+        t2 = DoGet(ORTHANC, '/instances/%s/tags?short' % i[1])
+        self.assertTrue('0020,0242' in t1)
+        self.assertTrue('0020,9161' in t1)
+        self.assertTrue('0020,9162' in t1)
+        self.assertTrue('0020,9228' in t1)
+        self.assertEqual(t1['0020,0242'], t2['0020,0242'])
+        self.assertEqual(t1['0020,9161'], t2['0020,9161'])
+        if t1['0020,9162'] == '1':
+            self.assertEqual('1', t1['0020,9162'])
+            self.assertEqual('0', t1['0020,9228'])
+            self.assertEqual('2', t2['0020,9162'])
+            self.assertEqual('2', t2['0020,9228'])
+        else:
+            self.assertEqual('1', t2['0020,9162'])
+            self.assertEqual('0', t2['0020,9228'])
+            self.assertEqual('2', t1['0020,9162'])
+            self.assertEqual('2', t1['0020,9228'])
+            
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
