@@ -334,7 +334,30 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('0', t2['0020,9228'])
             self.assertEqual('2', t1['0020,9162'])
             self.assertEqual('2', t1['0020,9228'])
-            
+
+
+    def test_pixel_spacing(self):
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=139
+        CallDicomizer([ GetDatabasePath('LenaGrayscale.png'),  # Image is 512x512
+                        '--levels=4', '--tile-width=64', '--tile-height=64', '--max-size=0',
+                        '--imaged-width=20', '--imaged-height=10' ])
+
+        instances = DoGet(ORTHANC, '/instances')
+        self.assertEqual(4, len(instances))
+
+        spacings = {}
+        for i in instances:
+            t = DoGet(ORTHANC, '/instances/%s/tags?short' % i)
+            spacings[t['0028,0008']] = t['5200,9229'][0]['0028,9110'][0]['0028,0030']
+
+        self.assertEqual(4, len(spacings))
+        for i in range(4):
+            s = spacings[str(4 ** i)].split('\\')
+            self.assertEqual(2, len(s))
+            self.assertEqual(20.0 / 512.0 * (2.0 ** (3 - i)), float(s[0])) 
+            self.assertEqual(10.0 / 512.0 * (2.0 ** (3 - i)), float(s[1])) 
+
+        
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
