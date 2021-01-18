@@ -221,8 +221,12 @@ class Orthanc(unittest.TestCase):
         url = a['00081190']['Value'][0]
         url = re.sub(r'(http|https)://[^/]+(/.*)', r'\2', url)
 
-        # Get the content-length of all the multiparts of this WADO-RS request
-        b = DoGet(ORTHANC, url).decode('utf-8', 'ignore')
+        # Get the content-length of all the multiparts of this WADO-RS
+        # request (prevent transcoding by setting transfer-syntax to
+        # "*", necessary since release 1.5 of the DICOMweb plugin)
+        b = DoGet(ORTHANC, url, headers = {
+            'Accept' : 'multipart/related;type=application/dicom;transfer-syntax=*'
+        }).decode('utf-8', 'ignore')
         parts = re.findall(r'^Content-Length:\s*(\d+)\s*', b, re.IGNORECASE | re.MULTILINE)
         self.assertEqual(1, len(parts))
         self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
@@ -1289,43 +1293,64 @@ class Orthanc(unittest.TestCase):
     def test_wado_transcoding(self):
         uri = '/dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
 
+        compressedSize = os.path.getsize(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm'))
+
         self.assertRaises(Exception, lambda: DoGetMultipart(ORTHANC, '%s' % uri,
                                                             headers = { 'Accept' : 'nope' }))
 
+        # Up to release 1.5 of the DICOMweb plugin, if no
+        # transfer-syntax was specified, no transcoding occured. This
+        # was because of an undefined behavior up to DICOM
+        # 2016b. Starting with DICOM 2016c, the standard explicitly
+        # states that the image should be transcoded to Little Endian
+        # Explicit.
         a = DoGetMultipart(ORTHANC, '%s' % uri,
-                           headers = {  })
+                           headers = { })
         self.assertEqual(1, len(a))
-        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
-        s = len(a[0])
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
+        self.assertTrue(10 * compressedSize < len(a[0]))
+        uncompressedSize = len(a[0])
         
         a = DoGetMultipart(ORTHANC, '%s' % uri,
                            headers = { 'Accept' : 'multipart/related' })
         self.assertEqual(1, len(a))
-        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
+        self.assertEqual(uncompressedSize, len(a[0]))
 
         a = DoGetMultipart(ORTHANC, '%s' % uri,
                            headers = { 'Accept' : 'multipart/related; type=application/dicom' })
         self.assertEqual(1, len(a))
-        self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+        self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
+        self.assertEqual(uncompressedSize, len(a[0]))
 
         a = DoGetMultipart(ORTHANC, '%s' % uri,
                            headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=*' })
         self.assertEqual(1, len(a))
         self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
-        self.assertEqual(s, len(a[0]))
+        self.assertEqual(compressedSize, len(a[0]))
 
+        # Use source transfer syntax
         a = DoGetMultipart(ORTHANC, '%s' % uri,
                            headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.4.50' })
         self.assertEqual(1, len(a))
         self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(a[0]))
+        self.assertEqual(compressedSize, len(a[0]))
 
         a = DoGetMultipart(ORTHANC, '%s' % uri,
                            headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.1' })
         self.assertEqual(1, len(a))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(a[0]))
-        self.assertTrue(10 * s < len(a[0]))
+        self.assertEqual(uncompressedSize, len(a[0]))
 
+        # Transcoding
+        a = DoGetMultipart(ORTHANC, '%s' % uri,
+                           headers = { 'Accept' : 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.4.57' })
+        self.assertEqual(1, len(a))
+        self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(a[0]))
+        self.assertNotEqual(compressedSize, len(a[0]))
+        self.assertNotEqual(uncompressedSize, len(a[0]))
 
+        
     def test_compare_wado_uri_and_rs(self):
         # https://groups.google.com/d/msg/orthanc-users/mKgr2QAKTCU/R7u4I1LvBAAJ
 
