@@ -6167,3 +6167,93 @@ class Orthanc(unittest.TestCase):
         # This fails on Orthanc <= 1.8.1
         self.assertTrue('TransferSyntax' in m)
         self.assertEqual('1.2.840.10008.1.2', m['TransferSyntax'])
+
+
+    def test_upload_multipart_1(self):
+        # This tests the "Upload" button in Orthanc Explorer
+
+        def EncodeChunk(data, boundary, filename):
+            return (('--%s\r\n' +
+                     'Content-Disposition  :   form-data  ; name ="files[]"   ; filename = "%s"  \r\n' +
+                     '\r\n%s\r\n') % (boundary, filename, data))
+        
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            dcm1 = f.read()
+
+        with open(GetDatabasePath('ColorTestMalaterre.dcm'), 'rb') as f:
+            dcm2 = f.read()
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+            
+        boundary = '----WebKitFormBoundarypJDNQqJPoXiorRmQ'
+        m = DoPost(_REMOTE, '/instances', (EncodeChunk(dcm1, boundary, 'DummyCT.dcm') +
+                                           EncodeChunk(dcm2, boundary, 'ColorTestMalaterre.dcm') +
+                                           '--' + boundary + '--'), headers = {
+                       'Content-Type' : 'multipart/form-data   ;    boundary  =  %s  ' % boundary,
+                       'X-Requested-With' : 'XMLHttpRequest',
+                   })
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_upload_multipart_2(self):
+        # This tests the "maxChunkSize" option of "jQuery File Upload
+        # 5.12", whose source code can be found in:
+        # "OrthancServer/OrthancExplorer/libs/jquery-file-upload/"
+
+        def EncodeBody(data, boundary, filename):
+            return (('--%s\r\n' +
+                     'Content-Disposition: form-data; name="files[]"; filename="%s"\r\n' +
+                     '\r\n%s\r\n--%s') % (boundary, filename, data, boundary))
+        
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            dcm = f.read()
+
+        with open(GetDatabasePath('ColorTestMalaterre.dcm'), 'rb') as f:
+            dcm2 = f.read()
+
+        boundary = '----WebKitFormBoundarypJDNQqJPoXiorRmQ'
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        m = DoPost(_REMOTE, '/instances',
+                   EncodeBody(dcm[0:1000], boundary, 'DummyCT.dcm'),
+                   headers = {
+                       'Content-Type' : 'multipart/form-data; boundary=%s' % boundary,
+                       'X-Requested-With' : 'XMLHttpRequest',
+                       'X-File-Name' : 'DummyCT.dcm',
+                       'X-File-Size' : str(len(dcm)),
+                   })
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        m = DoPost(_REMOTE, '/instances',
+                   EncodeBody(dcm[1000:2000], boundary, 'DummyCT.dcm'),
+                   headers = {
+                       'Content-Type' : 'multipart/form-data; boundary=%s' % boundary,
+                       'X-Requested-With' : 'XMLHttpRequest',
+                       'X-File-Name' : 'DummyCT.dcm',
+                       'X-File-Size' : str(len(dcm)),
+                   })
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        
+        m = DoPost(_REMOTE, '/instances',
+                   EncodeBody(dcm2, boundary, 'ColorTestMalaterre.dcm'),
+                   headers = {
+                       'Content-Type' : 'multipart/form-data; boundary=%s' % boundary,
+                       'X-Requested-With' : 'XMLHttpRequest',
+                       'X-File-Name' : 'ColorTestMalaterre.dcm',
+                       'X-File-Size' : str(len(dcm2)),
+                   })
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        # Upload the last chunk => the file is now entirely available
+        m = DoPost(_REMOTE, '/instances',
+                   EncodeBody(dcm[2000:len(dcm)], boundary, 'DummyCT.dcm'),
+                   headers = {
+                       'Content-Type' : 'multipart/form-data; boundary=%s' % boundary,
+                       'X-Requested-With' : 'XMLHttpRequest',
+                       'X-File-Name' : 'DummyCT.dcm',
+                       'X-File-Size' : str(len(dcm)),
+                   })
+        
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
