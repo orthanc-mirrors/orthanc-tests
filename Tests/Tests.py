@@ -1019,10 +1019,28 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         p = DoGet(_REMOTE, '/patients')[0]
         i = DoGet(_REMOTE, '/instances')[0]
+        series = DoGet(_REMOTE, '/series')[0]
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(1, len(m))
         self.assertEqual('LastUpdate', m[0])
+
+        # The lines below failed on Orthanc <= 1.8.2
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/studies/%s/metadata' % p))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/series/%s/metadata' % p))
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata' % p))
+
+        m = DoGet(_REMOTE, '/studies/%s/metadata' % DoGet(_REMOTE, '/studies')[0])
+        self.assertEqual(1, len(m))
+        self.assertEqual('LastUpdate', m[0])
+
+        m = DoGet(_REMOTE, '/series/%s/metadata' % series)
+        self.assertEqual(2, len(m))
+        self.assertTrue('LastUpdate' in m)
+
+        # New in Orthanc 1.9.0
+        self.assertTrue('RemoteAET' in m)
+        self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
         self.assertEqual(8, len(m))
@@ -1167,6 +1185,15 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i[0]), 'STORESCU')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i[0]), '1.2.840.10008.1.2.1')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % i[0]), '1.2.840.10008.5.1.4.1.1.7')
+
+        series = DoGet(_REMOTE, '/series')[0]
+        m = DoGet(_REMOTE, '/series/%s/metadata' % series)
+        self.assertEqual(2, len(m))
+        self.assertTrue('LastUpdate' in m)
+        self.assertTrue('RemoteAET' in m)
+        self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), 'STORESCU')
+        self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/LastUpdate' % series),
+                         DoGet(_REMOTE, '/instances/%s/metadata/ReceptionDate' % i[0]))
 
 
     def test_incoming_findscu(self):
