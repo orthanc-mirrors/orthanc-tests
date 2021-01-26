@@ -2270,11 +2270,33 @@ class Orthanc(unittest.TestCase):
                                       stderr = FNULL)
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxDisable.lua')
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 0):
+            a = DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', [
+                '1.2.840.10008.1.2', '1.2.840.10008.1.2.1', '1.2.840.10008.1.2.2'
+            ])
+            self.assertTrue('1.2.840.10008.1.2' in a)
+            self.assertTrue('1.2.840.10008.1.2.1' in a)
+            self.assertTrue('1.2.840.10008.1.2.2' in a)
+            self.assertEqual(3, len(a))
+            self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', 'nope'))
+            DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', '0')
+            self.assertEqual(0, DoGet(_REMOTE, '/tools/unknown-sop-class-accepted'))
+        else:
+            InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxDisable.lua')
+        
         self.assertRaises(Exception, lambda: storescu('Knix/Loc/IM-0001-0001.dcm', False))
         self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxEnable.lua')
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 0):
+            a = DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', '*')
+            self.assertGreaterEqual(42, len(a))
+            DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', 'true')
+            self.assertEqual(1, DoGet(_REMOTE, '/tools/unknown-sop-class-accepted'))
+        else:
+            InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxEnable.lua')
+
         DoPost(_REMOTE, '/tools/execute-script', "print('All special transfer syntaxes are now accepted')")
         storescu('Knix/Loc/IM-0001-0001.dcm', False)
         storescu('UnknownSopClassUid.dcm', True)
