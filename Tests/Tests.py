@@ -2948,11 +2948,18 @@ class Orthanc(unittest.TestCase):
             self.assertTrue(CompareTags(t, json.loads(f.read()), [
             ]))
 
+
+        # NB: To get the actual value of the "tags" JSON file, use the
+        # following command:
+        # $ curl http://alice:orthanctest@localhost:8042/instances/d29ead49-43e8601d-72f1e922-7de676ee-ea77c2b4/tags
         t = DoGet(_REMOTE, '/instances/%s/tags' % j)
         with open(GetDatabasePath('PrivateTagsFull.json'), 'r') as f:
             a = json.loads(f.read())
             aa = json.dumps(a).replace('2e+022', '2e+22')
-            tt = json.dumps(t).replace('2e+022', '2e+22')
+            tt = (json.dumps(t)
+                  .replace('2e+022', '2e+22')
+                  # The "IllegalPrivatePixelSequence" tag was introduced in DCMTK 3.6.6 dictionary
+                  .replace('IllegalPrivatePixelSequence', 'Unknown Tag & Data'))
             self.assertEqual(aa, tt)
 
 
