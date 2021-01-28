@@ -43,7 +43,7 @@ from Toolbox import *
 ## Parse the command-line arguments
 ##
 
-parser = argparse.ArgumentParser(description = 'Run the integration tests for the patient recycling behavior.')
+parser = argparse.ArgumentParser(description = 'Run the integration tests for the WebDAV server.')
 
 parser.add_argument('--server', 
                     default = 'localhost',

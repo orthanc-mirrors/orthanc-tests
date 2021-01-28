@@ -35,7 +35,7 @@ from Toolbox import *
 ## Parse the command-line arguments
 ##
 
-parser = argparse.ArgumentParser(description = 'Run the integration tests for the patient recycling behavior.')
+parser = argparse.ArgumentParser(description = 'Run the integration tests for the C-GET SCP of Orthanc.')
 
 parser.add_argument('--server', 
                     default = 'localhost',
