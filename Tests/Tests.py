@@ -1043,7 +1043,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        self.assertEqual(8, len(m))
+        self.assertEqual(9, len(m))
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
@@ -1052,11 +1052,13 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('SopClassUid' in m)
         self.assertTrue('RemoteIP' in m)
         self.assertTrue('HttpUsername' in m)
+        self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i), 1)
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i), 'RestApi')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i), '')  # None, received by REST API
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i), '1.2.840.10008.1.2.4.91')  # JPEG2k
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % i), '1.2.840.10008.5.1.4.1.1.4')
+        self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
 
         # Play with custom metadata
         DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
@@ -1171,7 +1173,7 @@ class Orthanc(unittest.TestCase):
         i = DoGet(_REMOTE, '/instances')
         self.assertEqual(1, len(i))
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
-        self.assertEqual(8, len(m))
+        self.assertEqual(9, len(m))
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
@@ -1180,6 +1182,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('SopClassUid' in m)
         self.assertTrue('RemoteIP' in m)
         self.assertTrue('CalledAET' in m)
+        self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i[0]), 1)
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i[0]), 'DicomProtocol')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i[0]), 'STORESCU')
@@ -6313,3 +6316,25 @@ class Orthanc(unittest.TestCase):
                    })
         
         self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_pixel_data_offset(self):
+        # New in Orthanc 1.9.1
+        def Check(path, offset):
+            i = UploadInstance(_REMOTE, path) ['ID']
+            metadata = DoGetRaw(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i) [1]
+            self.assertEqual(offset, metadata)
+
+        Check('ColorTestMalaterre.dcm', str(0x03a0))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', str(0x037c))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', str(0x03e8))  # Big endian
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', str(0x04ac))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', str(0x072c))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm', str(0x0620))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.70.dcm', str(0x065a))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.80.dcm', str(0x0b46))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.81.dcm', str(0x073e))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.90.dcm', str(0x0b66))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.4.91.dcm', str(0x19b8))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.5.dcm', str(0x0b0a))
+        Check('TransferSyntaxes/1.2.840.10008.1.2.dcm', '')  # No valid DICOM preamble
