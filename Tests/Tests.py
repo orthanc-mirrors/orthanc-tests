@@ -2980,6 +2980,13 @@ class Orthanc(unittest.TestCase):
         t = DoGet(_REMOTE, '/instances/%s/tags' % j)
         with open(GetDatabasePath('PrivateTagsFull.json'), 'r') as f:
             a = json.loads(f.read())
+
+            # Starting with Orthanc 1.9.1, the DICOM-as-JSON
+            # attachments are truncated starting with PixelData
+            if not '7fe1,0010' in t:
+                del a['7fe1,0010']
+                del a['7fe1,1001']
+                
             aa = json.dumps(a).replace('2e+022', '2e+22')
             tt = (json.dumps(t)
                   .replace('2e+022', '2e+22')
@@ -5610,6 +5617,7 @@ class Orthanc(unittest.TestCase):
         params['AllowTranscoding'] = False
         DoPut(_REMOTE, '/modalities/toto', params)
         self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
+        DoDelete(_REMOTE, '/modalities/toto')
 
 
     def test_bitbucket_issue_169(self):

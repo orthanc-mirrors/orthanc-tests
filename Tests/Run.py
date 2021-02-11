@@ -158,6 +158,17 @@ try:
     print('\nStarting the tests...')
     SetOrthancParameters(LOCAL, REMOTE, args.docker)
 
+    # Change the order of the tests
+    # https://stackoverflow.com/a/4006044/881731
+    # https://stackoverflow.com/a/54923706/881731
+
+    # Reverse order
+    # unittest.TestLoader.sortTestMethodsUsing = lambda _, x, y: cmp(y, x)
+
+    # import random
+    # random.seed(25)
+    # unittest.TestLoader.sortTestMethodsUsing = lambda self, a, b: random.choice([1, 0, -1])
+    
     unittest.main(argv = [ sys.argv[0] ] + args.options)
 
 
