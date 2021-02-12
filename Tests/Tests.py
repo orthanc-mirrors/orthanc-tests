@@ -183,7 +183,9 @@ class Orthanc(unittest.TestCase):
         sizeOverwrite = 2476
         instance = '66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d'
 
+        # This file has *no* pixel data => "dicom-until-pixel-data" is not created
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        isCompressed = (DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % u['ID']) != 0)
         self.assertEqual(instance, u['ID'])
         self.assertEqual('Success', u['Status'])
 
@@ -193,18 +195,35 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0', u['ParentStudy'])
             self.assertEqual('6816cb19-844d5aee-85245eba-28e841e6-2414fae2', u['ParentPatient'])
 
-        j = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance))
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-until-pixel-data' % instance))
+            j = 0
+        else:
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-until-pixel-data' % instance))
+            j = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+            
         s = sizeDummyCT + j
-        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+        if isCompressed:
+            self.assertGreater(s, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        else:
+            self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+            
+        self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
 
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
-        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+
+        if isCompressed:
+            self.assertGreater(s, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        else:
+            self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+            
+        self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
 
         i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % instance)
         self.assertEqual('20070101', i['StudyDate'])
@@ -225,18 +244,25 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 4, 2):
             # Overwriting
             self.assertEqual('Success', u['Status'])
-            j2 = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+            if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+                j2 = 0
+            else:
+                j2 = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
+                self.assertNotEqual(j, j2)
             s2 = sizeOverwrite + j2
             self.assertNotEqual(s, s2)
-            self.assertNotEqual(j, j2)
-            self.assertEqual('%d' % s2, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-            self.assertEqual('%d' % s2, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+            if isCompressed:
+                self.assertGreater(s2, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+            else:
+                self.assertEqual(s2, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+                
+            self.assertEqual(s2, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
             i = DoGet(_REMOTE, '/instances/%s/simplified-tags' % instance)
             self.assertEqual('ANOTHER', i['PatientName'])
         else:
             self.assertEqual('AlreadyStored', u['Status'])
-            self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-            self.assertEqual('%d' % s, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+            self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+            self.assertEqual(s, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
 
     def test_upload_2(self):
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
@@ -1043,7 +1069,13 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        self.assertEqual(9, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertEqual(9, len(m))
+            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
+            self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
+        else:
+            self.assertEqual(8, len(m))
+
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
@@ -1052,13 +1084,11 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('SopClassUid' in m)
         self.assertTrue('RemoteIP' in m)
         self.assertTrue('HttpUsername' in m)
-        self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i), 1)
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i), 'RestApi')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i), '')  # None, received by REST API
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i), '1.2.840.10008.1.2.4.91')  # JPEG2k
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % i), '1.2.840.10008.5.1.4.1.1.4')
-        self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
 
         # Play with custom metadata
         DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
@@ -1173,7 +1203,13 @@ class Orthanc(unittest.TestCase):
         i = DoGet(_REMOTE, '/instances')
         self.assertEqual(1, len(i))
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
-        self.assertEqual(9, len(m))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertEqual(9, len(m))
+            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
+        else:
+            self.assertEqual(8, len(m))
+            
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
@@ -1182,7 +1218,6 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('SopClassUid' in m)
         self.assertTrue('RemoteIP' in m)
         self.assertTrue('CalledAET' in m)
-        self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/IndexInSeries' % i[0]), 1)
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/Origin' % i[0]), 'DicomProtocol')
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/RemoteAET' % i[0]), 'STORESCU')
@@ -4428,7 +4463,8 @@ class Orthanc(unittest.TestCase):
     def test_dicom_disk_size(self):
         dicomSize = 0
 
-        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+        isCompressed = (DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % a) != 0)
 
         for i in range(2):
             p = 'Knee/T%d/IM-0001-0001.dcm' % (i + 1)
@@ -4439,11 +4475,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, s['CountInstances'])
         self.assertEqual(2, s['CountSeries'])
         self.assertEqual(1, s['CountStudies'])
-        self.assertEqual(dicomSize, int(s['DicomDiskSize']))
+
         self.assertEqual(dicomSize, int(s['DicomUncompressedSize']))
         self.assertLess(dicomSize, int(s['UncompressedSize']))
-        self.assertEqual(s['UncompressedSize'], s['DiskSize'])
         
+        if isCompressed:
+            self.assertGreater(dicomSize, int(s['DicomDiskSize']))
+            self.assertGreater(s['UncompressedSize'], s['DiskSize'])
+        else:
+            self.assertEqual(dicomSize, int(s['DicomDiskSize']))
+            self.assertEqual(s['UncompressedSize'], s['DiskSize'])
+            
 
     def test_changes_2(self):
         # More consistent behavior since Orthanc 1.5.2
