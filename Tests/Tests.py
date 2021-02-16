@@ -108,6 +108,33 @@ def GetMoveScuCommand():
         ]
 
 
+def IsDicomUntilPixelDataStored(orthanc):
+    # This function detects whether the "StorageCompression" option is
+    # "true", OR the storage area does not support read-range
+
+    if IsOrthancVersionAbove(orthanc, 1, 9, 1):
+        i = UploadInstance(orthanc, 'ColorTestMalaterre.dcm') ['ID']
+        a = DoGet(orthanc, '/instances/%s/metadata/PixelDataOffset' % i)
+        if a != 0x03a0:
+            raise Exception('Internal error')
+
+        a = DoGet(orthanc, '/instances/%s/attachments' % i)
+        if len(a) != 1 and len(a) != 2 or not 'dicom' in a:
+            raise Exception('Internal error')
+
+        DoDelete(orthanc, '/instances/%s' % i)
+
+        if len(a) == 1:
+            return False
+        elif 'dicom-until-pixel-data' in a:
+            return True
+        else:
+            raise Exception('Internal error')
+        
+    else:
+        return False
+
+
 def CallMoveScu(args):
     try:
         subprocess.check_call(GetMoveScuCommand() + args,
@@ -390,8 +417,10 @@ class Orthanc(unittest.TestCase):
                     for instance in DoGet(_REMOTE, '/series/%s/instances' % series['ID']):
                         self.assertEqual(series['ID'], instance['ParentSeries'])
 
-                        self.assertEqual(json.dumps(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance['ID'])),
-                                         json.dumps(DoGet(_REMOTE, '/instances/%s/tags' % instance['ID'])))
+                        if not IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+                            # The "dicom-as-json" attachment was removed in Orthanc 1.9.1
+                            self.assertEqual(json.dumps(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance['ID'])),
+                                             json.dumps(DoGet(_REMOTE, '/instances/%s/tags' % instance['ID'])))
 
 
         r = DoDelete(_REMOTE, "/studies/%s" % brainixStudy)['RemainingAncestor']
@@ -1143,16 +1172,25 @@ class Orthanc(unittest.TestCase):
 
 
     def test_custom_attachment(self):
-        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        u = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+
         patient = DoGet(_REMOTE, '/patients')[0]
         instance = DoGet(_REMOTE, '/instances')[0]
         size = int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize'])
         self.assertEqual(size, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
         
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
         self.assertTrue('dicom' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
-        self.assertTrue('dicom-as-json' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            if IsDicomUntilPixelDataStored(_REMOTE):
+                self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+                self.assertTrue('dicom-until-pixel-data' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+            else:
+                self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+        else:
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+            self.assertTrue('dicom-as-json' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
 
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/patients/%s/attachments/22' % patient, 'hello'))
         hello = 'hellohellohellohellohellohellohellohellohello'
@@ -2854,49 +2892,60 @@ class Orthanc(unittest.TestCase):
     def test_compression(self):
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
 
-        data = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % i)[1]
+        aa = DoGet(_REMOTE, '/instances/%s/attachments/' % i)
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            # This file has *no* pixel data, so "dicom-until-pixel-data" is not stored
+            self.assertEqual(1, len(aa))
+            self.assertTrue('dicom' in aa)
+        else:
+            self.assertEqual(2, len(aa))
+            self.assertTrue('dicom' in aa)
+            self.assertTrue('dicom-as-json' in aa)
+            
+        data = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/data' % i)[1]
 
-        # "StorageCompression" is enabled in the Orthanc to be tested,
-        # uncompress the data before running the test
-        if DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i) != 0:
-            DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/uncompress' % i)
+        # If "StorageCompression" is enabled in the Orthanc to be
+        # tested, uncompress the attachment before running the test
+        if DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % i) != 0:
+            DoPost(_REMOTE, '/instances/%s/attachments/dicom/uncompress' % i)
  
-        cs = DoGet(_REMOTE, '/statistics')['TotalDiskSize']
-        us = DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']
-        size = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i)
-        md5 = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i)
-        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1])
-        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
-        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
+        cs = int(DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
+        us = int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+        size = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/size' % i))
+        md5 = DoGet(_REMOTE, '/instances/%s/attachments/dicom/md5' % i)
+        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i)[1])
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-md5' % i))
+        self.assertEqual(size, int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-size' % i)))
 
-        ops = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json' % i)
+        ops = DoGet(_REMOTE, '/instances/%s/attachments/dicom' % i)
         self.assertTrue('compress' in ops)
         self.assertTrue('uncompress' in ops)
         self.assertTrue('is-compressed' in ops)
-        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
-        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
+        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % i))
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/verify-md5' % i)
 
-        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/compress' % i)
-        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
-        self.assertEqual(1, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
-        self.assertLess(cs, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual(us, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
-        self.assertGreater(len(data), len(DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1]))
-        self.assertGreater(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
-        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i))
-        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i))
-        self.assertNotEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
+        # Re-compress the attachment
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/compress' % i)
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/verify-md5' % i)
+        self.assertEqual(1, DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % i))
+        self.assertGreater(cs, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        self.assertEqual(us, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
+        self.assertGreater(len(data), len(DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i)[1]))
+        self.assertGreater(size, int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-size' % i)))
+        self.assertEqual(size, int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/size' % i)))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom/md5' % i))
+        self.assertNotEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-md5' % i))
 
-        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/uncompress' % i)
-        DoPost(_REMOTE, '/instances/%s/attachments/dicom-as-json/verify-md5' % i)
-        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/is-compressed' % i))
-        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-data' % i)[1])
-        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-size' % i))
-        self.assertEqual(size, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % i))
-        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/md5' % i))
-        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/compressed-md5' % i))
-        self.assertEqual(cs, DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
-        self.assertEqual(us, DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/uncompress' % i)
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/verify-md5' % i)
+        self.assertEqual(0, DoGet(_REMOTE, '/instances/%s/attachments/dicom/is-compressed' % i))
+        self.assertEqual(data, DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i)[1])
+        self.assertEqual(size, int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-size' % i)))
+        self.assertEqual(size, int(DoGet(_REMOTE, '/instances/%s/attachments/dicom/size' % i)))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom/md5' % i))
+        self.assertEqual(md5, DoGet(_REMOTE, '/instances/%s/attachments/dicom/compressed-md5' % i))
+        self.assertEqual(cs, int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
+        self.assertEqual(us, int(DoGet(_REMOTE, '/statistics')['TotalUncompressedSize']))
 
 
     def test_ordered_slices(self):
@@ -3017,10 +3066,15 @@ class Orthanc(unittest.TestCase):
             a = json.loads(f.read())
 
             # Starting with Orthanc 1.9.1, the DICOM-as-JSON
-            # attachments are truncated starting with PixelData
-            if not '7fe1,0010' in t:
+            # reports are truncated starting with PixelData
+            if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+                self.assertFalse('7fe1,0010' in t)
+                self.assertFalse('7fe1,1001' in t)
                 del a['7fe1,0010']
                 del a['7fe1,1001']
+            else:
+                self.assertTrue('7fe1,0010' in t)
+                self.assertTrue('7fe1,1001' in t)
                 
             aa = json.dumps(a).replace('2e+022', '2e+22')
             tt = (json.dumps(t)
@@ -3363,7 +3417,11 @@ class Orthanc(unittest.TestCase):
         first = DoGet(_REMOTE, '/instances/%s/tags' % instance)
 
         self.assertEqual('TWINOW', first['0008,1010']['Value'])
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+        else:
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
 
         # Cannot delete the "DICOM" attachment
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
@@ -3381,11 +3439,14 @@ class Orthanc(unittest.TestCase):
         # Transparently reconstruct the "DICOM as JSON" attachment
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance))
         second = DoGet(_REMOTE, '/instances/%s/tags' % instance)
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
-
-        third = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance)
         self.assertEqual(str(first), str(second))
-        self.assertEqual(str(first), str(third))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+        else:
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+            third = DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/data' % instance)
+            self.assertEqual(str(first), str(third))
 
 
     def test_reconstruct_json2(self):
@@ -3397,19 +3458,44 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('BRAINIX', DoGet(_REMOTE, '/instances/%s/tags?simplify' % a)['PatientName'])
         self.assertEqual('KNEE', DoGet(_REMOTE, '/instances/%s/tags?simplify' % b)['PatientName'])
 
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+        aa = DoGet(_REMOTE, '/instances/%s/attachments' % a)
+        bb = DoGet(_REMOTE, '/instances/%s/attachments' % b)
 
+        if not IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertEqual(2, len(aa))
+            self.assertEqual(aa, bb)
+            self.assertTrue('dicom' in aa)
+            self.assertTrue('dicom-as-json' in aa)
+        elif IsDicomUntilPixelDataStored(_REMOTE):
+            self.assertEqual(2, len(aa))
+            self.assertEqual(aa, bb)
+            self.assertTrue('dicom' in aa)
+            self.assertTrue('dicom-until-pixel-data' in aa)
+        else:
+            self.assertEqual(1, len(aa))
+            self.assertEqual(aa, bb)
+            self.assertTrue('dicom' in aa)
+
+        # In Orthanc <= 1.9.0, this call deletes "dicom-as-json"
         DoPost(_REMOTE, '/tools/invalidate-tags', '', 'text/plain')
 
-        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
-        self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1) and IsDicomUntilPixelDataStored(_REMOTE):
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+        else:
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
 
+        # In Orthanc <= 1.9.0, this call reconstructs "dicom-as-json"
         self.assertEqual('BRAINIX', DoGet(_REMOTE, '/instances/%s/tags?simplify' % a)['PatientName'])
         self.assertEqual('KNEE', DoGet(_REMOTE, '/instances/%s/tags?simplify' % b)['PatientName'])
 
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1) and not IsDicomUntilPixelDataStored(_REMOTE):
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
+        else:
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % a)))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % b)))
 
 
     def test_private_tags(self):
@@ -4477,15 +4563,24 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, s['CountStudies'])
 
         self.assertEqual(dicomSize, int(s['DicomUncompressedSize']))
-        self.assertLess(dicomSize, int(s['UncompressedSize']))
         
         if isCompressed:
             self.assertGreater(dicomSize, int(s['DicomDiskSize']))
             self.assertGreater(s['UncompressedSize'], s['DiskSize'])
+            self.assertLess(dicomSize, int(s['UncompressedSize']))
         else:
             self.assertEqual(dicomSize, int(s['DicomDiskSize']))
             self.assertEqual(s['UncompressedSize'], s['DiskSize'])
-            
+            if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+                if IsDicomUntilPixelDataStored(_REMOTE):
+                    self.assertLess(dicomSize, int(s['UncompressedSize']))
+                else:
+                    self.assertEqual(dicomSize, int(s['UncompressedSize']))
+            else:
+                # In Orthanc <= 1.9.0, there is the "dicom-as-json"
+                # attachment in addition to the DICOM file
+                self.assertLess(dicomSize, int(s['UncompressedSize']))
+                
 
     def test_changes_2(self):
         # More consistent behavior since Orthanc 1.5.2

@@ -44,6 +44,10 @@ parser.add_argument('--force',
                     help = 'Overwrite the file even if it already exists',
                     action = 'store_true')
 
+parser.add_argument('--compression', 
+                    help = 'Enable storage compression',
+                    action = 'store_true')
+
 parser.add_argument('--plugins', 
                     help = 'Add a path to a folder containing plugins')
 
@@ -144,6 +148,7 @@ config['SyncStorageArea'] = False  # For tests to run more quickly
 config['WebDavEnabled'] = True
 config['WebDavDeleteAllowed'] = True
 config['WebDavUploadAllowed'] = True
+config['StorageCompression'] = args.compression
 
 del config['KeepAlive']
 
