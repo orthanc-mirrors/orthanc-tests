@@ -6483,3 +6483,27 @@ class Orthanc(unittest.TestCase):
         Check('TransferSyntaxes/1.2.840.10008.1.2.4.91.dcm', str(0x19b8))
         Check('TransferSyntaxes/1.2.840.10008.1.2.5.dcm', str(0x0b0a))
         Check('TransferSyntaxes/1.2.840.10008.1.2.dcm', '')  # No valid DICOM preamble
+
+
+    def test_peer_store_straight(self):
+        self.assertEqual(0, len(DoGet(_LOCAL, '/exports')['Exports']))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
+
+        peer = DoGet(_REMOTE, '/peers/peer/system')
+        self.assertEqual(3, len(peer))
+        self.assertEqual(5, peer['DatabaseVersion'])
+        self.assertEqual('MyOrthanc', peer['Name'])
+        self.assertEqual('0.8.6', peer['Version'])            
+        
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            j = DoPost(_REMOTE, '/peers/peer/store-straight', f.read(), 'application/dicom')
+
+            # Remote server is Orthanc 0.8.6, thus "ParentPatient",
+            # "ParentStudy", "ParentSeries" are not reported
+            self.assertEqual(3, len(j))
+            self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', j['ID'])
+            self.assertEqual('/instances/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', j['Path'])
+            self.assertEqual('Success', j['Status'])
+
+        self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
