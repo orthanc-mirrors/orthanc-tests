@@ -722,6 +722,7 @@ class Orthanc(unittest.TestCase):
             'Password' : 'password',
             'UserProperty' : 'Test',
             'HasDelete' : True,
+            'Timeout' : 66  # New in 1.6
             })
 
         l = DoGet(ORTHANC, '/dicom-web/servers')
@@ -747,7 +748,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('delete' in o)  # New in 0.7
 
         s = DoGet(ORTHANC, '/dicom-web/servers?expand')
-        self.assertEqual(7, len(s['hello']))
+        self.assertEqual(8, len(s['hello']))
         self.assertEqual(url, s['hello']['Url'])
         self.assertEqual('bob', s['hello']['Username'])
         self.assertEqual(None, s['hello']['Password'])
@@ -756,6 +757,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('Hello' in s['hello']['HttpHeaders'])
         self.assertEqual('Test', s['hello']['UserProperty'])
         self.assertEqual('1', s['hello']['HasDelete'])
+        self.assertEqual(66, s['hello']['Timeout'])  # New in 1.6
         
         DoDelete(ORTHANC, '/dicom-web/servers/hello')
 
