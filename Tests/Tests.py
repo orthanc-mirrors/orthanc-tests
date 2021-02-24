@@ -6507,3 +6507,25 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(1, len(DoGet(_LOCAL, '/patients')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_cp246(self):
+        # This fails on Orthanc <= 1.9.0
+        a = UploadInstance(_REMOTE, '2021-02-19-MalaterreCP246.dcm')['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % a)
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.128', tags['0008,0016'])
+        self.assertEqual('1.3.12.2.1107.5.1.4.36085.2.0.517715415141633', tags['0008,0018'])
+        self.assertEqual('1.2.840.113745.101000.1008000.38179.6792.6324567', tags['0020,000d'])
+        self.assertEqual('1.3.12.2.1107.5.1.4.36085.2.0.517714246252254', tags['0020,000e'])
+
+        study = DoGet(_REMOTE, '/instances/%s/study' % a)
+        self.assertEqual(tags['0020,000d'], study['MainDicomTags']['StudyInstanceUID'])
+
+        series = DoGet(_REMOTE, '/instances/%s/series' % a)
+        self.assertEqual(tags['0020,000e'], series['MainDicomTags']['SeriesInstanceUID'])
+
+        instance = DoGet(_REMOTE, '/instances/%s' % a)
+        self.assertEqual(tags['0008,0018'], instance['MainDicomTags']['SOPInstanceUID'])
+
