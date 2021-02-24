@@ -2428,7 +2428,7 @@ class Orthanc(unittest.TestCase):
     def test_decode_brainix(self):
         brainix = [
             UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID'], # (*)
-            UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')['ID'],  # JPEG-LS, same as (*) (since Orthanc 0.7.6)
+            UploadInstance(_REMOTE, 'Formats/JpegLossless.dcm')['ID'],  # JPEG-LS, same as (*) (since Orthanc 0.7.6) => doesn't work on big-endian
             UploadInstance(_REMOTE, 'Formats/Jpeg.dcm')['ID'],  # JPEG, same as (*) (since Orthanc 0.7.6)
             ]
         h = '6fb11b932d535c2be04beabd99793ff8'
@@ -3264,14 +3264,16 @@ class Orthanc(unittest.TestCase):
 
         Check('1.2.840.10008.1.2.1', 'fae08d5415c4c0cd2cdbae4522408631')
         Check('1.2.840.10008.1.2.2', 'f3d9784768b8feb54d6a50b6d5c37682')
-        Check('1.2.840.10008.1.2.4.50', '496326046974eea718dbc16b997c646b')  # TODO - Doesn't work with GDCM 3.0.7 alone
         Check('1.2.840.10008.1.2.4.51', 'ccbe75909fe5c9f7361b48416a53fc41')
         Check('1.2.840.10008.1.2.4.57', '7bbefe11d976b1be4e568915c6a82fc3')
         Check('1.2.840.10008.1.2.4.70', '7132cfbc457305b04b59787030c785d2')
-        Check('1.2.840.10008.1.2.4.80', '6ff51ae525d362e0d04f550a64075a0e')
-        Check('1.2.840.10008.1.2.4.81', '801579ae7cbf28e604ea74f2c99fa2ca')
         Check('1.2.840.10008.1.2.5', '6ff51ae525d362e0d04f550a64075a0e')  # RLE, supported since Orthanc 1.0.1
         Check('1.2.840.10008.1.2', 'd54aed9f67a100984b42942cc2e9939b')
+
+        # The 3 checks below don't work on big-endian
+        Check('1.2.840.10008.1.2.4.50', '496326046974eea718dbc16b997c646b')  # TODO - Doesn't work with GDCM 3.0.7 alone
+        Check('1.2.840.10008.1.2.4.80', '6ff51ae525d362e0d04f550a64075a0e')
+        Check('1.2.840.10008.1.2.4.81', '801579ae7cbf28e604ea74f2c99fa2ca')
 
         # JPEG2k image, not supported without GDCM plugin
         if not HasGdcmPlugin(_REMOTE):
