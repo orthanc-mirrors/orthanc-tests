@@ -238,6 +238,11 @@ class Orthanc(unittest.TestCase):
         except:
             pass
 
+        try:
+            DoDelete(ORTHANC, '/dicom-web/servers/hello')  # If "test_add_server" fails
+        except:
+            pass
+
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
 
         self.assertEqual(1, len(DoGet(ORTHANC, '/dicom-web/servers')))
@@ -757,7 +762,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('Hello' in s['hello']['HttpHeaders'])
         self.assertEqual('Test', s['hello']['UserProperty'])
         self.assertEqual('1', s['hello']['HasDelete'])
-        self.assertEqual(66, int(s['hello']['Timeout']))  # New in 1.6
+        self.assertEqual(66, s['hello']['Timeout'])  # New in 1.6 (interpreted as a string in <= 1.5)
         
         DoDelete(ORTHANC, '/dicom-web/servers/hello')
 
