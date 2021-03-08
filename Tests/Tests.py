@@ -4631,6 +4631,25 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(c['Done'])
         self.assertEqual(seq + 4, c['Last'])
 
+        # Add, then delete, one user-defined metadata: This triggers 2
+        # changes of type "UpdatedMetadata"
+        i = DoGet(_REMOTE, '/instances') [0]
+        DoPut(_REMOTE, '/instances/%s/metadata/4000' % i, 'hello', 'text/plain')
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/metadata/4000' % i))
+
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(1, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 5, c['Last'])
+        self.assertEqual('UpdatedMetadata', c['Changes'][0]['ChangeType'])
+
+        DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i)
+        c = DoGet(_REMOTE, '/changes?last')
+        self.assertEqual(1, len(c['Changes']))
+        self.assertTrue(c['Done'])
+        self.assertEqual(seq + 6, c['Last'])
+        self.assertEqual('UpdatedMetadata', c['Changes'][0]['ChangeType'])
+        
         # Remove the uploaded instance
         DoDelete(_REMOTE, '/instances/%s' % a)
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
@@ -4638,17 +4657,17 @@ class Orthanc(unittest.TestCase):
         c = DoGet(_REMOTE, '/changes')
         self.assertEqual(0, len(c['Changes']))
         self.assertTrue(c['Done'])
-        self.assertEqual(seq + 4, c['Last'])
+        self.assertEqual(seq + 6, c['Last'])
 
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(0, len(c['Changes']))
         self.assertTrue(c['Done'])
-        self.assertEqual(seq + 4, c['Last'])
+        self.assertEqual(seq + 6, c['Last'])
 
         c = DoGet(_REMOTE, '/changes?since=%d' % (seq + 1000))
         self.assertEqual(0, len(c['Changes']))
         self.assertTrue(c['Done'])
-        self.assertEqual(seq + 4, c['Last'])
+        self.assertEqual(seq + 6, c['Last'])
         
 
     def test_bitbucket_issue_124(self):
