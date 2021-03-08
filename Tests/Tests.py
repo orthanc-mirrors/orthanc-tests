@@ -510,6 +510,12 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(c['Done'])
         self.assertEqual(c['Changes'][-1]['Seq'], c['Last'])
 
+        # Check the order in which the creation events are reported
+        self.assertEqual(c['Changes'][0]['ChangeType'], 'NewInstance')
+        self.assertEqual(c['Changes'][1]['ChangeType'], 'NewSeries')
+        self.assertEqual(c['Changes'][2]['ChangeType'], 'NewStudy')
+        self.assertEqual(c['Changes'][3]['ChangeType'], 'NewPatient')
+
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(1, len(c['Changes']))
         self.assertEqual(begin, c['Last'])
