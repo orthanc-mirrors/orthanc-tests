@@ -149,6 +149,7 @@ config['WebDavEnabled'] = True
 config['WebDavDeleteAllowed'] = True
 config['WebDavUploadAllowed'] = True
 config['StorageCompression'] = args.compression
+config['CheckRevisions'] = True
 
 del config['KeepAlive']
 

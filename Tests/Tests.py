@@ -1126,15 +1126,26 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % i), '1.2.840.10008.5.1.4.1.1.4')
 
         # Play with custom metadata
-        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
+        (headers, body) = DoPutRaw(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('', body)
+        self.assertEqual('"0"', headers['etag'])
+        
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(2, len(m))
         self.assertTrue('LastUpdate' in m)
         self.assertTrue('5555' in m)
         self.assertEqual('coucou', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
-        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello')
-        self.assertEqual('hello', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
-        DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
+        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello', headers = {
+            'If-Match' : headers['etag']
+        })
+
+        (headers, body) = DoGetRaw(_REMOTE, '/patients/%s/metadata/5555' % p)
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('hello', body)
+        DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p, headers = {
+            'If-Match' : headers['etag']
+        })
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(1, len(m))
         self.assertTrue('LastUpdate' in m)
@@ -4641,7 +4652,10 @@ class Orthanc(unittest.TestCase):
         # changes of type "UpdatedMetadata"
         i = DoGet(_REMOTE, '/instances') [0]
         DoPut(_REMOTE, '/instances/%s/metadata/4000' % i, 'hello', 'text/plain')
-        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/metadata/4000' % i))
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/4000' % i)
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('hello', body)
 
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(1, len(c['Changes']))
@@ -4649,7 +4663,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(seq + 5, c['Last'])
         self.assertEqual('UpdatedMetadata', c['Changes'][0]['ChangeType'])
 
-        DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i)
+        DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i, headers = {
+            'If-Match' : headers['etag']
+        })
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(1, len(c['Changes']))
         self.assertTrue(c['Done'])
@@ -6556,3 +6572,141 @@ class Orthanc(unittest.TestCase):
         instance = DoGet(_REMOTE, '/instances/%s' % a)
         self.assertEqual(tags['0008,0018'], instance['MainDicomTags']['SOPInstanceUID'])
 
+
+    def test_revisions(self):
+        # This test fails on Orthanc <= 1.9.1 (support for revisions
+        # was introduced in 1.9.2), or if configuration option
+        # "CheckRevisions" is "False". Conventions for HTTP headers
+        # related to revisions mimic CouchDB:
+        # https://docs.couchdb.org/en/stable/api/document/common.html
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i)
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"0"'
+        })
+        self.assertEqual('304', headers['status'])  # Not modified
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('', body)  # Body must be empty on 304 status
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"1"'
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', body)
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i)
+        self.assertEqual('403', headers['status'])  # Forbidden (system metadata)
+        
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, 'hello')
+        self.assertEqual('403', headers['status'])  # Forbidden (system metadata)
+        
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i)
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('hello', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-None-Match' : '"0"'
+        })
+        self.assertEqual('304', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-None-Match' : '"1"'
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('hello', body)
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/metadata/1024' % i))
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i)
+        self.assertEqual('409', headers['status'])  # No revision given, but "CheckRevisions" is True
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-Match' : '45'
+        })
+        self.assertEqual('409', headers['status'])  # Conflict, as bad revision
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-Match' : '0'
+        })
+        self.assertEqual('200', headers['status'])
+
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-Match' : '0'
+        })
+        self.assertEqual('404', headers['status'])
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i)
+        self.assertEqual('404', headers['status'])
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata/1024' % i))
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
+        self.assertEqual('409', headers['status'])
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"0"'
+        })
+        self.assertEqual('304', headers['status'])  # Not modified
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('', body)  # Body must be empty on 304 status
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello', headers = {
+            'If-Match' : '0'            
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"1"', headers['etag'])
+        self.assertEqual('', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-None-Match' : headers['etag']
+        })
+
+        if headers['status'] == '200':
+            print("Your database backend doesn't store revisions")
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
+                'If-Match' : '1'
+            })
+            self.assertEqual('409', headers['status'])
+
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
+                'If-Match' : '0'
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"1"', headers['etag'])
+            self.assertEqual('', body)
+
+        elif headers['status'] == '304':  # Revisions are supported
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
+                'If-Match' : '0'
+            })
+            self.assertEqual('409', headers['status'])
+
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
+                'If-Match' : '1'
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"2"', headers['etag'])
+            self.assertEqual('', body)
+        
+        else:
+            raise Exception('Internal error')
+
+        self.assertEqual('hello2', DoGet(_REMOTE, '/instances/%s/metadata/1024' % i))
+        
