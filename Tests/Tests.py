@@ -1233,7 +1233,10 @@ class Orthanc(unittest.TestCase):
         DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world2', headers = {
             'If-Match' : '0'
         })
-        self.assertEqual('world2', DoGet(_REMOTE, '/patients/%s/attachments/1026/data' % patient))
+
+        (header, body) = DoGetRaw(_REMOTE, '/patients/%s/attachments/1026/data' % patient)
+        self.assertEqual('200', header['status'])
+        self.assertEqual('world2', body)
 
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
         DoDelete(_REMOTE, '/patients/%s/attachments/1025' % patient, headers = {
@@ -1246,7 +1249,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
         DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient, headers = {
-            'If-Match' : '0'
+            'If-Match' : header['etag']
         })
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
 
@@ -6667,7 +6670,7 @@ class Orthanc(unittest.TestCase):
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
         self.assertEqual('409', headers['status'])
 
-        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
             'If-None-Match' : '"0"'
         })
         self.assertEqual('304', headers['status'])  # Not modified
@@ -6717,3 +6720,142 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual('hello2', DoGet(_REMOTE, '/instances/%s/metadata/1024' % i))
         
+
+    def test_revisions_attachments(self):
+        # This test fails on Orthanc <= 1.9.1 (support for revisions
+        # was introduced in 1.9.2), or if configuration option
+        # "CheckRevisions" is "False". Conventions for HTTP headers
+        # related to revisions mimic CouchDB:
+        # https://docs.couchdb.org/en/stable/api/document/common.html
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+
+        # "/compress", "/uncompress" and "/verify-md5" are POST
+        # methods, and are not affected by revisions
+        for suffix in [ '', '/compressed-data', '/compressed-md5', '/compressed-size',
+                        '/data', '/is-compressed', '/md5', '/size' ]:
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix))
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"0"', headers['etag'])
+
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
+                'If-None-Match' : '"0"'
+            })
+            self.assertEqual('304', headers['status'])  # Not modified
+            self.assertEqual('"0"', headers['etag'])
+            self.assertEqual('', body)  # Body must be empty on 304 status
+
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
+                'If-None-Match' : '"1"'
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"0"', headers['etag'])
+
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/dicom' % i)
+        self.assertEqual('403', headers['status'])  # Forbidden (system metadata)
+        
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/dicom' % i, 'hello')
+        self.assertEqual('403', headers['status'])  # Forbidden (system metadata)
+        
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i)
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('hello', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
+            'If-None-Match' : '"0"'
+        })
+        self.assertEqual('304', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
+            'If-None-Match' : '"1"'
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('hello', body)
+        self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/attachments/1024/data' % i))
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i)
+        self.assertEqual('409', headers['status'])  # No revision given, but "CheckRevisions" is True
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
+            'If-Match' : '45'
+        })
+        self.assertEqual('409', headers['status'])  # Conflict, as bad revision
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
+            'If-Match' : '0'
+        })
+        self.assertEqual('200', headers['status'])
+
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
+            'If-Match' : '0'
+        })
+        self.assertEqual('404', headers['status'])
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i)
+        self.assertEqual('404', headers['status'])
+
+        self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/1024' % i))
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0"', headers['etag'])
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
+        self.assertEqual('409', headers['status'])
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
+            'If-None-Match' : '"0"'
+        })
+        self.assertEqual('304', headers['status'])  # Not modified
+        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('', body)  # Body must be empty on 304 status
+
+        (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello', headers = {
+            'If-Match' : '0'            
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"1"', headers['etag'])
+        self.assertEqual('{}', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
+            'If-None-Match' : headers['etag']
+        })
+
+        if headers['status'] == '200':
+            print("Your database backend doesn't store revisions")
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
+                'If-Match' : '1'
+            })
+            self.assertEqual('409', headers['status'])
+
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
+                'If-Match' : '0'
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"1"', headers['etag'])
+            self.assertEqual('{}', body)
+
+        elif headers['status'] == '304':  # Revisions are supported
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
+                'If-Match' : '0'
+            })
+            self.assertEqual('409', headers['status'])
+
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
+                'If-Match' : '1'
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"2"', headers['etag'])
+            self.assertEqual('{}', body)
+        
+        else:
+            raise Exception('Internal error')
+
+        self.assertEqual('hello2', DoGet(_REMOTE, '/instances/%s/attachments/1024/data' % i))
