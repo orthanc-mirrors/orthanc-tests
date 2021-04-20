@@ -1129,23 +1129,37 @@ class Orthanc(unittest.TestCase):
         (headers, body) = DoPutRaw(_REMOTE, '/patients/%s/metadata/5555' % p, 'coucou')
         self.assertEqual('200', headers['status'])
         self.assertEqual('', body)
-        self.assertEqual('"0"', headers['etag'])
-        
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
+            self.assertEqual('"0"', headers['etag'])
+        else:
+            self.assertFalse('ETag' in headers)
+            self.assertFalse('etag' in headers)
+            
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(2, len(m))
         self.assertTrue('LastUpdate' in m)
         self.assertTrue('5555' in m)
         self.assertEqual('coucou', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
-        DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello', headers = {
-            'If-Match' : headers['etag']
-        })
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
+            DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello', headers = {
+                'If-Match' : headers['etag']
+            })
+        else:
+            DoPut(_REMOTE, '/patients/%s/metadata/5555' % p, 'hello')
 
         (headers, body) = DoGetRaw(_REMOTE, '/patients/%s/metadata/5555' % p)
         self.assertEqual('200', headers['status'])
         self.assertEqual('hello', body)
-        DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p, headers = {
-            'If-Match' : headers['etag']
-        })
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
+            DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p, headers = {
+                'If-Match' : headers['etag']
+            })
+        else:
+            DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
+            
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         self.assertEqual(1, len(m))
         self.assertTrue('LastUpdate' in m)
@@ -1234,8 +1248,8 @@ class Orthanc(unittest.TestCase):
             'If-Match' : '0'
         })
 
-        (header, body) = DoGetRaw(_REMOTE, '/patients/%s/attachments/1026/data' % patient)
-        self.assertEqual('200', header['status'])
+        (headers, body) = DoGetRaw(_REMOTE, '/patients/%s/attachments/1026/data' % patient)
+        self.assertEqual('200', headers['status'])
         self.assertEqual('world2', body)
 
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
@@ -1248,9 +1262,15 @@ class Orthanc(unittest.TestCase):
                          size + int(DoGet(_REMOTE, '/patients/%s/attachments/1026/compressed-size' % patient)))
 
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
-        DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient, headers = {
-            'If-Match' : header['etag']
-        })
+        
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
+            DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient, headers = {
+                'If-Match' : headers['etag']
+            })
+        else:
+            self.assertFalse('etag' in headers)
+            DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient)
+            
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
 
         self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']), size)
@@ -4673,9 +4693,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(seq + 5, c['Last'])
         self.assertEqual('UpdatedMetadata', c['Changes'][0]['ChangeType'])
 
-        DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i, headers = {
-            'If-Match' : headers['etag']
-        })
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
+            DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i, headers = {
+                'If-Match' : headers['etag']
+            })
+        else:
+            self.assertFalse('etag' in headers)
+            DoDelete(_REMOTE, '/instances/%s/metadata/4000' % i)
+            
         c = DoGet(_REMOTE, '/changes?last')
         self.assertEqual(1, len(c['Changes']))
         self.assertTrue(c['Done'])
