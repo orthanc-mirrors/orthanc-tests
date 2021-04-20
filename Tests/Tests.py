@@ -1230,18 +1230,24 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('world', DoGet(_REMOTE, '/patients/%s/attachments/1026/data' % patient))
         DoPost(_REMOTE, '/patients/%s/attachments/1025/verify-md5' % patient)
         DoPost(_REMOTE, '/patients/%s/attachments/1026/verify-md5' % patient)
-        DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world2')
+        DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world2', headers = {
+            'If-Match' : '0'
+        })
         self.assertEqual('world2', DoGet(_REMOTE, '/patients/%s/attachments/1026/data' % patient))
 
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
-        DoDelete(_REMOTE, '/patients/%s/attachments/1025' % patient)
+        DoDelete(_REMOTE, '/patients/%s/attachments/1025' % patient, headers = {
+            'If-Match' : '0'
+        })
         self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
                          int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
         self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
                          size + int(DoGet(_REMOTE, '/patients/%s/attachments/1026/compressed-size' % patient)))
 
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
-        DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient)
+        DoDelete(_REMOTE, '/patients/%s/attachments/1026' % patient, headers = {
+            'If-Match' : '0'
+        })
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients/%s/attachments' % patient)))
 
         self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']), size)
@@ -3446,8 +3452,9 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
 
         # Can delete the "DICOM as JSON" attachment
-        r = DoDelete(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance)
-        self.assertTrue(type(r) is dict and len(r) == 0)
+        if not IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            r = DoDelete(_REMOTE, '/instances/%s/attachments/dicom-as-json' % instance)
+            self.assertTrue(type(r) is dict and len(r) == 0)
 
         # Only the "DICOM" attachment subsists
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
@@ -6573,7 +6580,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(tags['0008,0018'], instance['MainDicomTags']['SOPInstanceUID'])
 
 
-    def test_revisions(self):
+    def test_revisions_metadata(self):
         # This test fails on Orthanc <= 1.9.1 (support for revisions
         # was introduced in 1.9.2), or if configuration option
         # "CheckRevisions" is "False". Conventions for HTTP headers
