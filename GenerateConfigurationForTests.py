@@ -185,7 +185,10 @@ config['PostgreSQL'] = {
     'Port' : 5432,
     'Database' : 'orthanctest',
     'Username' : 'postgres',
-    'Password' : 'postgres'
+    'Password' : 'postgres',
+    'Lock' : False,
+    'IndexConnectionsCount' : 5,
+    'MaximumConnectionRetries' : 7,
 }
 
 config['MySQL'] = {
@@ -197,6 +200,9 @@ config['MySQL'] = {
     'Username' : 'root',
     'Password' : 'root',
     'UnixSocket' : '',
+    'Lock' : False,
+    'IndexConnectionsCount' : 5,
+    'MaximumConnectionRetries' : 7,
 }
 
 
