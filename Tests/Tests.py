@@ -1131,7 +1131,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('', body)
 
         if IsOrthancVersionAbove(_REMOTE, 1, 9, 2):
-            self.assertEqual('"0"', headers['etag'])
+            self.assertEqual('"0-%s"' % ComputeMD5('coucou'), headers['etag'])
         else:
             self.assertFalse('ETag' in headers)
             self.assertFalse('etag' in headers)
@@ -1245,7 +1245,7 @@ class Orthanc(unittest.TestCase):
         DoPost(_REMOTE, '/patients/%s/attachments/1025/verify-md5' % patient)
         DoPost(_REMOTE, '/patients/%s/attachments/1026/verify-md5' % patient)
         DoPut(_REMOTE, '/patients/%s/attachments/1026' % patient, 'world2', headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-%s' % ComputeMD5('world'),
         })
 
         (headers, body) = DoGetRaw(_REMOTE, '/patients/%s/attachments/1026/data' % patient)
@@ -1254,7 +1254,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/instances/%s/attachments/dicom' % instance))
         DoDelete(_REMOTE, '/patients/%s/attachments/1025' % patient, headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-%s' % ComputeMD5(hello),
         })
         self.assertEqual(int(DoGet(_REMOTE, '/patients/%s/statistics' % patient)['DiskSize']),
                          int(DoGet(_REMOTE, '/statistics')['TotalDiskSize']))
@@ -6618,21 +6618,38 @@ class Orthanc(unittest.TestCase):
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i)
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-%s"' % ComputeMD5('1.2.840.10008.1.2.4.70'), headers['etag'])
         self.assertEqual('1.2.840.10008.1.2.4.70', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
-            'If-None-Match' : '"0"'
+            'If-None-Match' : '"aaa"'
+        })
+        self.assertEqual('400', headers['status'])  # Bad header format
+
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"aaa-bbb"'
+        })
+        self.assertEqual('400', headers['status'])  # Bad header format
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"0-16de4d7060d0b9d102ef0fca8acc892a"'
         })
         self.assertEqual('304', headers['status'])  # Not modified
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-16de4d7060d0b9d102ef0fca8acc892a"', headers['etag'])
         self.assertEqual('', body)  # Body must be empty on 304 status
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
-            'If-None-Match' : '"1"'
+            'If-None-Match' : '"1-16de4d7060d0b9d102ef0fca8acc892a"'  # Bad revision, good MD5
         })
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-16de4d7060d0b9d102ef0fca8acc892a"', headers['etag'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', body)
+        
+        (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i, headers = {
+            'If-None-Match' : '"0-aaa"'  # Good revision, bad MD5
+        })
+        self.assertEqual('200', headers['status'])
+        self.assertEqual('"0-16de4d7060d0b9d102ef0fca8acc892a"', headers['etag'])
         self.assertEqual('1.2.840.10008.1.2.4.70', body)
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/TransferSyntax' % i)
@@ -6643,25 +6660,25 @@ class Orthanc(unittest.TestCase):
         
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-%s"' % ComputeMD5('hello'), headers['etag'])
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i)
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('hello', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-None-Match' : '"0"'
+            'If-None-Match' : '"0-5d41402abc4b2a76b9719d911017c592"'
         })
         self.assertEqual('304', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-None-Match' : '"1"'
+            'If-None-Match' : '"1-tata"'
         })
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('hello', body)
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/metadata/1024' % i))
         
@@ -6669,17 +6686,22 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('409', headers['status'])  # No revision given, but "CheckRevisions" is True
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-Match' : '45'
+            'If-Match' : '45-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('409', headers['status'])  # Conflict, as bad revision
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-tata'
+        })
+        self.assertEqual('409', headers['status'])  # Conflict, as bad MD5
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('200', headers['status'])
 
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('404', headers['status'])
 
@@ -6690,23 +6712,23 @@ class Orthanc(unittest.TestCase):
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello')
         self.assertEqual('409', headers['status'])
 
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
-            'If-None-Match' : '"0"'
+            'If-None-Match' : '"0-5d41402abc4b2a76b9719d911017c592"'
         })
         self.assertEqual('304', headers['status'])  # Not modified
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('', body)  # Body must be empty on 304 status
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello', headers = {
-            'If-Match' : '0'            
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'            
         })
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"1"', headers['etag'])
+        self.assertEqual('"1-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/metadata/1024' % i, headers = {
@@ -6716,28 +6738,28 @@ class Orthanc(unittest.TestCase):
         if headers['status'] == '200':
             print("Your database backend doesn't store revisions")
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
-                'If-Match' : '1'
+                'If-Match' : '1-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('409', headers['status'])
 
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
-                'If-Match' : '0'
+                'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"1"', headers['etag'])
+            self.assertEqual('"1-6e809cbda0732ac4845916a59016f954"', headers['etag'])
             self.assertEqual('', body)
 
         elif headers['status'] == '304':  # Revisions are supported
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
-                'If-Match' : '0'
+                'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('409', headers['status'])
 
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/metadata/1024' % i, 'hello2', headers = {
-                'If-Match' : '1'
+                'If-Match' : '1-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"2"', headers['etag'])
+            self.assertEqual('"2-6e809cbda0732ac4845916a59016f954"', headers['etag'])
             self.assertEqual('', body)
         
         else:
@@ -6754,26 +6776,40 @@ class Orthanc(unittest.TestCase):
         # https://docs.couchdb.org/en/stable/api/document/common.html
         i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
 
+        with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
+            md5 = ComputeMD5(f.read())
+        
         # "/compress", "/uncompress" and "/verify-md5" are POST
         # methods, and are not affected by revisions
         for suffix in [ '', '/compressed-data', '/compressed-md5', '/compressed-size',
                         '/data', '/is-compressed', '/md5', '/size' ]:
             (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix))
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"0"', headers['etag'])
+            self.assertEqual('"0-%s"' % md5, headers['etag'])
 
             (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
-                'If-None-Match' : '"0"'
+                'If-None-Match' : '"0-3e29b869978b6db4886355a2b1132124"',
             })
             self.assertEqual('304', headers['status'])  # Not modified
-            self.assertEqual('"0"', headers['etag'])
+            self.assertEqual('"0-3e29b869978b6db4886355a2b1132124"', headers['etag'])
             self.assertEqual('', body)  # Body must be empty on 304 status
 
             (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
-                'If-None-Match' : '"1"'
+                'If-None-Match' : '"tata"',  # Invalid header
+            })
+            self.assertEqual('400', headers['status'])
+
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
+                'If-None-Match' : '"1-%s"' % md5, # Bad revision, good MD5
             })
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"0"', headers['etag'])
+            self.assertEqual('"0-3e29b869978b6db4886355a2b1132124"', headers['etag'])
+
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, suffix), headers = {
+                'If-None-Match' : '"0-tata"' # Good revision, bad MD5
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"0-3e29b869978b6db4886355a2b1132124"', headers['etag'])
 
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/dicom' % i)
         self.assertEqual('403', headers['status'])  # Forbidden (system metadata)
@@ -6783,43 +6819,57 @@ class Orthanc(unittest.TestCase):
         
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-%s"' % ComputeMD5('hello'), headers['etag'])
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i)
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('hello', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
-            'If-None-Match' : '"0"'
+            'If-None-Match' : '"0-5d41402abc4b2a76b9719d911017c592"'
         })
         self.assertEqual('304', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('', body)
+
+        for h in [ '"1-5d41402abc4b2a76b9719d911017c592"', # Bad revision, good MD5
+                   '"0-tata"']: # Good revision, bad MD5 
+            (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
+                'If-None-Match' : h
+            })
+            self.assertEqual('200', headers['status'])
+            self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
+            self.assertEqual('hello', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
-            'If-None-Match' : '"1"'
+            'If-None-Match' : 'tata'  # Bad header format
         })
-        self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
-        self.assertEqual('hello', body)
+        self.assertEqual('400', headers['status'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
+
         self.assertEqual('hello', DoGet(_REMOTE, '/instances/%s/attachments/1024/data' % i))
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i)
         self.assertEqual('409', headers['status'])  # No revision given, but "CheckRevisions" is True
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
-            'If-Match' : '45'
+            'If-Match' : '45-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('409', headers['status'])  # Conflict, as bad revision
         
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-tata'
+        })
+        self.assertEqual('409', headers['status'])  # Conflict, as bad MD5
+        
+        (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('200', headers['status'])
 
         (headers, body) = DoDeleteRaw(_REMOTE, '/instances/%s/attachments/1024' % i, headers = {
-            'If-Match' : '0'
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
         })
         self.assertEqual('404', headers['status'])
 
@@ -6830,23 +6880,23 @@ class Orthanc(unittest.TestCase):
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello')
         self.assertEqual('409', headers['status'])
 
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
-            'If-None-Match' : '"0"'
+            'If-None-Match' : '"0-5d41402abc4b2a76b9719d911017c592"'
         })
         self.assertEqual('304', headers['status'])  # Not modified
-        self.assertEqual('"0"', headers['etag'])
+        self.assertEqual('"0-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('', body)  # Body must be empty on 304 status
 
         (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello', headers = {
-            'If-Match' : '0'            
+            'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'            
         })
         self.assertEqual('200', headers['status'])
-        self.assertEqual('"1"', headers['etag'])
+        self.assertEqual('"1-5d41402abc4b2a76b9719d911017c592"', headers['etag'])
         self.assertEqual('{}', body)
         
         (headers, body) = DoGetRaw(_REMOTE, '/instances/%s/attachments/1024/data' % i, headers = {
@@ -6856,28 +6906,28 @@ class Orthanc(unittest.TestCase):
         if headers['status'] == '200':
             print("Your database backend doesn't store revisions")
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
-                'If-Match' : '1'
+                'If-Match' : '1-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('409', headers['status'])
 
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
-                'If-Match' : '0'
+                'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"1"', headers['etag'])
+            self.assertEqual('"1-6e809cbda0732ac4845916a59016f954"', headers['etag'])
             self.assertEqual('{}', body)
 
         elif headers['status'] == '304':  # Revisions are supported
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
-                'If-Match' : '0'
+                'If-Match' : '0-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('409', headers['status'])
 
             (headers, body) = DoPutRaw(_REMOTE, '/instances/%s/attachments/1024' % i, 'hello2', headers = {
-                'If-Match' : '1'
+                'If-Match' : '1-5d41402abc4b2a76b9719d911017c592'
             })
             self.assertEqual('200', headers['status'])
-            self.assertEqual('"2"', headers['etag'])
+            self.assertEqual('"2-6e809cbda0732ac4845916a59016f954"', headers['etag'])
             self.assertEqual('{}', body)
         
         else:
