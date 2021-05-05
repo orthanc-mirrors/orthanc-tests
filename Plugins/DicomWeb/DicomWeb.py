@@ -39,7 +39,7 @@ def _AttachPart(body, path, contentType, boundary):
         body += bytearray('\r\n', 'ascii')
 
 
-def SendStow(orthanc, uri, dicom):
+def SendStowRaw(orthanc, uri, dicom):
     # We do not use Python's "email" package, as it uses LF (\n) for line
     # endings instead of CRLF (\r\n) for binary messages, as required by
     # RFC 1341
@@ -65,7 +65,17 @@ def SendStow(orthanc, uri, dicom):
         'Accept' : 'application/json',
     }
 
-    return DoPost(orthanc, uri, body, headers = headers)
+    (response, content) = DoPostRaw(orthanc, uri, body, headers = headers)
+
+    return (response.status, DecodeJson(content))
+
+
+def SendStow(orthanc, uri, dicom):
+    (status, content) = SendStowRaw(orthanc, uri, dicom)
+    if not (status in [ 200 ]):
+        raise Exception('Bad status: %d' % status)
+    else:
+        return content
 
 
 def DoGetMultipart(orthanc, uri, headers = {}, returnHeaders = False):

@@ -649,41 +649,60 @@ class Orthanc(unittest.TestCase):
 
         
     def test_stow_errors(self):
+        def CheckSequences(a):
+            self.assertEqual(3, len(a))
+            self.assertTrue('00080005' in a)
+            self.assertTrue('00081198' in a)
+            self.assertTrue('00081199' in a)
+            self.assertEqual('CS', a['00080005']['vr'])
+            self.assertEqual('SQ', a['00081198']['vr'])
+            self.assertEqual('SQ', a['00081199']['vr'])
+        
         # Pushing an instance to a study that is not its parent
-        a = SendStow(ORTHANC, args.dicomweb + '/studies/nope', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
-        self.assertEqual(3, len(a))
-        self.assertTrue('00080005' in a)
-        self.assertEqual('CS', a['00080005']['vr'])
-        self.assertTrue('00081198' in a)
-        self.assertEqual('SQ', a['00081198']['vr'])
-        self.assertEqual(1, len(['00081198']))
-        self.assertTrue('00081199' in a)
-        self.assertEqual('SQ', a['00081199']['vr'])
-        self.assertEqual(1, len(['00081199']))
+        (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies/nope', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
+        self.assertEqual(409, status)
+        CheckSequences(a)
+
+        self.assertFalse('Value' in a['00081199'])  # No success instance
+        
+        self.assertEqual(1, len(a['00081198']['Value']))  # One failed instance
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.2',
+                         a['00081198']['Value'][0]['00081150']['Value'][0])
+        self.assertEqual('1.2.840.113704.7.1.1.6632.1127829031.2',
+                         a['00081198']['Value'][0]['00081155']['Value'][0])
+        self.assertEqual(0x0110,  # Processing failure
+                         a['00081198']['Value'][0]['00081197']['Value'][0])
 
         # Pushing an instance with missing tags
-        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dcm'))
-        self.assertEqual(3, len(a))
-        self.assertTrue('00080005' in a)
-        self.assertEqual('CS', a['00080005']['vr'])
-        self.assertTrue('00081198' in a)
-        self.assertEqual('SQ', a['00081198']['vr'])
-        self.assertEqual(1, len(['00081198']))
-        self.assertTrue('00081199' in a)
-        self.assertEqual('SQ', a['00081199']['vr'])
-        self.assertEqual(1, len(['00081199']))
+        (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dcm'))
+        self.assertEqual(400, status)
+        CheckSequences(a)
+
+        self.assertFalse('Value' in a['00081198'])  # No failed instance, as tags are missing
+        self.assertFalse('Value' in a['00081199'])  # No success instance
 
         # Pushing a file that is not in the DICOM format
-        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dump'))
-        self.assertEqual(3, len(a))
-        self.assertTrue('00080005' in a)
-        self.assertEqual('CS', a['00080005']['vr'])
-        self.assertTrue('00081198' in a)
-        self.assertEqual('SQ', a['00081198']['vr'])
-        self.assertEqual(1, len(['00081198']))
-        self.assertTrue('00081199' in a)
-        self.assertEqual('SQ', a['00081199']['vr'])
-        self.assertEqual(1, len(['00081199']))
+        (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dump'))
+        self.assertEqual(400, status)
+        CheckSequences(a)
+
+        self.assertFalse('Value' in a['00081198'])  # No failed instance, as non-DICOM
+        self.assertFalse('Value' in a['00081199'])  # No success instance
+
+        # Pushing a DICOM instance with only SOP class and instance UID
+        (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue196.dcm'))
+        self.assertEqual(400, status)
+        CheckSequences(a)
+
+        self.assertFalse('Value' in a['00081199'])  # No success instance
+
+        self.assertEqual(1, len(a['00081198']['Value']))  # One failed instance
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4',
+                         a['00081198']['Value'][0]['00081150']['Value'][0])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         a['00081198']['Value'][0]['00081155']['Value'][0])
+        self.assertEqual(0xC000,  # Error: Cannot understand (cannot understand certain Data Elements)
+                         a['00081198']['Value'][0]['00081197']['Value'][0])
 
 
     def test_allowed_methods(self):

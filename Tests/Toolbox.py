@@ -56,7 +56,7 @@ else:
         from StringIO import StringIO
 
     
-def _DecodeJson(s):
+def DecodeJson(s):
     t = s
 
     if (sys.version_info >= (3, 0)):
@@ -121,7 +121,7 @@ def DoGet(orthanc, uri, data = {}, body = None, headers = {}):
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status, resp)
     else:
-        return _DecodeJson(content)
+        return DecodeJson(content)
 
 def _DoPutOrPost(orthanc, uri, method, data, contentType, headers):
     http = httplib2.Http()
@@ -156,7 +156,7 @@ def DoDelete(orthanc, uri, headers = {}):
     if not (resp.status in [ 200 ]):
         raise Exception(resp.status, resp)
     else:
-        return _DecodeJson(content)
+        return DecodeJson(content)
 
 def DoPutRaw(orthanc, uri, data = {}, contentType = '', headers = {}):
     return _DoPutOrPost(orthanc, uri, 'PUT', data, contentType, headers)
@@ -166,7 +166,7 @@ def DoPut(orthanc, uri, data = {}, contentType = '', headers = {}):
     if not (resp.status in [ 200, 201, 302 ]):
         raise Exception(resp.status, resp)
     else:
-        return _DecodeJson(content)
+        return DecodeJson(content)
 
 def DoPostRaw(orthanc, uri, data = {}, contentType = '', headers = {}):
     return _DoPutOrPost(orthanc, uri, 'POST', data, contentType, headers)
@@ -176,7 +176,7 @@ def DoPost(orthanc, uri, data = {}, contentType = '', headers = {}):
     if not (resp.status in [ 200, 201, 302 ]):
         raise Exception(resp.status, resp)
     else:
-        return _DecodeJson(content)
+        return DecodeJson(content)
 
 def GetDatabasePath(filename):
     return os.path.join(os.path.dirname(__file__), '..', 'Database', filename)
