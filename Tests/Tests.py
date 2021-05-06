@@ -6934,3 +6934,67 @@ class Orthanc(unittest.TestCase):
             raise Exception('Internal error')
 
         self.assertEqual('hello2', DoGet(_REMOTE, '/instances/%s/attachments/1024/data' % i))
+
+
+    def test_issue_195(self):
+        # This fails on Orthanc <= 1.9.2
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=195
+        a = UploadInstance(_REMOTE, 'Issue195.dcm')['ID']
+        b = DoGet(_REMOTE, '/instances/%s/file' % a,
+                  headers = { 'Accept' : 'application/dicom+json' })
+
+        # The expected result can be found by typing "dcm2json Database/Issue195.dcm"
+        self.assertEqual(5, len(b))
+        self.assertEqual(2, len(b["00080018"]))
+        self.assertEqual("UI", b["00080018"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.13188.1620309604.848735",
+                         b["00080018"]["Value"][0])
+
+        self.assertEqual(2, len(b["0020000D"]))
+        self.assertEqual("UI", b["0020000D"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.13188.1620309604.848733",
+                         b["0020000D"]["Value"][0])
+
+        self.assertEqual(2, len(b["0020000E"]))
+        self.assertEqual("UI", b["0020000E"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.13188.1620309604.848734",
+                         b["0020000E"]["Value"][0])
+
+        self.assertEqual(1, len(b["00081030"]))  # Case of an empty value
+        self.assertEqual("LO", b["00081030"]["vr"])
+
+        self.assertEqual(2, len(b["0008103E"]))
+        self.assertEqual("LO", b["0008103E"]["vr"])
+        self.assertEqual("Hello1", b["0008103E"]["Value"][0])
+
+        a = UploadInstance(_REMOTE, 'Issue195-bis.dcm')['ID']
+        b = DoGet(_REMOTE, '/instances/%s/file' % a,
+                  headers = { 'Accept' : 'application/dicom+json' })
+
+        # The expected result can be found by typing "dcm2json Database/Issue195-bis.dcm"
+        self.assertEqual(5, len(b))
+        self.assertEqual(2, len(b["00080018"]))
+        self.assertEqual("UI", b["00080018"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420",
+                         b["00080018"]["Value"][0])
+
+        self.assertEqual(2, len(b["0020000D"]))
+        self.assertEqual("UI", b["0020000D"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418",
+                         b["0020000D"]["Value"][0])
+
+        self.assertEqual(2, len(b["0020000E"]))
+        self.assertEqual("UI", b["0020000E"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419",
+                         b["0020000E"]["Value"][0])
+
+        self.assertEqual(2, len(b["0008103E"]))
+        self.assertEqual("UN", b["0008103E"]["vr"])
+
+        # NB: "QgA=" corresponds to the base64 encoding of (uint16_t) 0x42 in little endian:
+        #     $ echo -n 'QgA=' | base64 -d | hexdump -C
+        self.assertEqual("QgA=", b["0008103E"]["InlineBinary"])
+
+        # Case of an empty value, fails in Orthanc <= 1.9.2 because of issue #195
+        self.assertEqual(1, len(b["00081030"]))
+        self.assertEqual("UN", b["00081030"]["vr"])

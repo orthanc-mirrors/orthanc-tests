@@ -1437,6 +1437,81 @@ class Orthanc(unittest.TestCase):
             #print(truth.getpixel((238,275))) # => 254
             self.assertLessEqual(abs(bbox[2] - bbox[0]), 1)
             self.assertLessEqual(abs(bbox[3] - bbox[1]), 1)
+
+
+    def test_issue_195(self):
+        # This fails on Orthanc <= 1.9.2
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=195
+        a = UploadInstance(ORTHANC, 'Issue195.dcm') ['ID']
+        b = DoGet(ORTHANC, 'dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.13188.1620309604.848733/series/1.2.276.0.7230010.3.1.3.8323329.13188.1620309604.848734/instances/1.2.276.0.7230010.3.1.4.8323329.13188.1620309604.848735/metadata',
+                  headers = { 'Accept' : 'application/dicom+json' })
+
+        self.assertEqual(1, len(b))
+        self.assertEqual(5, len(b[0]))
+        
+        # The expected result can be found by typing "dcm2json Database/Issue195.dcm"
+        self.assertEqual(2, len(b[0]["00080018"]))
+        self.assertEqual("UI", b[0]["00080018"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.13188.1620309604.848735",
+                         b[0]["00080018"]["Value"][0])
+
+        self.assertEqual(2, len(b[0]["0020000D"]))
+        self.assertEqual("UI", b[0]["0020000D"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.13188.1620309604.848733",
+                         b[0]["0020000D"]["Value"][0])
+
+        self.assertEqual(2, len(b[0]["0020000E"]))
+        self.assertEqual("UI", b[0]["0020000E"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.13188.1620309604.848734",
+                         b[0]["0020000E"]["Value"][0])
+
+        self.assertEqual(1, len(b[0]["00081030"]))  # Case of an empty value
+        self.assertEqual("LO", b[0]["00081030"]["vr"])
+
+        self.assertEqual(2, len(b[0]["0008103E"]))
+        self.assertEqual("LO", b[0]["0008103E"]["vr"])
+        self.assertEqual("Hello1", b[0]["0008103E"]["Value"][0])
+
+
+        DoDelete(ORTHANC, 'instances/%s' % a)
+        a = UploadInstance(ORTHANC, 'Issue195-bis.dcm') ['ID']
+        URI = 'dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418/series/1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419/instances/1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420'
+        b = DoGet(ORTHANC, '%s/metadata' % URI,
+                  headers = { 'Accept' : 'application/dicom+json' })
+        
+        self.assertEqual(1, len(b))
+        self.assertEqual(5, len(b[0]))
+
+        # The expected result can be found by typing "dcm2json Database/Issue195-bis.dcm"
+        self.assertEqual(2, len(b[0]["00080018"]))
+        self.assertEqual("UI", b[0]["00080018"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420",
+                         b[0]["00080018"]["Value"][0])
+
+        self.assertEqual(2, len(b[0]["0020000D"]))
+        self.assertEqual("UI", b[0]["0020000D"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418",
+                         b[0]["0020000D"]["Value"][0])
+
+        self.assertEqual(2, len(b[0]["0020000E"]))
+        self.assertEqual("UI", b[0]["0020000E"]["vr"])
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419",
+                         b[0]["0020000E"]["Value"][0])
+
+        self.assertEqual(2, len(b[0]["0008103E"]))
+        self.assertEqual("UN", b[0]["0008103E"]["vr"])
+        self.assertEqual('http://%s:%s%s' % (args.server, args.rest, '/%s/bulk/0008103e' % URI),
+                         b[0]["0008103E"]["BulkDataURI"])
+
+        c = DoGet(ORTHANC, '%s/bulk/0008103e' % URI)
+        self.assertTrue('Content-Length: 2\r\n' in c)
+        index = c.find('\r\n\r\n')
+        self.assertEqual(0x42, ord(c[index + 4]))
+        self.assertEqual(0x00, ord(c[index + 5]))
+
+        # Case of an empty value, fails in Orthanc <= 1.9.2 because of issue #195
+        self.assertEqual(1, len(b[0]["00081030"]))
+        self.assertEqual("UN", b[0]["00081030"]["vr"])
         
         
 try:
