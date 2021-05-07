@@ -100,6 +100,7 @@ if args.config:
             'RegisteredUsers' : {
                 'alice' : 'orthanctest'
             },
+            'DicomTlsRemoteCertificateRequired' : False,  # New in Orthanc 1.9.3
         }))
 
     exit(0)
@@ -201,6 +202,19 @@ class Orthanc(unittest.TestCase):
             })
 
         self.assertEqual(1, DoPost(ORTHANC, '/modalities/self/store', u) ['InstancesCount'])
+        
+
+    def test_anonymous(self):
+        # Fails on Orthanc <= 1.9.2
+        # https://book.orthanc-server.com/faq/dicom-tls.html#secure-tls-connections-without-certificate
+        subprocess.check_call([
+            FindExecutable('echoscu'),
+            ORTHANC['Server'], 
+            str(ORTHANC['DicomPort']),
+            '-aec', 'ORTHANC',
+            '--anonymous-tls',
+            '+cf', 'dicom-tls-a.crt',
+        ], stderr = FNULL)
         
         
 try:
