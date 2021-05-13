@@ -6998,3 +6998,24 @@ class Orthanc(unittest.TestCase):
         # Case of an empty value, fails in Orthanc <= 1.9.2 because of issue #195
         self.assertEqual(1, len(b["00081030"]))
         self.assertEqual("UN", b["00081030"]["vr"])
+
+
+    def test_modify_attribute(self):
+        # This fails on Orthanc <= 1.9.3 (not implemented)
+        # https://groups.google.com/g/orthanc-users/c/1pzCqT-ByXg/m/VyIGK5i5BgAJ
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % i)
+        self.assertFalse('0020,9165' in tags)
+        
+        i = DoPost(_REMOTE, '/studies/b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0/modify', {
+            "Replace": {
+                "0020,9165": "0020,9056",
+            }
+        })
+        instances = DoGet(_REMOTE, '/studies/%s/instances' % i['ID'])
+        self.assertEqual(1, len(instances))
+        
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % instances[0]['ID'])
+        self.assertTrue('0020,9165' in tags)
+        self.assertEqual('0020,9056', tags['0020,9165'])
