@@ -600,6 +600,11 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainix, knee ]
             })
         self.assertEqual(3, len(z.namelist()))
+
+        z = PostArchive(_REMOTE, '/patients/%s/archive' % knee, {
+            'Synchronous' : True
+            })
+        self.assertEqual(2, len(z.namelist()))
        
 
     def test_media_archive(self):
