@@ -230,23 +230,19 @@ def GetImage(orthanc, uri, headers = {}):
     # http://www.pythonware.com/library/pil/handbook/introduction.htm
     return UncompressImage(DoGet(orthanc, uri, headers = headers))
 
-def GetArchive(orthanc, uri):
+def ParseArchive(s):
     # http://stackoverflow.com/a/1313868/881731
-    s = DoGet(orthanc, uri)
-
     if (sys.version_info >= (3, 0)):
         return zipfile.ZipFile(BytesIO(s), "r")
     else:
         return zipfile.ZipFile(StringIO(s), "r")
+
+def GetArchive(orthanc, uri):
+    return ParseArchive(DoGet(orthanc, uri))
 
 def PostArchive(orthanc, uri, body):
     # http://stackoverflow.com/a/1313868/881731
-    s = DoPost(orthanc, uri, body)
-
-    if (sys.version_info >= (3, 0)):
-        return zipfile.ZipFile(BytesIO(s), "r")
-    else:
-        return zipfile.ZipFile(StringIO(s), "r")
+    return ParseArchive(DoPost(orthanc, uri, body))
 
 def IsDefinedInLua(orthanc, name):
     s = DoPost(orthanc, '/tools/execute-script', 'print(type(%s))' % name, 'application/lua')
