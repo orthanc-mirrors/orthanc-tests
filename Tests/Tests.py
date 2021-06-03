@@ -7024,3 +7024,50 @@ class Orthanc(unittest.TestCase):
         tags = DoGet(_REMOTE, '/instances/%s/tags?short' % instances[0]['ID'])
         self.assertTrue('0020,9165' in tags)
         self.assertEqual('0020,9056', tags['0020,9165'])
+
+
+    def test_issue_146(self):
+        # "Update Anonyization to 2019c"
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=146
+
+        def GetTags(study, params):
+            a = DoPost(_REMOTE, '/studies/%s/anonymize' % study, params) ['ID']
+            b = DoGet(_REMOTE, '/studies/%s/instances' % a)
+            self.assertEqual(1, len(b))
+            return DoGet(_REMOTE, '/instances/%s/tags?short' % b[0]['ID'])
+            
+        
+        UploadInstance(_REMOTE, 'Issue146.dcm')
+        study = '7c950970-321e4ab0-28446c5f-f94850f1-5c44634b'
+
+        self.assertRaises(Exception, lambda: GetTags(study, { 'DicomVersion' : 'nope' }))
+
+        tags2008 = GetTags(study, { 'DicomVersion' : '2008' })
+        tags2017c = GetTags(study, { 'DicomVersion' : '2017c' })
+        tags2021b = GetTags(study, { 'DicomVersion' : '2021b' })
+        tagsDefault = GetTags(study, {})
+
+        self.assertEqual('Orthanc mainline - PS 3.15-2008 Table E.1-1', tags2008['0012,0063'])
+        self.assertEqual('Orthanc mainline - PS 3.15-2017c Table E.1-1 Basic Profile', tags2017c['0012,0063'])
+        self.assertEqual('Orthanc mainline - PS 3.15-2021b Table E.1-1 Basic Profile', tags2021b['0012,0063'])
+        self.assertEqual(tagsDefault['0012,0063'], tags2021b['0012,0063'])
+
+        for t in [ tags2008, tags2017c, tags2021b, tagsDefault ]:
+            self.assertTrue(t['0010,0010'].startswith('Anonymized'))
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.4', t['0008,0016'])
+            self.assertEqual(36, len(t['0010,0020']))  # Length of a UUID
+            self.assertEqual('YES', t['0012,0062'])
+
+        for t in [ tags2008 ]:
+            self.assertEqual('20200101', t['0008,0020'])
+            
+        for t in [ tags2017c, tags2021b, tagsDefault ]:
+            self.assertEqual('', t['0008,0020'])  # Study Date, anonymized between 2008 and 2017c
+        
+        for t in [ tags2008, tags2017c ]:
+            self.assertEqual('HELLO^C', t['0050,0020'])
+            self.assertEqual('HELLO^D', t['3006,0002'])
+            
+        for t in [ tags2021b, tagsDefault ]:
+            self.assertFalse('0050,0020' in t)    # Device Description, anonymized between 2017c and 2019c
+            self.assertEqual('', t['3006,0002'])  # StructureSetLabel, anonymized between 2019c and 2021b
