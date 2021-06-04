@@ -55,6 +55,7 @@ Content
 Here is the source of each set of sample images:
 
 - 2020-09-12-ELSCINT1-PMSCT_RLE1.dcm: Anonymized from https://discourse.slicer.org/t/fail-to-load-pet-ct-gemini/8158
+- 2020-11-16-SalimKanounAnonymization.dcm: From https://groups.google.com/g/orthanc-users/c/T0IokiActrI/m/L9K0vfscAAAJ
 - Beaufix/* : From OsiriX, "BEAUFIX" (sample of JPEG2000).
 - Brainix/* : From OsiriX, "BRAINIX" (sample of uncompressed data).
 - ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm

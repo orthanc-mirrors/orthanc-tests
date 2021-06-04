@@ -7071,3 +7071,33 @@ class Orthanc(unittest.TestCase):
         for t in [ tags2021b, tagsDefault ]:
             self.assertFalse('0050,0020' in t)    # Device Description, anonymized between 2017c and 2019c
             self.assertEqual('', t['3006,0002'])  # StructureSetLabel, anonymized between 2019c and 2021b
+
+
+    def test_anonymize_relationships_6(self):
+        # 2020-10-20 (Salim Kanoun): "I think I have hit an
+        # anonymization issue for the tag 0008,1250. This tags is a
+        # sequence containing StudyUID / Series UID of related series.
+        # [After anonymization,] this tag keep a reference of the
+        # original Study/Series UID.
+        # https://groups.google.com/g/orthanc-users/c/T0IokiActrI/m/L9K0vfscAAAJ
+        UploadInstance(_REMOTE, '2020-11-16-SalimKanounAnonymization.dcm')
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % DoGet(_REMOTE, '/instances') [0])
+        self.assertEqual('1.2.840.113619.6.95.31.0.3.4.1.3175.13.6054282',
+                         tags['0008,1250'][0]['0020,000d'])
+        self.assertEqual('1.3.12.2.1107.5.1.4.11047.30000019111306043635400005028',
+                         tags['0008,1250'][0]['0020,000e'])
+
+        a = DoGet(_REMOTE, '/studies')
+        self.assertEqual(1, len(a))
+        b = DoPost(_REMOTE, '/studies/%s/anonymize' % a[0], {}) ['ID']
+
+        c = DoGet(_REMOTE, '/studies/%s/instances' % b)
+        self.assertEqual(1, len(c))
+        tags = DoGet(_REMOTE, '/instances/%s/tags?short' % c[0]['ID'])
+
+        # In Orthanc <= 1.9.3, the two tests below failed
+        self.assertNotEqual('1.2.840.113619.6.95.31.0.3.4.1.3175.13.6054282',
+                            tags['0008,1250'][0]['0020,000d'])
+        self.assertNotEqual('1.3.12.2.1107.5.1.4.11047.30000019111306043635400005028',
+                            tags['0008,1250'][0]['0020,000e'])
