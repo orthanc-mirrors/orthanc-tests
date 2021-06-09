@@ -101,9 +101,10 @@ config = re.sub(r'("DicomAet"\s*:)\s*".*?"', r'\1 "ORTHANCTEST"', config)
 config = re.sub(r'("DicomPort"\s*:)\s*.*?,', r'\1 5001,', config)
 config = re.sub(r'("HttpPort"\s*:)\s*.*?,', r'\1 5000,', config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
-config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false', r'\1 true', config)
+config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false,', r'', config)  # Set with "RegisteredUsers"
+config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'"AuthenticationEnabled" : true, \1 { "alice" : "orthanctest"', config)
+config = re.sub(r'("ExecuteLuaEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
-config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'\1 { "alice" : "orthanctest"', config)
 config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
 config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", %s ]' % 
                 (args.aet, args.server, args.dicom), config)

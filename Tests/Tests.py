@@ -7101,3 +7101,152 @@ class Orthanc(unittest.TestCase):
                             tags['0008,1250'][0]['0020,000d'])
         self.assertNotEqual('1.3.12.2.1107.5.1.4.11047.30000019111306043635400005028',
                             tags['0008,1250'][0]['0020,000e'])
+
+
+    def test_modify_subsequences(self):
+        # New in Orthanc 1.9.4 (cf. LSD-629)
+        UploadInstance(_REMOTE, 'Issue22-NoPixelData.dcm')
+        studies = DoGet(_REMOTE, '/studies')
+        self.assertEqual(1, len(studies))
+
+        def GetTags(study):
+            instances = DoGet(_REMOTE, '/studies/%s/instances' % study)
+            self.assertEqual(1, len(instances))
+            return DoGet(_REMOTE, '/instances/%s/tags?short' % instances[0]['ID'])
+
+        tags1 = GetTags(studies[0])
+
+        a = DoPost(_REMOTE, '/studies/%s/modify' % studies[0], {
+              'Replace' : {
+                  'PatientName' : 'Hello1',
+                  'DimensionIndexSequence[1].DimensionDescriptionLabel' : 'Hello2',
+                  'DimensionIndexSequence[*].PatientName' : 'Hello3',
+                  'ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPInstanceUID' : 'Hello4',
+              },
+              'Remove' : [
+                  'ReferencedPerformedProcedureStepSequence',
+                  'PerformedProtocolCodeSequence[0].CodeValue',
+                  'SharedFunctionalGroupsSequence[*].ReferencedImageSequence[*].ReferencedSOPInstanceUID',
+                  'SharedFunctionalGroupsSequence[*].ReferencedImageSequence[1].ReferencedSOPClassUID',
+                  'SharedFunctionalGroupsSequence[2].ReferencedImageSequence',  # Inexistent tag
+              ]
+            })
+        tags2 = GetTags(a['ID'])
+
+        self.assertEqual('Anonymized1', tags1['0010,0010'])
+        self.assertEqual('Hello1', tags2['0010,0010'])
+
+        self.assertEqual('Stack ID', tags1['0020,9222'][0]['0020,9421'])
+        self.assertEqual('In-Stack Position Number', tags1['0020,9222'][1]['0020,9421'])
+        self.assertEqual('Stack ID', tags2['0020,9222'][0]['0020,9421'])
+        self.assertEqual('Hello2', tags2['0020,9222'][1]['0020,9421'])
+
+        for i in range(3):
+            self.assertFalse('0010,0010' in tags1['0020,9222'][i])
+            self.assertEqual('Hello3', tags2['0020,9222'][i]['0010,0010'])
+
+        self.assertEqual('1.3.46.670589.11.22237.5.20.1.1.7512.2014100814064168452',
+                         tags1['0008,9092'][2]['0008,1115'][0]['0008,1199'][0]['0008,1155'])
+        self.assertEqual('Hello4',
+                         tags2['0008,9092'][2]['0008,1115'][0]['0008,1199'][0]['0008,1155'])
+        self.assertEqual(tags1['0008,9092'][1]['0008,1115'][0]['0008,1199'][0]['0008,1155'],
+                         tags2['0008,9092'][1]['0008,1115'][0]['0008,1199'][0]['0008,1155'])
+
+        self.assertTrue('0008,1111' in tags1)
+        self.assertFalse('0008,1111' in tags2)
+        self.assertTrue('0008,0100' in tags1['0040,0260'][0])
+        self.assertFalse('0008,0100' in tags2['0040,0260'][0])
+
+        for i in range(3):
+            self.assertTrue('0008,1155' in tags1['5200,9229'][0]['0008,1140'][i])
+            self.assertFalse('0008,1155' in tags2['5200,9229'][0]['0008,1140'][i])
+            self.assertTrue('0008,1150' in tags1['5200,9229'][0]['0008,1140'][i])
+
+        self.assertTrue('0008,1150' in tags2['5200,9229'][0]['0008,1140'][0])
+        self.assertFalse('0008,1150' in tags2['5200,9229'][0]['0008,1140'][1])
+        self.assertTrue('0008,1150' in tags2['5200,9229'][0]['0008,1140'][2])
+
+        a = DoPost(_REMOTE, '/studies/%s/anonymize' % studies[0], {
+              'Replace' : {
+                  'DimensionIndexSequence[1].DimensionDescriptionLabel' : 'Hello1',
+              },
+              'Remove' : [
+                  'SharedFunctionalGroupsSequence[*].ReferencedImageSequence[*].ReferencedSOPInstanceUID',  # 5200,9229
+              ],
+              'Keep' : [
+                  'ReferencedImageEvidenceSequence',  # 0008,9092
+                  'DimensionIndexSequence',  # 0020,9222
+                  'PerFrameFunctionalGroupsSequence[*].2005,140f[*].SOPInstanceUID',  # 5200,9230
+              ]
+            })
+        tags3 = GetTags(a['ID'])
+
+        # UIDs
+        for i in [ '0008,0018',
+                   '0010,0020',
+                   '0008,0018',
+                   '0010,0020' ]:
+            self.assertNotEqual(tags1[i], tags3[i])
+
+        self.assertNotEqual(tags1['0020,9221'][0]['0020,9164'],
+                            tags3['0020,9221'][0]['0020,9164'])
+
+        self.assertNotEqual(tags1['5200,9229'][0]['2005,140e'][0]['0008,0014'],
+                            tags3['5200,9229'][0]['2005,140e'][0]['0008,0014'])
+
+        # http://dicom.nema.org/medical/dicom/current/output/chtml/part15/chapter_E.html#table_E.1-1
+        # Removals (X)
+        for i in [ '0008,0021',
+                   '0008,002a',
+                   '0008,0031',
+                   '0008,1030',
+                   '0008,103e',
+                   '0008,1111',
+                   '0010,21c0',
+                   '0040,0006',
+                   '0040,0241',
+                   '0040,0244',
+                   '0040,0245',
+                   '0040,0250',
+                   '0040,0251',
+                   '0040,0253',
+                   '0040,0254',
+                   '0040,0555',
+        ]:
+            self.assertTrue(i in tags1)
+            self.assertFalse(i in tags3)
+
+        # Clearings (Z)
+        for i in [ '0008,0020',
+                   '0008,0023',
+                   '0008,0030',
+                   '0008,0033' ]:
+            self.assertNotEqual('', tags1[i])
+            self.assertEqual('', tags3[i])
+
+        # Replace
+        self.assertEqual('In-Stack Position Number', tags1['0020,9222'][1]['0020,9421'])
+        self.assertEqual('Hello1', tags3['0020,9222'][1]['0020,9421'])
+
+        # "Keep" on DimensionIndexSequence
+        for i in range(3):
+            self.assertEqual(tags1['0020,9222'][i]['0020,9164'],
+                             tags3['0020,9222'][i]['0020,9164'])
+
+        # "Keep" on ReferencedImageEvidenceSequence
+        self.assertEqual(json.dumps(tags1['0008,9092']),
+                         json.dumps(tags3['0008,9092']))
+
+        # "Keep" on PerFrameFunctionalGroupsSequence
+        self.assertEqual(json.dumps(tags1['5200,9230']),
+                         json.dumps(tags3['5200,9230']))
+
+        # "Remove" on SharedFunctionalGroupsSequence
+        for i in range(3):
+            self.assertTrue('0008,1155' in tags1['5200,9229'][0]['0008,1140'][i])
+            self.assertFalse('0008,1155' in tags3['5200,9229'][0]['0008,1140'][i])
+
+        with open('/tmp/a', 'w') as f:
+            f.write(json.dumps(tags1, indent=4, sort_keys=True))
+        with open('/tmp/b', 'w') as f:
+            f.write(json.dumps(tags3, indent=4, sort_keys=True))
