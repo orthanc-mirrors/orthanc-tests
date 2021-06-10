@@ -7122,6 +7122,7 @@ class Orthanc(unittest.TestCase):
                   'DimensionIndexSequence[1].DimensionDescriptionLabel' : 'Hello2',
                   'DimensionIndexSequence[*].PatientName' : 'Hello3',
                   'ReferencedImageEvidenceSequence[2].ReferencedSeriesSequence[0].ReferencedSOPSequence[0].ReferencedSOPInstanceUID' : 'Hello4',
+                  'DimensionOrganizationSequence[0].DimensionOrganizationUID' : '1.2.3.4',
               },
               'Remove' : [
                   'ReferencedPerformedProcedureStepSequence',
@@ -7166,9 +7167,14 @@ class Orthanc(unittest.TestCase):
         self.assertFalse('0008,1150' in tags2['5200,9229'][0]['0008,1140'][1])
         self.assertTrue('0008,1150' in tags2['5200,9229'][0]['0008,1140'][2])
 
+        self.assertEqual('1.3.46.670589.11.22237.5.0.11272.2014100816243076000',
+                         tags1['0020,9221'][0]['0020,9164'])
+        self.assertEqual('1.2.3.4', tags2['0020,9221'][0]['0020,9164'])
+
         a = DoPost(_REMOTE, '/studies/%s/anonymize' % studies[0], {
               'Replace' : {
                   'DimensionIndexSequence[1].DimensionDescriptionLabel' : 'Hello1',
+                  'DimensionOrganizationSequence[0].DimensionOrganizationUID' : '1.2.3.4',
               },
               'Remove' : [
                   'SharedFunctionalGroupsSequence[*].ReferencedImageSequence[*].ReferencedSOPInstanceUID',  # 5200,9229
@@ -7226,8 +7232,9 @@ class Orthanc(unittest.TestCase):
 
         # Replace
         self.assertEqual('In-Stack Position Number', tags1['0020,9222'][1]['0020,9421'])
-        self.assertEqual('Hello1', tags3['0020,9222'][1]['0020,9421'])
-
+        self.assertEqual('Hello1', tags3['0020,9222'][1]['0020,9421'])        
+        self.assertEqual('1.2.3.4', tags3['0020,9221'][0]['0020,9164'])
+        
         # "Keep" on DimensionIndexSequence
         for i in range(3):
             self.assertEqual(tags1['0020,9222'][i]['0020,9164'],
@@ -7245,8 +7252,3 @@ class Orthanc(unittest.TestCase):
         for i in range(3):
             self.assertTrue('0008,1155' in tags1['5200,9229'][0]['0008,1140'][i])
             self.assertFalse('0008,1155' in tags3['5200,9229'][0]['0008,1140'][i])
-
-        with open('/tmp/a', 'w') as f:
-            f.write(json.dumps(tags1, indent=4, sort_keys=True))
-        with open('/tmp/b', 'w') as f:
-            f.write(json.dumps(tags3, indent=4, sort_keys=True))
