@@ -151,6 +151,7 @@ config['WebDavUploadAllowed'] = True
 config['StorageCompression'] = args.compression
 config['CheckRevisions'] = True
 
+del config['DeidentifyLogsDicomVersion']
 del config['KeepAlive']
 
 config['Dictionary'] = {
