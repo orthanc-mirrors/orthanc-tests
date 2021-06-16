@@ -7252,3 +7252,123 @@ class Orthanc(unittest.TestCase):
         for i in range(3):
             self.assertTrue('0008,1155' in tags1['5200,9229'][0]['0008,1140'][i])
             self.assertFalse('0008,1155' in tags3['5200,9229'][0]['0008,1140'][i])
+
+
+    def test_bulk_modify(self):
+        # New in Orthanc 1.9.4
+
+        def GetModified(result, resourceType, expectedCount = None):
+            m = map(lambda x: x['ID'], filter(lambda x: x['Type'] == resourceType, a['Resources']))
+            if expectedCount != None:
+                self.assertEqual(expectedCount, len(m))
+            return m
+        
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        series = DoGet(_REMOTE, '/series') [0]
+        study = DoGet(_REMOTE, '/studies') [0]
+        patient = DoGet(_REMOTE, '/patients') [0]
+
+        a = DoPost(_REMOTE, '/tools/bulk-modify', {
+            'Resources' : [ instance ]
+            })
+
+        self.assertNotEqual(instance, GetModified(a, 'Instance', 1) [0])
+        self.assertEqual(series, GetModified(a, 'Series', 1) [0])
+        self.assertEqual(study, GetModified(a, 'Study', 1) [0])
+        self.assertEqual(patient, GetModified(a, 'Patient', 1) [0])
+
+        a = DoPost(_REMOTE, '/tools/bulk-anonymize', {
+            'Resources' : [ instance ]
+            })
+
+        self.assertNotEqual(instance, GetModified(a, 'Instance', 1) [0])
+        self.assertNotEqual(series, GetModified(a, 'Series', 1) [0])
+        self.assertNotEqual(study, GetModified(a, 'Study', 1) [0])
+        self.assertNotEqual(patient, GetModified(a, 'Patient', 1) [0])
+        
+        self.assertEqual(3, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        
+        DropOrthanc(_REMOTE)
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        knee1 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
+        knee2 = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm') ['ID']
+        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+        
+        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/patients')))
+
+        a = DoPost(_REMOTE, '/tools/bulk-modify', {
+            'Resources' : [ knee1, brainix ]
+            })
+
+        self.assertEqual(6, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/patients')))
+
+        for i in GetModified(a, 'Instance', 2):
+            self.assertTrue(not i in [ instance, knee1, knee2, brainix ])
+            self.assertTrue(DoGet(_REMOTE, '/instances/%s/metadata/ModifiedFrom' % i) in [ knee1, brainix ])
+
+        b = GetModified(a, 'Series', 2)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/series' % knee1) ['ID'] in b)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/series' % brainix) ['ID'] in b)
+        self.assertFalse(DoGet(_REMOTE, '/instances/%s/series' % knee2) ['ID'] in b)
+        self.assertFalse(DoGet(_REMOTE, '/instances/%s/series' % instance) ['ID'] in b)
+        
+        b = GetModified(a, 'Study', 2)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/study' % knee1) ['ID'] in b)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/study' % brainix) ['ID'] in b)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/study' % knee2) ['ID'] in b)
+        self.assertFalse(DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID'] in b)
+
+        b = GetModified(a, 'Patient', 2)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/patient' % knee1) ['ID'] in b)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/patient' % brainix) ['ID'] in b)
+        self.assertTrue(DoGet(_REMOTE, '/instances/%s/patient' % knee2) ['ID'] in b)
+        self.assertFalse(DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID'] in b)
+        
+        DropOrthanc(_REMOTE)
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        knee1 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
+        knee2 = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm') ['ID']
+        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+
+        sourceInstances = DoGet(_REMOTE, '/instances')
+        sourceSeries = DoGet(_REMOTE, '/series')
+        sourceStudies = DoGet(_REMOTE, '/studies')
+        sourcePatients = DoGet(_REMOTE, '/patients')
+        self.assertEqual(4, len(sourceInstances))
+        self.assertEqual(4, len(sourceSeries))
+        self.assertEqual(3, len(sourceStudies))
+        self.assertEqual(3, len(sourcePatients))
+
+        a = DoPost(_REMOTE, '/tools/bulk-anonymize', {
+            'Resources' : [ knee1, brainix ]
+            })
+
+        self.assertEqual(6, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(6, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(5, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(5, len(DoGet(_REMOTE, '/patients')))
+
+        for i in GetModified(a, 'Instance', 2):
+            self.assertFalse(i in sourceInstances)
+            self.assertTrue(DoGet(_REMOTE, '/instances/%s/metadata/AnonymizedFrom' % i) in [ knee1, brainix ])
+
+        for i in GetModified(a, 'Series', 2):
+            self.assertFalse(i in sourceSeries)
+            self.assertTrue(DoGet(_REMOTE, '/series/%s/metadata/AnonymizedFrom' % i) in sourceSeries)
+
+        for i in GetModified(a, 'Study', 2):
+            self.assertFalse(i in sourceStudies)
+            self.assertTrue(DoGet(_REMOTE, '/studies/%s/metadata/AnonymizedFrom' % i) in sourceStudies)
+
+        for i in GetModified(a, 'Patient', 2):
+            self.assertFalse(i in sourcePatients)
+            self.assertTrue(DoGet(_REMOTE, '/patients/%s/metadata/AnonymizedFrom' % i) in sourcePatients)
