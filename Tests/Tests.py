@@ -7257,8 +7257,8 @@ class Orthanc(unittest.TestCase):
     def test_bulk_modify(self):
         # New in Orthanc 1.9.4
 
-        def GetModified(result, resourceType, expectedCount = None):
-            m = map(lambda x: x['ID'], filter(lambda x: x['Type'] == resourceType, a['Resources']))
+        def GetModified(lst, resourceType, expectedCount = None):
+            m = map(lambda x: x['ID'], filter(lambda x: x['Type'] == resourceType, lst['Resources']))
             if expectedCount != None:
                 self.assertEqual(expectedCount, len(m))
             return m
@@ -7277,22 +7277,24 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(study, GetModified(a, 'Study', 1) [0])
         self.assertEqual(patient, GetModified(a, 'Patient', 1) [0])
 
-        a = DoPost(_REMOTE, '/tools/bulk-anonymize', {
+        b = DoPost(_REMOTE, '/tools/bulk-anonymize', {
             'Resources' : [ instance ]
             })
 
-        self.assertNotEqual(instance, GetModified(a, 'Instance', 1) [0])
-        self.assertNotEqual(series, GetModified(a, 'Series', 1) [0])
-        self.assertNotEqual(study, GetModified(a, 'Study', 1) [0])
-        self.assertNotEqual(patient, GetModified(a, 'Patient', 1) [0])
+        self.assertNotEqual(instance, GetModified(b, 'Instance', 1) [0])
+        self.assertNotEqual(series, GetModified(b, 'Series', 1) [0])
+        self.assertNotEqual(study, GetModified(b, 'Study', 1) [0])
+        self.assertNotEqual(patient, GetModified(b, 'Patient', 1) [0])
         
         self.assertEqual(3, len(DoGet(_REMOTE, '/instances')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+
+        DoPost(_REMOTE, '/tools/bulk-delete', {
+            'Resources' : GetModified(b, 'Patient', 1) + GetModified(a, 'Instance', 1)
+            })
         
-        DropOrthanc(_REMOTE)
-        UploadInstance(_REMOTE, 'DummyCT.dcm')
         knee1 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
         knee2 = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm') ['ID']
         brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
@@ -7333,11 +7335,9 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(DoGet(_REMOTE, '/instances/%s/patient' % knee2) ['ID'] in b)
         self.assertFalse(DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID'] in b)
         
-        DropOrthanc(_REMOTE)
-        UploadInstance(_REMOTE, 'DummyCT.dcm')
-        knee1 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
-        knee2 = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm') ['ID']
-        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+        DoPost(_REMOTE, '/tools/bulk-delete', {
+            'Resources' : GetModified(a, 'Instance', 2)
+        })
 
         sourceInstances = DoGet(_REMOTE, '/instances')
         sourceSeries = DoGet(_REMOTE, '/series')
@@ -7372,3 +7372,23 @@ class Orthanc(unittest.TestCase):
         for i in GetModified(a, 'Patient', 2):
             self.assertFalse(i in sourcePatients)
             self.assertTrue(DoGet(_REMOTE, '/patients/%s/metadata/AnonymizedFrom' % i) in sourcePatients)
+
+        DoPost(_REMOTE, '/tools/bulk-delete', {
+            'Resources' : GetModified(a, 'Patient', 2)
+        })
+
+        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(4, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(3, len(DoGet(_REMOTE, '/patients')))
+
+        DoPost(_REMOTE, '/tools/bulk-delete', {
+            'Resources' : [ instance,
+                            DoGet(_REMOTE, '/instances/%s/patient' % knee1) ['ID'],
+                            DoGet(_REMOTE, '/instances/%s/series' % brainix) ['ID'] ]
+        })
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
