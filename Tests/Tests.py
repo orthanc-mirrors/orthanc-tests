@@ -7600,3 +7600,26 @@ class Orthanc(unittest.TestCase):
                          DoGet(_REMOTE, '/instances/%s/module?simplify' % instance) ['SOPInstanceUID'])
         self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
                          DoGet(_REMOTE, '/instances/%s/module?short' % instance) ['0008,0018'])
+
+        # Test "ListQueryAnswers()" in "OrthancRestModalities.cpp"
+        a = DoPost(_REMOTE, '/modalities/self/query', { 'Level' : 'Study',
+                                                        'Query' : { 'PatientID' : '*' }}) ['ID']
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers?expand' % a) [0]['0010,0020']['Value'])
+        self.assertEqual('PatientID', DoGet(_REMOTE, '/queries/%s/answers?expand' % a) [0]['0010,0020']['Name'])
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a) [0]['PatientID'])
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers?expand&short' % a) [0]['0010,0020'])
+
+        # Test "GetQueryOneAnswer()" in "OrthancRestModalities.cpp"
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers/0/content' % a) ['0010,0020']['Value'])
+        self.assertEqual('PatientID', DoGet(_REMOTE, '/queries/%s/answers/0/content' % a) ['0010,0020']['Name'])
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers/0/content?simplify' % a) ['PatientID'])
+        self.assertEqual('ozp00SjY2xG', DoGet(_REMOTE, '/queries/%s/answers/0/content?short' % a) ['0010,0020'])
+        
+        # Test "GetQueryArguments()" in "OrthancRestModalities.cpp"
+        self.assertEqual('*', DoGet(_REMOTE, '/queries/%s/query' % a) ['0010,0020']['Value'])
+        self.assertEqual('PatientID', DoGet(_REMOTE, '/queries/%s/query' % a) ['0010,0020']['Name'])
+        self.assertEqual('*', DoGet(_REMOTE, '/queries/%s/query?simplify' % a) ['PatientID'])
+        self.assertEqual('*', DoGet(_REMOTE, '/queries/%s/query?short' % a) ['0010,0020'])
+        
