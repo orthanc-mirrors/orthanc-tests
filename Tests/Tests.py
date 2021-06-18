@@ -7623,3 +7623,38 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('*', DoGet(_REMOTE, '/queries/%s/query?simplify' % a) ['PatientID'])
         self.assertEqual('*', DoGet(_REMOTE, '/queries/%s/query?short' % a) ['0010,0020'])
         
+        # Test "BulkContent()" in "OrthancRestResources.cpp"
+        a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ patient, study, series, instance ] })
+        self.assertEqual(4, len(a))
+        self.assertEqual('ozp00SjY2xG', a[0]['MainDicomTags']['PatientID'])
+        self.assertEqual('Knee (R)', a[1]['MainDicomTags']['StudyDescription'])
+        self.assertEqual('KNIX', a[1]['PatientMainDicomTags']['PatientName'])
+        self.assertEqual('AX.  FSE PD', a[2]['MainDicomTags']['SeriesDescription'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         a[3]['MainDicomTags']['SOPInstanceUID'])
+
+        a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ patient, study, series, instance ],
+                                                     'Short': True })
+        self.assertEqual(4, len(a))
+        self.assertEqual('ozp00SjY2xG', a[0]['MainDicomTags']['0010,0020'])
+        self.assertEqual('Knee (R)', a[1]['MainDicomTags']['0008,1030'])
+        self.assertEqual('KNIX', a[1]['PatientMainDicomTags']['0010,0010'])
+        self.assertEqual('AX.  FSE PD', a[2]['MainDicomTags']['0008,103e'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         a[3]['MainDicomTags']['0008,0018'])
+        
+        a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ patient, study, series, instance ],
+                                                     'Full': True })
+        self.assertEqual(4, len(a))
+        self.assertEqual('ozp00SjY2xG', a[0]['MainDicomTags']['0010,0020']['Value'])
+        self.assertEqual('PatientID', a[0]['MainDicomTags']['0010,0020']['Name'])
+        self.assertEqual('Knee (R)', a[1]['MainDicomTags']['0008,1030']['Value'])
+        self.assertEqual('StudyDescription', a[1]['MainDicomTags']['0008,1030']['Name'])
+        self.assertEqual('KNIX', a[1]['PatientMainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', a[1]['PatientMainDicomTags']['0010,0010']['Name'])
+        self.assertEqual('AX.  FSE PD', a[2]['MainDicomTags']['0008,103e']['Value'])
+        self.assertEqual('SeriesDescription', a[2]['MainDicomTags']['0008,103e']['Name'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         a[3]['MainDicomTags']['0008,0018']['Value'])
+        self.assertEqual('SOPInstanceUID', a[3]['MainDicomTags']['0008,0018']['Name'])
+        
