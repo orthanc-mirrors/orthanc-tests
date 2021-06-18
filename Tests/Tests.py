@@ -7392,3 +7392,211 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
+
+    def test_dicom_to_json_format(self):
+        # Test new output formats for DICOM tags introduced in 1.9.4
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        patient = DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+        series = DoGet(_REMOTE, '/instances/%s/series' % instance) ['ID']
+        
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/tags' % instance) ['0010,0010']['Value'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/tags?simplify' % instance) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/tags?short' % instance) ['0010,0010'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/instances/%s/tags?full' % instance) ['0010,0010']['Name'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/tags?full' % instance) ['0010,0010']['Value'])
+        self.assertEqual('String', DoGet(_REMOTE, '/instances/%s/tags?full' % instance) ['0010,0010']['Type'])
+
+        # Test "GetInstanceHeader()" in "OrthancRestResources.cpp"
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header' % instance) ['0002,0010']['Value'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?simplify' % instance) ['TransferSyntaxUID'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?short' % instance) ['0002,0010'])
+        self.assertEqual('TransferSyntaxUID', DoGet(_REMOTE, '/instances/%s/header?full' % instance) ['0002,0010']['Name'])
+        self.assertEqual('1.2.840.10008.1.2.4.70', DoGet(_REMOTE, '/instances/%s/header?full' % instance) ['0002,0010']['Value'])
+        self.assertEqual('String', DoGet(_REMOTE, '/instances/%s/header?full' % instance) ['0002,0010']['Type'])
+
+        # Test "ListResources()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients?expand') [0]['MainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients?expand&short') [0]['MainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients?expand&full') [0]['MainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/patients?expand&full') [0]['MainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies?expand') [0]['PatientMainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies?expand&short') [0]['PatientMainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies?expand&full') [0]['PatientMainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/studies?expand&full') [0]['PatientMainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies?expand') [0]['MainDicomTags']['StudyDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies?expand&short') [0]['MainDicomTags']['0008,0020'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies?expand&full') [0]['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('StudyDate', DoGet(_REMOTE, '/studies?expand&full') [0]['MainDicomTags']['0008,0020']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series?expand') [0]['MainDicomTags']['SeriesDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series?expand&short') [0]['MainDicomTags']['0008,0021'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series?expand&full') [0]['MainDicomTags']['0008,0021']['Value'])
+        self.assertEqual('SeriesDate', DoGet(_REMOTE, '/series?expand&full') [0]['MainDicomTags']['0008,0021']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances?expand') [0]['MainDicomTags']['InstanceCreationDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances?expand&short') [0]['MainDicomTags']['0008,0012'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances?expand&full') [0]['MainDicomTags']['0008,0012']['Value'])
+        self.assertEqual('InstanceCreationDate', DoGet(_REMOTE, '/instances?expand&full') [0]['MainDicomTags']['0008,0012']['Name'])
+
+        # Test "GetSingleResource()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s' % patient) ['MainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s?short' % patient) ['MainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s?full' % patient) ['MainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/patients/%s?full' % patient) ['MainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s' % study) ['PatientMainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s?short' % study) ['PatientMainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s?full' % study) ['PatientMainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/studies/%s?full' % study) ['PatientMainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s' % study) ['MainDicomTags']['StudyDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s?short' % study) ['MainDicomTags']['0008,0020'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s?full' % study) ['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('StudyDate', DoGet(_REMOTE, '/studies/%s?full' % study) ['MainDicomTags']['0008,0020']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s' % series) ['MainDicomTags']['SeriesDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s?short' % series) ['MainDicomTags']['0008,0021'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s?full' % series) ['MainDicomTags']['0008,0021']['Value'])
+        self.assertEqual('SeriesDate', DoGet(_REMOTE, '/series/%s?full' % series) ['MainDicomTags']['0008,0021']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s' % instance) ['MainDicomTags']['InstanceCreationDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s?short' % instance) ['MainDicomTags']['0008,0012'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s?full' % instance) ['MainDicomTags']['0008,0012']['Value'])
+        self.assertEqual('InstanceCreationDate', DoGet(_REMOTE, '/instances/%s?full' % instance) ['MainDicomTags']['0008,0012']['Name'])
+
+        # Test "Find()" in "OrthancRestResources.cpp"
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : {}, 'Expand' : True })
+        self.assertEqual('20070101', a[0]['MainDicomTags']['StudyDate'])
+        self.assertEqual('KNIX', a[0]['PatientMainDicomTags']['PatientName'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : {}, 'Expand' : True, 'Short' : True })
+        self.assertEqual('20070101', a[0]['MainDicomTags']['0008,0020'])
+        self.assertEqual('KNIX', a[0]['PatientMainDicomTags']['0010,0010'])
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : {}, 'Expand' : True, 'Full' : True })
+        self.assertEqual('20070101', a[0]['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('KNIX', a[0]['PatientMainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('StudyDate', a[0]['MainDicomTags']['0008,0020']['Name'])
+        self.assertEqual('PatientName', a[0]['PatientMainDicomTags']['0010,0010']['Name'])
+
+        # Test "GetChildResources()" in "OrthancRestResources.cpp"
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/studies' % patient) [0]['MainDicomTags']['StudyDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/studies?short' % patient) [0]['MainDicomTags']['0008,0020'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/studies?full' % patient) [0]['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('StudyDate', DoGet(_REMOTE, '/patients/%s/studies?full' % patient) [0]['MainDicomTags']['0008,0020']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/series' % patient) [0]['MainDicomTags']['SeriesDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/series?short' % patient) [0]['MainDicomTags']['0008,0021'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/series?full' % patient) [0]['MainDicomTags']['0008,0021']['Value'])
+        self.assertEqual('SeriesDate', DoGet(_REMOTE, '/patients/%s/series?full' % patient) [0]['MainDicomTags']['0008,0021']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/instances' % patient) [0]['MainDicomTags']['InstanceCreationDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/instances?short' % patient) [0]['MainDicomTags']['0008,0012'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/patients/%s/instances?full' % patient) [0]['MainDicomTags']['0008,0012']['Value'])
+        self.assertEqual('InstanceCreationDate', DoGet(_REMOTE, '/patients/%s/instances?full' % patient) [0]['MainDicomTags']['0008,0012']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/series' % study) [0]['MainDicomTags']['SeriesDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/series?short' % study) [0]['MainDicomTags']['0008,0021'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/series?full' % study) [0]['MainDicomTags']['0008,0021']['Value'])
+        self.assertEqual('SeriesDate', DoGet(_REMOTE, '/studies/%s/series?full' % study) [0]['MainDicomTags']['0008,0021']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/instances' % study) [0]['MainDicomTags']['InstanceCreationDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/instances?short' % study) [0]['MainDicomTags']['0008,0012'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/studies/%s/instances?full' % study) [0]['MainDicomTags']['0008,0012']['Value'])
+        self.assertEqual('InstanceCreationDate', DoGet(_REMOTE, '/studies/%s/instances?full' % study) [0]['MainDicomTags']['0008,0012']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/instances' % series) [0]['MainDicomTags']['InstanceCreationDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/instances?short' % series) [0]['MainDicomTags']['0008,0012'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/instances?full' % series) [0]['MainDicomTags']['0008,0012']['Value'])
+        self.assertEqual('InstanceCreationDate', DoGet(_REMOTE, '/series/%s/instances?full' % series) [0]['MainDicomTags']['0008,0012']['Name'])
+
+        # Test "GetParentResource()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/patient' % instance) ['MainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/patient?short' % instance) ['MainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/instances/%s/patient?full' % instance) ['MainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/instances/%s/patient?full' % instance) ['MainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/study' % instance) ['MainDicomTags']['StudyDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/study?short' % instance) ['MainDicomTags']['0008,0020'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/study?full' % instance) ['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('StudyDate', DoGet(_REMOTE, '/instances/%s/study?full' % instance) ['MainDicomTags']['0008,0020']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/series' % instance) ['MainDicomTags']['SeriesDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/series?short' % instance) ['MainDicomTags']['0008,0021'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/instances/%s/series?full' % instance) ['MainDicomTags']['0008,0021']['Value'])
+        self.assertEqual('SeriesDate', DoGet(_REMOTE, '/instances/%s/series?full' % instance) ['MainDicomTags']['0008,0021']['Name'])
+
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/patient' % series) ['MainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/patient?short' % series) ['MainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/patient?full' % series) ['MainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/series/%s/patient?full' % series) ['MainDicomTags']['0010,0010']['Name'])
+
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/study' % series) ['MainDicomTags']['StudyDate'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/study?short' % series) ['MainDicomTags']['0008,0020'])
+        self.assertEqual('20070101', DoGet(_REMOTE, '/series/%s/study?full' % series) ['MainDicomTags']['0008,0020']['Value'])
+        self.assertEqual('StudyDate', DoGet(_REMOTE, '/series/%s/study?full' % series) ['MainDicomTags']['0008,0020']['Name'])
+
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/patient' % study) ['MainDicomTags']['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/patient?short' % study) ['MainDicomTags']['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/patient?full' % study) ['MainDicomTags']['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/studies/%s/patient?full' % study) ['MainDicomTags']['0010,0010']['Name'])
+
+        # Test "GetChildInstancesTags()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % patient) [instance]['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/instances-tags?short' % patient) [instance]['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/instances-tags' % patient) [instance]['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/patients/%s/instances-tags' % patient) [instance]['0010,0010']['Name'])
+        
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/instances-tags?simplify' % study) [instance]['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/instances-tags?short' % study) [instance]['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/instances-tags' % study) [instance]['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/studies/%s/instances-tags' % study) [instance]['0010,0010']['Name'])
+        
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/instances-tags?simplify' % series) [instance]['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/instances-tags?short' % series) [instance]['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/instances-tags' % series) [instance]['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/series/%s/instances-tags' % series) [instance]['0010,0010']['Name'])
+
+        # Test "GetSharedTags()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/shared-tags?simplify' % patient) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/shared-tags?short' % patient) ['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/shared-tags' % patient) ['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/patients/%s/shared-tags' % patient) ['0010,0010']['Name'])
+        
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/shared-tags?simplify' % study) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/shared-tags?short' % study) ['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/shared-tags' % study) ['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/studies/%s/shared-tags' % study) ['0010,0010']['Name'])
+        
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/shared-tags?simplify' % series) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/shared-tags?short' % series) ['0010,0010'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/series/%s/shared-tags' % series) ['0010,0010']['Value'])
+        self.assertEqual('PatientName', DoGet(_REMOTE, '/series/%s/shared-tags' % series) ['0010,0010']['Name'])
+
+        # Test "GetModule()" in "OrthancRestResources.cpp"
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/module' % patient) ['0010,0010']['Value'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/module?simplify' % patient) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/patients/%s/module?short' % patient) ['0010,0010'])
+
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/module-patient' % study) ['0010,0010']['Value'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % study) ['PatientName'])
+        self.assertEqual('KNIX', DoGet(_REMOTE, '/studies/%s/module-patient?short' % study) ['0010,0010'])
+
+        self.assertEqual('Knee (R)', DoGet(_REMOTE, '/studies/%s/module' % study) ['0008,1030']['Value'])
+        self.assertEqual('Knee (R)', DoGet(_REMOTE, '/studies/%s/module?simplify' % study) ['StudyDescription'])
+        self.assertEqual('Knee (R)', DoGet(_REMOTE, '/studies/%s/module?short' % study) ['0008,1030'])
+
+        self.assertEqual('AX.  FSE PD', DoGet(_REMOTE, '/series/%s/module' % series) ['0008,103e']['Value'])
+        self.assertEqual('AX.  FSE PD', DoGet(_REMOTE, '/series/%s/module?simplify' % series) ['SeriesDescription'])
+        self.assertEqual('AX.  FSE PD', DoGet(_REMOTE, '/series/%s/module?short' % series) ['0008,103e'])
+
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         DoGet(_REMOTE, '/instances/%s/module' % instance) ['0008,0018']['Value'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         DoGet(_REMOTE, '/instances/%s/module?simplify' % instance) ['SOPInstanceUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+                         DoGet(_REMOTE, '/instances/%s/module?short' % instance) ['0008,0018'])
