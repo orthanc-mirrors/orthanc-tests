@@ -7762,6 +7762,26 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(series, DoGet(_REMOTE, '/instances/%s/series' % i) ['ID'])
             self.assertEqual(study, DoGet(_REMOTE, '/instances/%s/study' % i) ['ID'])
             
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/split' % study, {
+            'KeepSource' : False
+        }))  # Neither "Instances", nor "Series"
+
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/split' % study, {
+            'KeepSource' : False,
+            'Instances' : [ ],
+            'Series' : [ ]
+        }))  # Empty "Instances" and "Series"
+
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/split' % study, {
+            'Instances' : [ 'nope' ],
+            'KeepSource' : False
+        }))
+
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/split' % study, {
+            'Series' : [ 'nope' ],
+            'KeepSource' : False
+        }))
+
         result = DoPost(_REMOTE, '/studies/%s/split' % study, {
             'Instances' : [ knee1 ],
             'KeepSource' : False
