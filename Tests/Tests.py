@@ -7741,3 +7741,44 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertTrue(DoGet(_REMOTE, '/instances/%s/%s' % (knee1, level.lower())) ['ID'] in b)
                 self.assertTrue(DoGet(_REMOTE, '/instances/%s/%s' % (brainix, level.lower())) ['ID'] in b)
+
+
+    def test_split_instances(self):
+        # New in 1.9.4
+        knee1 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
+        knee2 = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm') ['ID']
+        study = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+        series = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+
+        instances = DoGet(_REMOTE, '/instances')
+        self.assertEqual(2, len(instances))
+        self.assertEqual('1', DoGet(_REMOTE, '/instances/%s/tags?simplify' % knee1) ['InstanceNumber'])
+        self.assertEqual('2', DoGet(_REMOTE, '/instances/%s/tags?simplify' % knee2) ['InstanceNumber'])
+        for i in [ knee1, knee2 ]:
+            self.assertEqual(series, DoGet(_REMOTE, '/instances/%s/series' % i) ['ID'])
+            self.assertEqual(study, DoGet(_REMOTE, '/instances/%s/study' % i) ['ID'])
+            
+        result = DoPost(_REMOTE, '/studies/%s/split' % study, {
+            'Instances' : [ knee1 ],
+            'KeepSource' : False
+        })
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+
+        instances = DoGet(_REMOTE, '/instances')
+        self.assertEqual(2, len(instances))
+
+        self.assertFalse(knee1 in instances)
+        self.assertTrue(knee2 in instances)
+        instances.remove(knee2)
+        self.assertEqual(series, DoGet(_REMOTE, '/instances/%s/series' % knee2) ['ID'])
+        self.assertEqual(study, DoGet(_REMOTE, '/instances/%s/study' % knee2) ['ID'])
+        self.assertNotEqual(series, DoGet(_REMOTE, '/instances/%s/series' % instances[0]) ['ID'])
+        self.assertNotEqual(study, DoGet(_REMOTE, '/instances/%s/study' % instances[0]) ['ID'])
+        self.assertEqual('1', DoGet(_REMOTE, '/instances/%s/tags?simplify' % instances[0]) ['InstanceNumber'])
