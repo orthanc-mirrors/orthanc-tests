@@ -7677,6 +7677,7 @@ class Orthanc(unittest.TestCase):
         b = map(lambda x: x['ID'], a)
         for i in range(4):
             self.assertEqual(brainixHierarchy[i], b[i])
+            self.assertTrue('Metadata' in a[i])
 
         for (level, index) in [
                 ('Patient', 0),
@@ -7689,12 +7690,15 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(a))
             self.assertEqual(level, a[0]['Type'])
             self.assertEqual(brainixHierarchy[index], a[0]['ID'])
+            self.assertTrue('Metadata' in a[0])
         
             a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ brainix ],
-                                                         'Level' : level })
+                                                         'Level' : level,
+                                                         'Metadata' : False })
             self.assertEqual(1, len(a))
             self.assertEqual(level, a[0]['Type'])
             self.assertEqual(brainixHierarchy[index], a[0]['ID'])
+            self.assertFalse('Metadata' in a[0])
 
         a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, knee2, brainix ] })
         self.assertEqual(3, len(a))
@@ -7715,18 +7719,24 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(DoGet(_REMOTE, '/instances/%s' % knee2) ['ParentSeries'] in b)
 
         a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, knee2 ],
-                                                     'Level' : 'Study' })
+                                                     'Level' : 'Study',
+                                                     'Metadata' : False })
         self.assertEqual(1, len(a))
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/study' % knee1) ['ID'], a[0]['ID'])
         self.assertEqual('Study', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
+        self.assertFalse('Metadata' in a[0])
 
         a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, knee2 ],
-                                                     'Level' : 'Patient' })
+                                                     'Level' : 'Patient',
+                                                     'Metadata' : True })
         self.assertEqual(1, len(a))
         self.assertEqual(DoGet(_REMOTE, '/instances/%s/patient' % knee1) ['ID'], a[0]['ID'])
         self.assertEqual('Patient', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
+        self.assertTrue('Metadata' in a[0])
+        self.assertEqual(1, len(a[0]['Metadata']))
+        self.assertTrue('LastUpdate' in a[0]['Metadata'])
 
         for level in [ 'Instance', 'Series', 'Study', 'Patient' ]:
             a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, brainix ],
