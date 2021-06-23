@@ -7812,3 +7812,34 @@ class Orthanc(unittest.TestCase):
         self.assertNotEqual(series, DoGet(_REMOTE, '/instances/%s/series' % instances[0]) ['ID'])
         self.assertNotEqual(study, DoGet(_REMOTE, '/instances/%s/study' % instances[0]) ['ID'])
         self.assertEqual('1', DoGet(_REMOTE, '/instances/%s/tags?simplify' % instances[0]) ['InstanceNumber'])
+
+
+    def test_merge_instances(self):
+        # New in Orthanc 1.9.4
+        knee = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
+        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+        brainixStudy = DoGet(_REMOTE, '/instances/%s/study' % brainix) ['ID']
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+        instances = DoGet(_REMOTE, '/instances')
+        self.assertEqual(2, len(instances))
+        self.assertTrue(brainix in instances)
+        self.assertTrue(knee in instances)
+
+        result = DoPost(_REMOTE, '/studies/%s/merge' % brainixStudy, {
+            'Resources' : [ knee ]
+        })
+        
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(brainixStudy, DoGet(_REMOTE, '/studies')[0])
+
+        instances = DoGet(_REMOTE, '/instances')
+        self.assertEqual(2, len(instances))
+        self.assertTrue(brainix in instances)
+        self.assertFalse(knee in instances)
