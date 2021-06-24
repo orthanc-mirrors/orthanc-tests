@@ -7047,9 +7047,10 @@ class Orthanc(unittest.TestCase):
         tags2021b = GetTags(study, { 'DicomVersion' : '2021b' })
         tagsDefault = GetTags(study, {})
 
-        self.assertEqual('Orthanc mainline - PS 3.15-2008 Table E.1-1', tags2008['0012,0063'])
-        self.assertEqual('Orthanc mainline - PS 3.15-2017c Table E.1-1 Basic Profile', tags2017c['0012,0063'])
-        self.assertEqual('Orthanc mainline - PS 3.15-2021b Table E.1-1 Basic Profile', tags2021b['0012,0063'])
+        orthancVersion = DoGet(_REMOTE, '/system') ['Version']
+        self.assertEqual('Orthanc %s - PS 3.15-2008 Table E.1-1' % orthancVersion, tags2008['0012,0063'])
+        self.assertEqual('Orthanc %s - PS 3.15-2017c Table E.1-1 Basic Profile' % orthancVersion, tags2017c['0012,0063'])
+        self.assertEqual('Orthanc %s - PS 3.15-2021b Table E.1-1 Basic Profile' % orthancVersion, tags2021b['0012,0063'])
         self.assertEqual(tagsDefault['0012,0063'], tags2021b['0012,0063'])
 
         for t in [ tags2008, tags2017c, tags2021b, tagsDefault ]:
