@@ -319,6 +319,55 @@ class Orthanc(unittest.TestCase):
         Check('Ascii', 'ISO_IR 6', r'VANILL^LAURA^^^Mme')
         Check('Utf8', 'ISO_IR 192', r'VANILLÉ^LAURA^^^Mme')
         Check('Latin1', 'ISO_IR 100', u'VANILLÉ^LAURA^^^Mme'.encode('latin-1', 'ignore'))
+
+
+    def test_format(self):
+        DoPut(ORTHANC, '/tools/default-encoding', 'Latin1')
+        AddToDatabase('Dcmtk/Database/wklist1.dump')
+
+        # Only behavior of Orthanc <= 1.9.4
+        a = DoPost(ORTHANC, '/modalities/self/find-worklist', {
+            'PatientID' : ''
+            })
+        self.assertEqual(1, len(a))
+        self.assertEqual(2, len(a[0]))
+        self.assertEqual('AV35674', a[0]['PatientID'])
+        self.assertEqual('ISO_IR 100', a[0]['SpecificCharacterSet'])
+        
+        a = DoPost(ORTHANC, '/modalities/self/find-worklist', {
+            'Query' : {
+                'PatientID' : ''
+                }
+            })
+        self.assertEqual(1, len(a))
+        self.assertEqual(2, len(a[0]))
+        self.assertEqual('AV35674', a[0]['PatientID'])
+        self.assertEqual('ISO_IR 100', a[0]['SpecificCharacterSet'])
+        
+        a = DoPost(ORTHANC, '/modalities/self/find-worklist', {
+            'Query' : {
+                'PatientID' : ''
+                },
+            'Short' : True
+            })
+        self.assertEqual(1, len(a))
+        self.assertEqual(2, len(a[0]))
+        self.assertEqual('AV35674', a[0]['0010,0020'])
+        self.assertEqual('ISO_IR 100', a[0]['0008,0005'])
+        
+        a = DoPost(ORTHANC, '/modalities/self/find-worklist', {
+            'Query' : {
+                'PatientID' : ''
+                },
+            'Full' : True
+            })
+        self.assertEqual(1, len(a))
+        self.assertEqual(2, len(a[0]))
+        self.assertEqual('AV35674', a[0]['0010,0020']['Value'])
+        self.assertEqual('PatientID', a[0]['0010,0020']['Name'])
+        self.assertEqual('ISO_IR 100', a[0]['0008,0005']['Value'])
+        self.assertEqual('SpecificCharacterSet', a[0]['0008,0005']['Name'])
+ 
         
 try:
     print('\nStarting the tests...')
