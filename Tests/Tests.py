@@ -179,6 +179,18 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_LOCAL)
         DropOrthanc(_REMOTE)
         UninstallLuaCallbacks(_REMOTE)
+
+        # Reset stuff possibly set by some integration tests
+        DoPut(_REMOTE, '/tools/default-encoding', 'Latin1')
+        DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', [ '1.2.840.10008.1.*' ])
+        DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', '0')
+
+        for i in [ 'toto', 'tata' ]:
+            if i in DoGet(_REMOTE, '/modalities'):
+                DoDelete(_REMOTE, '/modalities/%s' % i)
+            if i in DoGet(_REMOTE, '/peers'):
+                DoDelete(_REMOTE, '/peers/%s' % i)
+        
         #print("%s: In test %s" % (datetime.now(), self._testMethodName))
         
     def AssertSameImages(self, truth, url):
@@ -1542,14 +1554,6 @@ class Orthanc(unittest.TestCase):
 
 
     def test_update_modalities(self):
-        try:
-            DoDelete(_REMOTE, '/modalities/toto')
-        except:
-            pass
-        try:
-            DoDelete(_REMOTE, '/modalities/tata')
-        except:
-            pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/modalities/toto'))
         DoPut(_REMOTE, '/modalities/toto', [ "STORESCP", "localhost", 2000 ])
@@ -1579,14 +1583,6 @@ class Orthanc(unittest.TestCase):
 
     def test_update_peers(self):
         # curl -X PUT http://localhost:8042/peers/toto -d '["http://localhost:8042/"]' -v
-        try:
-            DoDelete(_REMOTE, '/peers/toto')
-        except:
-            pass
-        try:
-            DoDelete(_REMOTE, '/peers/tata')
-        except:
-            pass
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
         self.assertRaises(Exception, lambda: DoDelete(_REMOTE, '/peers/toto'))
         DoPut(_REMOTE, '/peers/toto', [ 'http://localhost:8042/' ])
@@ -2586,9 +2582,6 @@ class Orthanc(unittest.TestCase):
         f = UploadInstance(_REMOTE, 'Issue32.dcm')['ID']
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % f)
         self.assertNotEqual(u'Рентгенография', tags['SeriesDescription'])
-
-        # Back to UTF-8
-        self.assertEqual('Utf8', DoPut(_REMOTE, '/tools/default-encoding', 'Utf8'))
 
         
     def test_encodings(self):
@@ -3644,9 +3637,6 @@ class Orthanc(unittest.TestCase):
 
                 tmp = ENCODINGS[name][1]
                 self.assertEqual(TEST.encode(tmp, 'ignore').decode(tmp), a[0]["PatientMainDicomTags"]["PatientName"])
-
-        # Back to UTF-8
-        self.assertEqual('Utf8', DoPut(_REMOTE, '/tools/default-encoding', 'Utf8'))
 
 
     def test_reconstruct(self):
@@ -7844,3 +7834,106 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(instances))
         self.assertTrue(brainix in instances)
         self.assertFalse(knee in instances)
+
+
+    def test_query_retrieve_format(self):
+        # New in Orthanc 1.9.5
+        # https://groups.google.com/g/orthanc-users/c/1KC4d-0K8s0/m/hfYYz1-tAgAJ
+        i = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % i) ['MainDicomTags']['StudyInstanceUID']
+
+        a = DoPost(_REMOTE, '/modalities/self/query', {
+            'Level' : 'Study',
+            'Query' : {}
+        })
+
+        b = DoGet(_REMOTE, a['Path'] + '/answers')
+        self.assertEqual(1, len(b))
+        self.assertEqual('0', b[0])
+        
+        b = DoGet(_REMOTE, a['Path'] + '/answers?expand')
+        self.assertEqual(1, len(b))
+        self.assertEqual(6, len(b[0]))
+        self.assertEqual('ISO_IR 100', b[0]['0008,0005']['Value'])
+        self.assertEqual('SpecificCharacterSet', b[0]['0008,0005']['Name'])
+        self.assertEqual('A10003245599', b[0]['0008,0050']['Value'])
+        self.assertEqual('AccessionNumber', b[0]['0008,0050']['Name'])
+        self.assertEqual('STUDY', b[0]['0008,0052']['Value'])
+        self.assertEqual('QueryRetrieveLevel', b[0]['0008,0052']['Name'])
+        self.assertEqual('ORTHANC', b[0]['0008,0054']['Value'])
+        self.assertEqual('RetrieveAETitle', b[0]['0008,0054']['Name'])
+        self.assertEqual('887', b[0]['0010,0020']['Value'])
+        self.assertEqual('PatientID', b[0]['0010,0020']['Name'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b[0]['0020,000d']['Value'])
+        self.assertEqual('StudyInstanceUID', b[0]['0020,000d']['Name'])
+
+        for (key, value) in b[0].items():
+            self.assertEqual('String', value['Type'])
+
+        self.assertEqual(json.dumps(b[0]),
+                         json.dumps(DoGet(_REMOTE, a['Path'] + '/answers/0/content')))
+
+        # What is below this point didn't work on Orthanc <= 1.9.3
+        
+        b = DoGet(_REMOTE, a['Path'] + '/answers?expand&short')
+        self.assertEqual(1, len(b))
+        self.assertEqual(6, len(b[0]))
+        self.assertEqual('ISO_IR 100', b[0]['0008,0005'])
+        self.assertEqual('A10003245599', b[0]['0008,0050'])
+        self.assertEqual('STUDY', b[0]['0008,0052'])
+        self.assertEqual('ORTHANC', b[0]['0008,0054'])
+        self.assertEqual('887', b[0]['0010,0020'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b[0]['0020,000d'])
+        self.assertEqual(json.dumps(b[0]),
+                         json.dumps(DoGet(_REMOTE, a['Path'] + '/answers/0/content?short')))
+        
+        b = DoGet(_REMOTE, a['Path'] + '/answers?expand&simplify')
+        self.assertEqual(1, len(b))
+        self.assertEqual(6, len(b[0]))
+        self.assertEqual('ISO_IR 100', b[0]['SpecificCharacterSet'])
+        self.assertEqual('A10003245599', b[0]['AccessionNumber'])
+        self.assertEqual('STUDY', b[0]['QueryRetrieveLevel'])
+        self.assertEqual('ORTHANC', b[0]['RetrieveAETitle'])
+        self.assertEqual('887', b[0]['PatientID'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b[0]['StudyInstanceUID'])
+        self.assertEqual(json.dumps(b[0]),
+                         json.dumps(DoGet(_REMOTE, a['Path'] + '/answers/0/content?simplify')))
+
+        b = DoPost(_REMOTE, '/queries/%s/retrieve' % a['ID'], {})
+        self.assertEqual('REST API', b['Description'])
+        self.assertEqual('ORTHANC', b['LocalAet'])
+        self.assertEqual('ORTHANC', b['RemoteAet'])
+        self.assertEqual(1, len(b['Query']))
+        self.assertEqual(4, len(b['Query'][0]))
+        self.assertEqual('A10003245599', b['Query'][0]['0008,0050'])
+        self.assertEqual('STUDY', b['Query'][0]['0008,0052'])
+        self.assertEqual('887', b['Query'][0]['0010,0020'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b['Query'][0]['0020,000d'])
+        
+        # What is below this point didn't work on Orthanc <= 1.9.4
+
+        b = DoPost(_REMOTE, '/queries/%s/retrieve' % a['ID'], { 'Full' : True })
+        self.assertEqual('REST API', b['Description'])
+        self.assertEqual('ORTHANC', b['LocalAet'])
+        self.assertEqual('ORTHANC', b['RemoteAet'])
+        self.assertEqual(1, len(b['Query']))
+        self.assertEqual(4, len(b['Query'][0]))
+        self.assertEqual('A10003245599', b['Query'][0]['0008,0050']['Value'])
+        self.assertEqual('STUDY', b['Query'][0]['0008,0052']['Value'])
+        self.assertEqual('887', b['Query'][0]['0010,0020']['Value'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b['Query'][0]['0020,000d']['Value'])
+        self.assertEqual('AccessionNumber', b['Query'][0]['0008,0050']['Name'])
+        self.assertEqual('QueryRetrieveLevel', b['Query'][0]['0008,0052']['Name'])
+        self.assertEqual('PatientID', b['Query'][0]['0010,0020']['Name'])
+        self.assertEqual('StudyInstanceUID', b['Query'][0]['0020,000d']['Name'])
+
+        b = DoPost(_REMOTE, '/queries/%s/retrieve' % a['ID'], { 'Simplify' : True })
+        self.assertEqual('REST API', b['Description'])
+        self.assertEqual('ORTHANC', b['LocalAet'])
+        self.assertEqual('ORTHANC', b['RemoteAet'])
+        self.assertEqual(1, len(b['Query']))
+        self.assertEqual(4, len(b['Query'][0]))
+        self.assertEqual('A10003245599', b['Query'][0]['AccessionNumber'])
+        self.assertEqual('STUDY', b['Query'][0]['QueryRetrieveLevel'])
+        self.assertEqual('887', b['Query'][0]['PatientID'])
+        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b['Query'][0]['StudyInstanceUID'])
