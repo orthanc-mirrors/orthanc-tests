@@ -6970,29 +6970,29 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(5, len(b))
         self.assertEqual(2, len(b["00080018"]))
         self.assertEqual("UI", b["00080018"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420",
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.6792.1625504071.652470",
                          b["00080018"]["Value"][0])
 
         self.assertEqual(2, len(b["0020000D"]))
         self.assertEqual("UI", b["0020000D"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418",
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.6792.1625504071.652468",
                          b["0020000D"]["Value"][0])
 
         self.assertEqual(2, len(b["0020000E"]))
         self.assertEqual("UI", b["0020000E"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419",
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.6792.1625504071.652469",
                          b["0020000E"]["Value"][0])
 
-        self.assertEqual(2, len(b["0008103E"]))
-        self.assertEqual("UN", b["0008103E"]["vr"])
+        self.assertEqual(2, len(b["00084567"]))
+        self.assertEqual("UN", b["00084567"]["vr"])
 
         # NB: "QgA=" corresponds to the base64 encoding of (uint16_t) 0x42 in little endian:
         #     $ echo -n 'QgA=' | base64 -d | hexdump -C
-        self.assertEqual("QgA=", b["0008103E"]["InlineBinary"])
+        self.assertEqual("QgA=", b["00084567"]["InlineBinary"])
 
         # Case of an empty value, fails in Orthanc <= 1.9.2 because of issue #195
-        self.assertEqual(1, len(b["00081030"]))
-        self.assertEqual("UN", b["00081030"]["vr"])
+        self.assertEqual(1, len(b["00084565"]))
+        self.assertEqual("UN", b["00084565"]["vr"])
 
 
     def test_modify_attribute(self):
@@ -7174,7 +7174,10 @@ class Orthanc(unittest.TestCase):
                   'ReferencedImageEvidenceSequence',  # 0008,9092
                   'DimensionIndexSequence',  # 0020,9222
                   'PerFrameFunctionalGroupsSequence[*].2005,140f[*].SOPInstanceUID',  # 5200,9230
-              ]
+                  '(5200,9230)[*].2005,140f[*].(0008,0023)',  # Compatibility with Orthanc 1.9.4
+                  '(5200,9230)[*].2005,140f[*].(0008,0033)',  # Compatibility with Orthanc 1.9.4
+              ],
+              'KeepPrivateTags' : True  # Compatibility with Orthanc 1.9.4
             })
         tags3 = GetTags(a['ID'])
 
@@ -7937,3 +7940,65 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('STUDY', b['Query'][0]['QueryRetrieveLevel'])
         self.assertEqual('887', b['Query'][0]['PatientID'])
         self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', b['Query'][0]['StudyInstanceUID'])
+
+
+    def test_anonymize_nested(self):
+        # New in Orthanc 1.9.5
+
+        tags = {
+            'MappingResourceIdentificationSequence' : [
+                {
+                    # Test "DicomModification::RelationshipsVisitor::GetDefaultAction()"
+                    '0009,1002' : 'ABCD',  # Private tag not registered in dictionary
+                    '0016,0071' : '-12',  # "GPS Latitude" whose VR is DS in "removals_"
+                    '0034,0005' : '13',  # VR is OB, and in "clearings_" (only in DCMTK 3.6.2)
+
+                    # Test "DicomModification::RelationshipsVisitor::VisitString()"
+                    'StudyDescription' : 'Hello',  # Removed
+                    'StudyDate' : '20210705',  # Cleared
+                    '0009,1001' : '-1234',  # Private tag whose VR is DS
+
+                    # Test anonymization of nested sequences
+                    'ReferencedStudySequence' : [
+                        {
+                            'PatientID' : 'HELLO'
+                        }
+                    ],
+
+                    # Non-anonymized tags
+                    'CodeMeaning' : 'MEANING1',
+                    'EquivalentCodeSequence' : [
+                        {
+                            'CodeMeaning' : 'MEANING2',
+                        }
+                    ],
+                }
+            ],
+        }
+        
+        a = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                       'Tags' : tags,
+                       'PrivateCreator' : 'Lunit',
+                   })) ['ID']
+
+        study = DoGet(_REMOTE, '/instances/%s/study' % a) ['ID']
+        b = DoPost(_REMOTE, '/studies/%s/anonymize' % study, {}) ['ID']
+        c = DoGet(_REMOTE, '/studies/%s/instances' % b)
+        self.assertEqual(1, len(c))
+
+        tags1 = DoGet(_REMOTE, '/instances/%s/tags?short' % a)
+        tags2 = DoGet(_REMOTE, '/instances/%s/tags?short' % c[0]['ID'])
+
+        # Only "StudyDate" must be present in
+        # "MappingResourceIdentificationSequence" after anonymization
+        self.assertEqual(1, len(tags1['0008,0124']))
+        self.assertEqual(1, len(tags2['0008,0124']))
+        self.assertEqual(9, len(tags1['0008,0124'][0]))
+        self.assertEqual(3, len(tags2['0008,0124'][0]))
+        self.assertEqual('', tags2['0008,0124'][0]['0008,0020'])
+        self.assertEqual('MEANING1', tags2['0008,0124'][0]['0008,0104'])
+        self.assertEqual('MEANING2', tags2['0008,0124'][0]['0008,0121'][0]['0008,0104'])
+
+        self.assertTrue('0008,1110' in tags1['0008,0124'][0])
+        self.assertFalse('0008,1110' in tags2['0008,0124'][0])
