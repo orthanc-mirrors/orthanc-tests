@@ -8009,7 +8009,7 @@ class Orthanc(unittest.TestCase):
         # https://bugs.orthanc-server.com/show_bug.cgi?id=200
         self.assertEqual(0, len(DoGet(_REMOTE, '/changes') ['Changes']))
         self.assertEqual(0, len(DoGet(_REMOTE, '/changes?last') ['Changes']))
-        u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
 
         for change in DoGet(_REMOTE, '/changes') ['Changes']:
             self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', change['Date']))
@@ -8017,5 +8017,25 @@ class Orthanc(unittest.TestCase):
 
         last = DoGet(_REMOTE, '/changes?last') ['Changes']
         self.assertEqual(1, len(last))
+        self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', last[0]['Date']))
+        self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', last[0]['ID']))
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports') ['Exports']))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/exports?last') ['Exports']))
+        DoPost(_REMOTE, '/modalities/self/store', [ u ])
+
+        for change in DoGet(_REMOTE, '/exports') ['Exports']:
+            self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', change['Date']))
+            self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', change['ID']))
+
+        last = DoGet(_REMOTE, '/exports?last') ['Exports']
+        self.assertEqual(1, len(last))
+        self.assertEqual('ozp00SjY2xG', last[0]['PatientID'])
+        self.assertEqual('self', last[0]['RemoteModality'])
+        self.assertEqual('Instance', last[0]['ResourceType'])
+        self.assertEqual('/instances/%s' % last[0]['ID'], last[0]['Path'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', last[0]['StudyInstanceUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', last[0]['SeriesInstanceUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', last[0]['SOPInstanceUID'])
         self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', last[0]['Date']))
         self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', last[0]['ID']))
