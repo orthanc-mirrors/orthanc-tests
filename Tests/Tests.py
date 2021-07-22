@@ -8002,3 +8002,15 @@ class Orthanc(unittest.TestCase):
 
         self.assertTrue('0008,1110' in tags1['0008,0124'][0])
         self.assertFalse('0008,1110' in tags2['0008,0124'][0])
+
+
+    def test_issue_200(self):
+        # https://groups.google.com/g/orthanc-users/c/9CTLsL-JqDw/m/2I0xgyYHBAAJ
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=200
+        c = DoGet(_REMOTE, '/changes')
+        self.assertEqual(0, len(c['Changes']))
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        for change in DoGet(_REMOTE, '/changes') ['Changes']:
+            self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', change['Date']))
+            self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', change['ID']))
