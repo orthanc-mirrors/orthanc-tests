@@ -8007,10 +8007,15 @@ class Orthanc(unittest.TestCase):
     def test_issue_200(self):
         # https://groups.google.com/g/orthanc-users/c/9CTLsL-JqDw/m/2I0xgyYHBAAJ
         # https://bugs.orthanc-server.com/show_bug.cgi?id=200
-        c = DoGet(_REMOTE, '/changes')
-        self.assertEqual(0, len(c['Changes']))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/changes') ['Changes']))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/changes?last') ['Changes']))
         u = UploadInstance(_REMOTE, 'DummyCT.dcm')
 
         for change in DoGet(_REMOTE, '/changes') ['Changes']:
             self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', change['Date']))
             self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', change['ID']))
+
+        last = DoGet(_REMOTE, '/changes?last') ['Changes']
+        self.assertEqual(1, len(last))
+        self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', last[0]['Date']))
+        self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', last[0]['ID']))
