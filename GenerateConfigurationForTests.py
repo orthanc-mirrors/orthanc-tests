@@ -206,6 +206,15 @@ config['MySQL'] = {
     'MaximumConnectionRetries' : 7,
 }
 
+config['Odbc'] = {
+    'EnableIndex' : True,
+    'EnableStorage' : True,
+    'IndexConnectionString' : 'DSN=test',
+    'StorageConnectionString' : 'DSN=storage',
+    'IndexConnectionsCount' : 1,
+    'MaximumConnectionRetries' : 7,
+}
+
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
