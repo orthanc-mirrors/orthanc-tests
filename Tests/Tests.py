@@ -8039,3 +8039,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', last[0]['SOPInstanceUID'])
         self.assertTrue(re.match('[0-9]{8}T[0-9]{6}', last[0]['Date']))
         self.assertTrue(re.match('[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}-[0-9a-z]{8}', last[0]['ID']))
+
+
+    def test_upload_dicomdir_archive(self):
+        # This test fails on Orthanc <= 1.9.6
+        # https://groups.google.com/g/orthanc-users/c/sgBU89o4nhU/m/kbRAYiQUAAAJ
+
+        # Create a ZIP archive with a DICOMDIR
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+        media = DoGet(_REMOTE, '/studies/%s/media' % study)
+        DoDelete(_REMOTE, '/instances/%s' % instance)
+        
+        result = DoPost(_REMOTE, '/instances', media)
+        self.assertEqual(1, len(result))
+        self.assertEqual(instance, result[0]['ID'])
+        self.assertEqual('Success', result[0]['Status'])
