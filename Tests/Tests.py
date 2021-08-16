@@ -8055,3 +8055,92 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(result))
         self.assertEqual(instance, result[0]['ID'])
         self.assertEqual('Success', result[0]['Status'])
+
+
+    def test_modify_keep_source(self):
+        # https://groups.google.com/g/orthanc-users/c/1lvlBTs2WUY/m/HmYsc2CPBQAJ
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = DoPost(_REMOTE, '/studies/%s/anonymize' % study, {}) ['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = DoPost(_REMOTE, '/studies/%s/anonymize' % study, { 'KeepSource' : True }) ['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = DoPost(_REMOTE, '/studies/%s/anonymize' % study, { 'KeepSource' : False }) ['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        a = DoPost(_REMOTE, '/studies/%s/modify' % study, { 'Replace' : { } }) ['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = DoPost(_REMOTE, '/studies/%s/modify' % study, { 'KeepSource' : True }) ['ID']
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = DoPost(_REMOTE, '/studies/%s/modify' % study, { 'KeepSource' : False }) ['ID']
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        def GetStudy(a):
+            b = filter(lambda x: x['Type'] == 'Study', a['Resources'])
+            if len(b) == 1:
+                return b[0]['ID']
+            else:
+                raise Exception()
+
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-anonymize', { 'Resources' : [ study ]}))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-anonymize', { 'Resources' : [ study ], 'KeepSource' : True}))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-anonymize', { 'Resources' : [ study ], 'KeepSource' : False}))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-modify', { 'Resources' : [ study ], 'Replace' : { }}))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        # No more studies, because "bulk-modify" was not given a
+        # level, so the modified instance belongs to the same study as
+        # the original instance
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+        # The following fails on Orthanc <= 1.9.6 because "Level" was
+        # introduced in 1.9.7
+
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-modify', { 'Level' : 'Study', 'Resources' : [ study ], 'Replace' : { }}))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-modify', { 'Level' : 'Study', 'Resources' : [ study ], 'KeepSource' : True}))
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        a = GetStudy(DoPost(_REMOTE, '/tools/bulk-modify', { 'Level' : 'Study', 'Resources' : [ study ], 'KeepSource' : False}))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        DoDelete(_REMOTE, '/studies/%s' % a)
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
