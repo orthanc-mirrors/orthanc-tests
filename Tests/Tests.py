@@ -8144,3 +8144,54 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
         DoDelete(_REMOTE, '/studies/%s' % a)
         self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+
+
+    def test_multiframe_windowing(self):
+        # Fixed in Orthanc 1.9.7
+        a = UploadInstance(_REMOTE, 'MultiframeWindowing.dcm') ['ID']
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/rendered?window-center=127&window-width=256' % a)
+        self.assertEqual(0x00, im.getpixel((0, 0)))
+        self.assertEqual(0x10, im.getpixel((1, 0)))
+        self.assertEqual(0x20, im.getpixel((0, 1)))
+        self.assertEqual(0x30, im.getpixel((1, 1)))
+
+        # Center the window on value "16 == 0x10", thus it has the
+        # mid-level value (i.e. 127)
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/rendered?window-center=16&window-width=128' % a)
+        self.assertEqual(127 - 2 * 16, im.getpixel((0, 0)))
+        self.assertEqual(127, im.getpixel((1, 0)))
+        self.assertEqual(127 + 2 * 16, im.getpixel((0, 1)))
+        self.assertEqual(127 + 2 * 32, im.getpixel((1, 1)))
+
+        # Window center and window width are burned in FrameVOILUTSequence for frame 0
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/rendered' % a)
+        self.assertEqual(127 - 2 * 16, im.getpixel((0, 0)))
+        self.assertEqual(127, im.getpixel((1, 0)))
+        self.assertEqual(127 + 2 * 16, im.getpixel((0, 1)))
+        self.assertEqual(127 + 2 * 32, im.getpixel((1, 1)))
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/1/rendered?window-center=127&window-width=256' % a)
+        self.assertEqual(100, im.getpixel((0, 0)))
+        self.assertEqual(116, im.getpixel((1, 0)))
+        self.assertEqual(132, im.getpixel((0, 1)))
+        self.assertEqual(148, im.getpixel((1, 1)))
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/2/rendered?window-center=127&window-width=256' % a)
+        self.assertEqual(0, im.getpixel((0, 0)))
+        self.assertEqual(32, im.getpixel((1, 0)))
+        self.assertEqual(64, im.getpixel((0, 1)))
+        self.assertEqual(96, im.getpixel((1, 1)))
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/3/rendered?window-center=127&window-width=256' % a)
+        self.assertEqual(100, im.getpixel((0, 0)))
+        self.assertEqual(132, im.getpixel((1, 0)))
+        self.assertEqual(164, im.getpixel((0, 1)))
+        self.assertEqual(196, im.getpixel((1, 1)))
+
+        im = GetImage(_REMOTE, '/instances/%s/frames/0/rendered?window-center=16&window-width=128' % a)
+        self.assertEqual(127 - 2 * 16, im.getpixel((0, 0)))
+        self.assertEqual(127, im.getpixel((1, 0)))
+        self.assertEqual(127 + 2 * 16, im.getpixel((0, 1)))
+        self.assertEqual(127 + 2 * 32, im.getpixel((1, 1)))
+
