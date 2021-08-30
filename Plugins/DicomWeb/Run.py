@@ -1398,10 +1398,10 @@ class Orthanc(unittest.TestCase):
         im2 = GetImage(ORTHANC, args.wado + '?requestType=WADO&objectUID=%s&contentType=image/png' % INSTANCE)
         self.assertEqual('PNG', im2.format)
         
-        im3 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered' % (STUDY, SERIES, INSTANCE))
+        im3 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered?window=200,800,linear' % (STUDY, SERIES, INSTANCE))
         self.assertEqual('JPEG', im3.format)
 
-        im4 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/rendered' % (STUDY, SERIES, INSTANCE),
+        im4 = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/rendered?window=200,800,linear' % (STUDY, SERIES, INSTANCE),
                        headers = { 'Accept' : 'image/png' })
         self.assertEqual('PNG', im4.format)
 
@@ -1416,19 +1416,15 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(512, im.size[0])
             self.assertEqual(512, im.size[1])
 
-        im2.save('/tmp/a.png')
-        im4.save('/tmp/b.png')
-        im6.save('/tmp/c.png')
-
         # The following fails in DICOMweb plugin <= 1.2, as "/rendered"
         # was redirecting to the "/preview" route of Orthanc
         # http://effbot.org/zone/pil-comparing-images.htm
-        self.assertTrue(ImageChops.difference(im1, im3).getbbox() is None)
+        self.assertLess(ImageChops.difference(im1, im3).getextrema() [1], 10)
+        self.assertLess(ImageChops.difference(im2, im4).getextrema() [1], 2)
+        self.assertLess(ImageChops.difference(im3, im5).getextrema() [1], 10)
+        self.assertLess(ImageChops.difference(im4, im6).getextrema() [1], 2)
         self.assertTrue(ImageChops.difference(im1, im5).getbbox() is None)
-        self.assertTrue(ImageChops.difference(im2, im4).getbbox() is None)
         self.assertTrue(ImageChops.difference(im2, im6).getbbox() is None)
-        self.assertTrue(ImageChops.difference(im3, im5).getbbox() is None)
-        self.assertTrue(ImageChops.difference(im4, im6).getbbox() is None)
 
         bbox = ImageChops.difference(im2, truth).getbbox()
         if bbox != None:
@@ -1475,45 +1471,143 @@ class Orthanc(unittest.TestCase):
 
         DoDelete(ORTHANC, 'instances/%s' % a)
         a = UploadInstance(ORTHANC, 'Issue195-bis.dcm') ['ID']
-        URI = 'dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418/series/1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419/instances/1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420'
+        URI = 'dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.6792.1625504071.652468/series/1.2.276.0.7230010.3.1.3.8323329.6792.1625504071.652469/instances/1.2.276.0.7230010.3.1.4.8323329.6792.1625504071.652470'
         b = DoGet(ORTHANC, '%s/metadata' % URI,
                   headers = { 'Accept' : 'application/dicom+json' })
         
         self.assertEqual(1, len(b))
         self.assertEqual(5, len(b[0]))
 
-        # The expected result can be found by typing "dcm2json Database/Issue195-bis.dcm"
+        # The expected result can be found by typing "dcm2json ../../Database/Issue195-bis.dcm"
         self.assertEqual(2, len(b[0]["00080018"]))
         self.assertEqual("UI", b[0]["00080018"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.23653.1620311964.865420",
+        self.assertEqual("1.2.276.0.7230010.3.1.4.8323329.6792.1625504071.652470",
                          b[0]["00080018"]["Value"][0])
 
         self.assertEqual(2, len(b[0]["0020000D"]))
         self.assertEqual("UI", b[0]["0020000D"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.23653.1620311964.865418",
+        self.assertEqual("1.2.276.0.7230010.3.1.2.8323329.6792.1625504071.652468",
                          b[0]["0020000D"]["Value"][0])
 
         self.assertEqual(2, len(b[0]["0020000E"]))
         self.assertEqual("UI", b[0]["0020000E"]["vr"])
-        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.23653.1620311964.865419",
+        self.assertEqual("1.2.276.0.7230010.3.1.3.8323329.6792.1625504071.652469",
                          b[0]["0020000E"]["Value"][0])
 
-        self.assertEqual(2, len(b[0]["0008103E"]))
-        self.assertEqual("UN", b[0]["0008103E"]["vr"])
-        self.assertEqual('http://%s:%s%s' % (args.server, args.rest, '/%s/bulk/0008103e' % URI),
-                         b[0]["0008103E"]["BulkDataURI"])
+        self.assertEqual(2, len(b[0]["00084567"]))
+        self.assertEqual("UN", b[0]["00084567"]["vr"])
+        self.assertEqual('http://%s:%s%s' % (args.server, args.rest, '/%s/bulk/00084567' % URI),
+                         b[0]["00084567"]["BulkDataURI"])
 
-        c = DoGet(ORTHANC, '%s/bulk/0008103e' % URI)
+        c = DoGet(ORTHANC, '%s/bulk/00084567' % URI)
         self.assertTrue('Content-Length: 2\r\n' in c)
         index = c.find('\r\n\r\n')
         self.assertEqual(0x42, ord(c[index + 4]))
         self.assertEqual(0x00, ord(c[index + 5]))
 
         # Case of an empty value, fails in Orthanc <= 1.9.2 because of issue #195
-        self.assertEqual(1, len(b[0]["00081030"]))
-        self.assertEqual("UN", b[0]["00081030"]["vr"])
+        self.assertEqual(1, len(b[0]["00084565"]))
+        self.assertEqual("UN", b[0]["00084565"]["vr"])
         
         
+
+
+    def test_multiframe_windowing(self):
+        # Fixed in DICOMweb 1.7
+        def GetLinear(x, c, w):
+            # http://dicom.nema.org/MEDICAL/dicom/2019a/output/chtml/part03/sect_C.11.2.html#sect_C.11.2.1.2.1
+            ymin = 0.0
+            ymax = 255.0
+            if float(x) <= float(c) - 0.5 - (float(w) - 1.0) / 2.0:
+                return ymin
+            elif float(x) > float(c) - 0.5 + (float(w) - 1.0) / 2.0 :
+                return ymax
+            else:
+                return ((float(x) - (float(c) - 0.5)) / (float(w) - 1.0) + 0.5) * (ymax - ymin) + ymin
+
+        def GetLinearExact(x, c, w):
+            # http://dicom.nema.org/MEDICAL/dicom/2019a/output/chtml/part03/sect_C.11.2.html#sect_C.11.2.1.3.2
+            ymin = 0.0
+            ymax = 255.0
+            if float(x) <= float(c) - float(w) / 2.0:
+                return ymin
+            elif float(x) > float(c) + float(w) / 2.0:
+                return ymax
+            else:
+                return (float(x) - float(c)) / float(w) * (ymax- ymin) + ymin
+
+        def GetSigmoid(x, c, w):
+            # http://dicom.nema.org/MEDICAL/dicom/2019a/output/chtml/part03/sect_C.11.2.html#sect_C.11.2.1.3.1
+            ymin = 0.0
+            ymax = 255.0
+            return (ymax - ymin) / (1.0 + math.exp(-4 * (float(x) - float(c)) / float(w)))
+
+        self.assertAlmostEqual(GetLinear(10, 0, 100), 154.54545454545456)
+        self.assertAlmostEqual(GetLinear(-1000, 2048, 4096), 0)
+        self.assertAlmostEqual(GetLinear(5096, 2048, 4096), 255)
+        self.assertAlmostEqual(GetLinear(333, 2048, 4096), 20.7362637362637)
+        self.assertAlmostEqual(GetLinear(16, 127, 256), 17)
+
+        self.assertAlmostEqual(GetLinearExact(-1000, 2048, 4096), 0)
+        self.assertAlmostEqual(GetLinearExact(5096, 2048, 4096), 255)
+        self.assertAlmostEqual(GetLinearExact(150, 127, 256), 22.91015625)
+
+        self.assertAlmostEqual(GetSigmoid(150, 127, 256), 150.166728345797)
+
+        UploadInstance(ORTHANC, 'MultiframeWindowing.dcm')
+        STUDY = '1.2.840.113619.2.176.2025.1499492.7391.1175285944.390'
+        SERIES = '1.2.840.113619.2.176.2025.1499492.7391.1175285944.394'
+        INSTANCE = '1.2.840.113619.2.176.2025.1499492.7040.1175286242.109'
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered?window=127,256,linear' % (STUDY, SERIES, INSTANCE))
+        self.assertLessEqual(abs(GetLinear(0x00, 127, 256) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x10, 127, 256) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x20, 127, 256) - im.getpixel((0, 1))), 1.1)
+        self.assertLessEqual(abs(GetLinear(0x30, 127, 256) - im.getpixel((1, 1))), 1.1)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered?window=0,256,linear-exact' % (STUDY, SERIES, INSTANCE))
+        self.assertLessEqual(abs(GetLinearExact(0x00, 0, 256) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinearExact(0x10, 0, 256) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetLinearExact(0x20, 0, 256) - im.getpixel((0, 1))), 1.2)
+        self.assertLessEqual(abs(GetLinearExact(0x30, 0, 256) - im.getpixel((1, 1))), 1.2)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered?window=127,256,sigmoid' % (STUDY, SERIES, INSTANCE))
+        self.assertLessEqual(abs(GetSigmoid(0x00, 127, 256) - im.getpixel((0, 0))), 3)
+        self.assertLessEqual(abs(GetSigmoid(0x10, 127, 256) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetSigmoid(0x20, 127, 256) - im.getpixel((0, 1))), 1)
+        self.assertLessEqual(abs(GetSigmoid(0x30, 127, 256) - im.getpixel((1, 1))), 1)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/1/rendered?window=16,128,linear' % (STUDY, SERIES, INSTANCE))
+        self.assertLessEqual(abs(GetLinear(0x00, 16, 128) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x10, 16, 128) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x20, 16, 128) - im.getpixel((0, 1))), 2)
+        self.assertLessEqual(abs(GetLinear(0x30, 16, 128) - im.getpixel((1, 1))), 2)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/2/rendered?window=127,256,linear' % (STUDY, SERIES, INSTANCE))
+        ri = 100.0
+        rs = 1.0
+        self.assertLessEqual(abs(GetLinear(0x00 * rs + ri, 127, 256) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x10 * rs + ri, 127, 256) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x20 * rs + ri, 127, 256) - im.getpixel((0, 1))), 1)
+        self.assertLessEqual(abs(GetLinear(0x30 * rs + ri, 127, 256) - im.getpixel((1, 1))), 1)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/3/rendered?window=127,256,linear' % (STUDY, SERIES, INSTANCE))
+        ri = 0.0
+        rs = 2.0
+        self.assertLessEqual(abs(GetLinear(0x00 * rs + ri, 127, 256) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x10 * rs + ri, 127, 256) - im.getpixel((1, 0))), 1.1)
+        self.assertLessEqual(abs(GetLinear(0x20 * rs + ri, 127, 256) - im.getpixel((0, 1))), 1)
+        self.assertLessEqual(abs(GetLinear(0x30 * rs + ri, 127, 256) - im.getpixel((1, 1))), 1)
+
+        im = GetImage(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/frames/4/rendered?window=127,256,linear' % (STUDY, SERIES, INSTANCE))
+        ri = 100.0
+        rs = 2.0
+        self.assertLessEqual(abs(GetLinear(0x00 * rs + ri, 127, 256) - im.getpixel((0, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x10 * rs + ri, 127, 256) - im.getpixel((1, 0))), 1)
+        self.assertLessEqual(abs(GetLinear(0x20 * rs + ri, 127, 256) - im.getpixel((0, 1))), 1)
+        self.assertLessEqual(abs(GetLinear(0x30 * rs + ri, 127, 256) - im.getpixel((1, 1))), 1)
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
