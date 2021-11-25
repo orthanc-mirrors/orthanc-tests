@@ -40,6 +40,21 @@ Some images come from the sample images of DICOM WG04:
 ftp://medical.nema.org/medical/Dicom/DataSets/WG04/
 
 
+---------------------------------
+The Cancer Imaging Archive (TCIA)
+---------------------------------
+
+Some images come from the "TCGA-GBM" data collection:
+https://wiki.cancerimagingarchive.net/display/Public/TCGA-GBM
+
+Scarpace, L., Mikkelsen, T., Cha, S., Rao, S., Tekchandani, S.,
+Gutman, D., Saltz, J. H., Erickson, B. J., Pedano, N., Flanders,
+A. E., Barnholtz-Sloan, J., Ostrom, Q., Barboriak, D., & Pierce,
+L. J. (2016). Radiology Data from The Cancer Genome Atlas Glioblastoma
+Multiforme [TCGA-GBM] collection [Data set]. The Cancer Imaging
+Archive. https://doi.org/10.7937/K9/TCIA.2016.RNYFUYE9
+
+
 -------------
 Other sources
 -------------
@@ -61,6 +76,7 @@ Here is the source of each set of sample images:
 - ColorTestImageJ.dcm : From ImageJ, http://imagej.nih.gov/ij/images/cardio.dcm
 - ColorTestMalaterre.dcm : From Mathieu Malaterre <mathieu.malaterre@gmail.com>, Debian bug #698417
 - Comunix/* : From OsiriX, "COMUNIX" (sample of PET/CT study).
+- DicomSeg.dcm : From TCIA, "TCGA-GBM" collection, "TCGA-08-0360" patient.
 - DummyCT.dcm : From Osirix, "KNIX" with PixelData removed.
 - HierarchicalAnonymization/RTH/* : From https://wiki.cancerimagingarchive.net/display/Public/Lung+CT+Segmentation+Challenge+2017
 - HierarchicalAnonymization/StructuredReports/* : Courtesy of Collective Minds Radiology AB
