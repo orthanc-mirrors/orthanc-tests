@@ -25,6 +25,7 @@
 import base64
 import bz2
 import copy
+import io
 import numpy
 import pprint
 import shutil
@@ -8229,3 +8230,59 @@ class Orthanc(unittest.TestCase):
         im2 = im2.point(lambda p: 255 if p == 128 else 0)
 
         self.assertTrue(ImageChops.difference(im1, im2).getbbox() is None)
+
+
+    def test_numpy(self):
+        # New in Orthanc 1.9.8
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
+        b = UploadInstance(_REMOTE, 'DicomSeg.dcm') ['ID']
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy' % a)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((288, 288, 1), c.shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy?rescale=0' % a)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.uint16, c.dtype)
+        self.assertEqual((288, 288, 1), c.shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/numpy?rescale=1&compress=false' % a)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((1, 288, 288, 1), c.shape)
+
+        series = DoGet(_REMOTE, '/instances/%s/series' % a)['ID']
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/series/%s/numpy?rescale=true&compress=0' % series)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((2, 288, 288, 1), c.shape)
+
+        series = DoGet(_REMOTE, '/instances/%s/series' % a)['ID']
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/series/%s/numpy?rescale=1' % series)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((2, 288, 288, 1), c.shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/numpy?compress' % a)))
+        self.assertTrue(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(1, len(c.files))
+        self.assertEqual(numpy.float32, c['arr_0'].dtype)
+        self.assertEqual((1, 288, 288, 1), c['arr_0'].shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy' % b)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((256, 256, 1), c.shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/numpy' % b)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((96, 256, 256, 1), c.shape)
+
+        series = DoGet(_REMOTE, '/instances/%s/series' % b)['ID']
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/series/%s/numpy' % series)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((96, 256, 256, 1), c.shape)
