@@ -25,10 +25,11 @@
 import base64
 import bz2
 import copy
+import numpy
 import pprint
+import shutil
 import tempfile
 import unittest
-import shutil
 
 from PIL import ImageChops
 from Toolbox import *
