@@ -8237,16 +8237,21 @@ class Orthanc(unittest.TestCase):
         a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
         b = UploadInstance(_REMOTE, 'DicomSeg.dcm') ['ID']
+        d = UploadInstance(_REMOTE, 'Issue124.dcm') ['ID']
 
         c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy' % a)))
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
         self.assertEqual(numpy.float32, c.dtype)
         self.assertEqual((288, 288, 1), c.shape)
+        self.assertAlmostEqual(0, c.min())
+        self.assertAlmostEqual(536, c.max())
 
         c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy?rescale=0' % a)))
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
         self.assertEqual(numpy.uint16, c.dtype)
         self.assertEqual((288, 288, 1), c.shape)
+        self.assertEqual(0, c.min())
+        self.assertEqual(536, c.max())
 
         c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/numpy?rescale=1&compress=false' % a)))
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
@@ -8275,6 +8280,15 @@ class Orthanc(unittest.TestCase):
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
         self.assertEqual(numpy.float32, c.dtype)
         self.assertEqual((256, 256, 1), c.shape)
+        self.assertAlmostEqual(0, c.min())
+        self.assertAlmostEqual(0, c.max())
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/14/numpy' % b)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((256, 256, 1), c.shape)
+        self.assertAlmostEqual(0, c.min())
+        self.assertAlmostEqual(255, c.max())
 
         c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/numpy' % b)))
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
@@ -8286,3 +8300,17 @@ class Orthanc(unittest.TestCase):
         self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
         self.assertEqual(numpy.float32, c.dtype)
         self.assertEqual((96, 256, 256, 1), c.shape)
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy' % d)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.float32, c.dtype)
+        self.assertEqual((512, 512, 1), c.shape)
+        self.assertAlmostEqual(-3024, c.min())  # RescaleIntercept equals -1024 in this image
+        self.assertAlmostEqual(2374, c.max())
+
+        c = numpy.load(io.BytesIO(DoGet(_REMOTE, '/instances/%s/frames/0/numpy?rescale=0' % d)))
+        self.assertFalse(isinstance(c, numpy.lib.npyio.NpzFile))
+        self.assertEqual(numpy.int16, c.dtype)
+        self.assertEqual((512, 512, 1), c.shape)
+        self.assertEqual(-2000, c.min())
+        self.assertEqual(3398, c.max())
