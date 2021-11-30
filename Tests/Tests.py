@@ -8314,3 +8314,64 @@ class Orthanc(unittest.TestCase):
         self.assertEqual((512, 512, 1), c.shape)
         self.assertEqual(-2000, c.min())
         self.assertEqual(3398, c.max())
+
+
+    def test_find_patient_name_with_brackets_and_star(self):
+        u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
+
+        modified = DoPost(_REMOTE, '/instances/%s/modify' % u, json.dumps({
+            "Replace" : {
+                "PatientName" : "MyName[*]",
+                "PatientID": "test_brackets"
+                },
+            "Force": True
+            }),
+            'application/json')
+
+        m = DoPost(_REMOTE, '/instances', modified, 'application/dicom')['ID']
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientName' : 'MyName[*]' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'Query' : { 'PatientName' : 'MyName[*]' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'PatientName' : 'MyName*' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'Query' : { 'PatientName' : 'MyName*' }})
+        self.assertEqual(1, len(a))
+
+    def test_find_patient_name_with_brackets_only(self):
+        u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
+
+        modified = DoPost(_REMOTE, '/instances/%s/modify' % u, json.dumps({
+            "Replace" : {
+                "PatientName" : "MyName2[]",
+                "PatientID": "test_brackets2"
+                },
+            "Force": True
+            }),
+            'application/json')
+
+        m = DoPost(_REMOTE, '/instances', modified, 'application/dicom')['ID']
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientName' : 'MyName2[*]' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'Query' : { 'PatientName' : 'MyName2[*]' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Query' : { 'PatientName' : 'MyName2*' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'Query' : { 'PatientName' : 'MyName2*' }})
+        self.assertEqual(1, len(a))
