@@ -1237,11 +1237,27 @@ class Orthanc(unittest.TestCase):
             if IsDicomUntilPixelDataStored(_REMOTE):
                 self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
                 self.assertTrue('dicom-until-pixel-data' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+
+                # New in Orthanc 1.9.8
+                a = DoGet(_REMOTE, '/instances/%s/attachments?full' % instance)
+                self.assertEqual(2, len(a))
+                self.assertEqual(1, a['dicom'])
+                self.assertEqual(3, a['dicom-until-pixel-data'])
+
             else:
                 self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
+
+                # New in Orthanc 1.9.8
+                a = DoGet(_REMOTE, '/instances/%s/attachments?full' % instance)
+                self.assertEqual(1, len(a))
+                self.assertEqual(1, a['dicom'])
         else:
             self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
             self.assertTrue('dicom-as-json' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
+
+            # New in Orthanc 1.9.8
+            self.assertRaises(Exception, lambda: DoGet(
+                _REMOTE, '/instances/%s/attachments?full' % instance))
 
         self.assertRaises(Exception, lambda: DoPut(_REMOTE, '/patients/%s/attachments/22' % patient, 'hello'))
         hello = 'hellohellohellohellohellohellohellohellohello'
