@@ -2745,7 +2745,9 @@ class Orthanc(unittest.TestCase):
                    }))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
-        self.assertEqual('OT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
+        # In Orthanc <= 1.9.7, the "CT" would have been replaced by "OT"
+        # https://groups.google.com/g/orthanc-users/c/eNSddNrQDtM/m/wc1HahimAAAJ
+        self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
 
         b = DoGet(_REMOTE, '/instances/%s/content/0042-0011' % i['ID'])
         self.assertEqual(len(b), len(pdf) + 1)
