@@ -126,6 +126,8 @@ localOrthanc = ExternalCommandThread([
 ])
 
 
+print "toto"
+
 LOCAL = DefineOrthanc(aet = 'ORTHANCTEST',
                       server = 'localhost',
                       dicomPort = 5001,

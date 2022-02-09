@@ -122,6 +122,10 @@ computer as is, or (b) use Docker to have the best reproducibility.
 
 # python ./Tests/Run.py
 
+To run a single test with by fixing the Orthanc 0.8.6 executable path:
+# python2 ./Tests/Run.py --orthanc /home/alain/Releases/Orthanc-0.8.6/Build/Orthanc Orthanc.test_peer_store_straight
+
+
 Use the flag "--help" to get the full list of arguments. These
 arguments will notably allow you to specify the network parameters
 of your remote instance of Orthanc.
@@ -144,7 +148,7 @@ Note that if Orthanc on Windows is not using the standard port, you
 may specify them when starting the test as shown below
 
 # bash
-# python Tests/Run.py --force --dicom 8567 --rest 8568
+# python2 Tests/Run.py --force --dicom 4242 --rest 8042 --orthanc /home/alain/Releases/Orthanc-0.8.6/Build/Orthanc Orthanc.test_peer_store_straight
 
 Note that you will have to install Linux prerequisites under WSL
 and the orthanc package as well.

@@ -244,7 +244,14 @@ class Orthanc(unittest.TestCase):
         else:
             self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/attachments/dicom-until-pixel-data' % instance))
             j = int(DoGet(_REMOTE, '/instances/%s/attachments/dicom-as-json/size' % instance))
-            
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 10, 0):
+            attachmentInfo = DoGet(_REMOTE, '/instances/%s/attachments/dicom/info' % instance)
+            self.assertEqual(sizeDummyCT, attachmentInfo['CompressedSize'])
+            self.assertEqual(sizeDummyCT, attachmentInfo['UncompressedSize'])
+            self.assertIn('Uuid', attachmentInfo)
+            self.assertEqual(1, attachmentInfo['ContentType'])
+
         s = sizeDummyCT + j
 
         if isCompressed:
