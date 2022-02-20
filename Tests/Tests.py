@@ -1250,7 +1250,7 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
                 self.assertTrue('dicom-until-pixel-data' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
 
-                # New in Orthanc 1.9.8
+                # New in Orthanc 1.10.0
                 a = DoGet(_REMOTE, '/instances/%s/attachments?full' % instance)
                 self.assertEqual(2, len(a))
                 self.assertEqual(1, a['dicom'])
@@ -1259,7 +1259,7 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertEqual(1, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
 
-                # New in Orthanc 1.9.8
+                # New in Orthanc 1.10.0
                 a = DoGet(_REMOTE, '/instances/%s/attachments?full' % instance)
                 self.assertEqual(1, len(a))
                 self.assertEqual(1, a['dicom'])
@@ -1267,7 +1267,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(2, len(DoGet(_REMOTE, '/instances/%s/attachments' % instance)))
             self.assertTrue('dicom-as-json' in DoGet(_REMOTE, '/instances/%s/attachments' % instance))
 
-            # New in Orthanc 1.9.8
+            # New in Orthanc 1.10.0
             self.assertRaises(Exception, lambda: DoGet(
                 _REMOTE, '/instances/%s/attachments?full' % instance))
 
@@ -8263,7 +8263,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_numpy(self):
-        # New in Orthanc 1.9.8
+        # New in Orthanc 1.10.0
         a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
         b = UploadInstance(_REMOTE, 'DicomSeg.dcm') ['ID']
