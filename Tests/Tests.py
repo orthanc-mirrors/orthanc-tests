@@ -1115,8 +1115,12 @@ class Orthanc(unittest.TestCase):
         series = DoGet(_REMOTE, '/series')[0]
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        self.assertEqual(1, len(m))
-        self.assertEqual('LastUpdate', m[0])
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(1, len(m))
+        self.assertTrue('LastUpdate' in m)
 
         # The lines below failed on Orthanc <= 1.8.2
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/studies/%s/metadata' % p))
@@ -1124,11 +1128,19 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/metadata' % p))
 
         m = DoGet(_REMOTE, '/studies/%s/metadata' % DoGet(_REMOTE, '/studies')[0])
-        self.assertEqual(1, len(m))
-        self.assertEqual('LastUpdate', m[0])
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(1, len(m))
+        self.assertTrue('LastUpdate' in m)
 
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        self.assertEqual(2, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(2, len(m))
         self.assertTrue('LastUpdate' in m)
 
         # New in Orthanc 1.9.0
@@ -1136,7 +1148,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(10, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
             self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
             self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
@@ -1169,7 +1184,11 @@ class Orthanc(unittest.TestCase):
             self.assertFalse('etag' in headers)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        self.assertEqual(2, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(2, len(m))
         self.assertTrue('LastUpdate' in m)
         self.assertTrue('5555' in m)
         self.assertEqual('coucou', DoGet(_REMOTE, '/patients/%s/metadata/5555' % p))
@@ -1193,7 +1212,11 @@ class Orthanc(unittest.TestCase):
             DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        self.assertEqual(1, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(1, len(m))
         self.assertTrue('LastUpdate' in m)
 
 
@@ -1336,7 +1359,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(i))
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(10, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)  # New in Orthanc 1.11.0
+        elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
             self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         else:
@@ -1358,7 +1384,11 @@ class Orthanc(unittest.TestCase):
 
         series = DoGet(_REMOTE, '/series')[0]
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        self.assertEqual(2, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+        else:
+            self.assertEqual(2, len(m))
         self.assertTrue('LastUpdate' in m)
         self.assertTrue('RemoteAET' in m)
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), 'STORESCU')
@@ -7762,8 +7792,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Patient', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
         self.assertTrue('Metadata' in a[0])
-        self.assertEqual(1, len(a[0]['Metadata']))
-        self.assertTrue('LastUpdate' in a[0]['Metadata'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(a[0]['Metadata']))
+            self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
+        else:
+            self.assertEqual(1, len(a[0]['Metadata']))
+            self.assertTrue('LastUpdate' in a[0]['Metadata'])
 
         for level in [ 'Instance', 'Series', 'Study', 'Patient' ]:
             a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, brainix ],
