@@ -8439,3 +8439,147 @@ class Orthanc(unittest.TestCase):
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
                                              'Query' : { 'PatientName' : 'MyName2*' }})
         self.assertEqual(1, len(a))
+
+
+    def test_rest_find_requested_tags(self):
+        # Upload instances
+        for i in range(2):
+            UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+
+        # Patient level
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' },
+                                             'RequestedTags' : [ 'PatientName', 'PatientID', 'PatientSex', 'PatientBirthDate' ],
+                                             'Expand': True
+                                             })
+        self.assertEqual(1, len(a))
+        self.assertIn('PatientName', a[0]['RequestedTags'])
+        self.assertIn('PatientID', a[0]['RequestedTags'])
+        self.assertIn('PatientSex', a[0]['RequestedTags'])
+        self.assertIn('PatientBirthDate', a[0]['RequestedTags'])
+
+        self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('5Yp0E', a[0]['RequestedTags']['PatientID'])
+        self.assertEqual('0000', a[0]['RequestedTags']['PatientSex'])
+        self.assertEqual('19490301', a[0]['RequestedTags']['PatientBirthDate'])
+
+        # Study level, request patient tags too
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' },
+                                             'RequestedTags' : [ 'PatientName', 'StudyInstanceUID'],
+                                             'Expand': True
+                                             })
+        self.assertEqual(1, len(a))
+        self.assertIn('PatientName', a[0]['RequestedTags'])
+        self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
+
+        self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
+
+
+        # Series level, request patient and study tags too
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' },
+                                             'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID'],
+                                             'Expand': True
+                                             })
+        self.assertEqual(1, len(a))
+        self.assertIn('PatientName', a[0]['RequestedTags'])
+        self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
+        self.assertIn('SeriesInstanceUID', a[0]['RequestedTags'])
+
+        pprint.pprint(a[0])
+        self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', a[0]['RequestedTags']['SeriesInstanceUID'])
+
+
+        # Instance level, request patient, study and series tags too, include tags that are not part of the main dicom tags
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' },
+                                             'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PhotometricInterpretation'],
+                                             'Expand': True
+                                             })
+        self.assertEqual(1, len(a))
+        self.assertIn('PatientName', a[0]['RequestedTags'])
+        self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
+        self.assertIn('SeriesInstanceUID', a[0]['RequestedTags'])
+        self.assertIn('PhotometricInterpretation', a[0]['RequestedTags'])
+
+        self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', a[0]['RequestedTags']['SeriesInstanceUID'])
+        self.assertEqual('MONOCHROME2', a[0]['RequestedTags']['PhotometricInterpretation'])
+
+
+    # def test_rest_find_requested_tags_modalities_in_study(self):
+    #     # Upload instances
+    #     for i in range(2):
+    #         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+
+    #     # Study level, request patient tags too
+    #     a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+    #                                          'CaseSensitive' : False,
+    #                                          'Query' : { 'PatientName' : 'BRAINIX' },
+    #                                          'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'ModalitiesInStudy'],
+    #                                          'Expand': True
+    #                                          })
+    #     self.assertEqual(1, len(a))
+    #     self.assertIn('PatientName', a[0]['RequestedTags'])
+    #     self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
+    #     self.assertIn('ModalitiesInStudy', a[0]['RequestedTags'])
+
+    #     self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+    #     self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
+
+
+    def test_list_resources_requested_tags(self):
+
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        patient = DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+
+        # list series and request tags that are not in the default main dicom tags
+        a = DoGet(_REMOTE, '/studies/%s/series?expand&simplify&requestedTags=PatientName;Modality;SeriesInstanceUID;MRAcquisitionType' % study)
+
+        self.assertEqual('2D', a[0]['RequestedTags']['MRAcquisitionType'])
+        self.assertEqual('MR', a[0]['RequestedTags']['Modality'])
+        self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', a[0]['RequestedTags']['SeriesInstanceUID'])
+
+        # list studies and request patient and studies tags
+        a = DoGet(_REMOTE, '/patients/%s/studies?expand&simplify&requestedTags=PatientName;StudyInstanceUID' % patient)
+
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
+
+
+        # list instances and request patient, studies and series tags including tags that are not in main dicom tags
+        a = DoGet(_REMOTE, '/patients/%s/instances?expand&simplify&requestedTags=PatientName;StudyInstanceUID;SeriesInstanceUID;SOPInstanceUID;Rows;Columns' % patient)
+
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', a[0]['RequestedTags']['SeriesInstanceUID'])
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a[0]['RequestedTags']['SOPInstanceUID'])
+        self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('512', a[0]['RequestedTags']['Rows'])
+        self.assertEqual('512', a[0]['RequestedTags']['Columns'])
+
+        pprint.pprint(a[0])
+
+
+    def test_list_resources_requested_tags_modalities_in_study(self):
+
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        patient = DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+
+        # list studies and request patient and studies tags, including ModalitiesInStudy
+        a = DoGet(_REMOTE, '/patients/%s/studies?expand&simplify&requestedTags=PatientName;StudyInstanceUID;ModalitiesInStudy' % patient)
+
+        self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('CT', a[0]['RequestedTags']['ModalitiesInStudy'])
+        self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
