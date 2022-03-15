@@ -8491,7 +8491,6 @@ class Orthanc(unittest.TestCase):
         self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
         self.assertIn('SeriesInstanceUID', a[0]['RequestedTags'])
 
-        pprint.pprint(a[0])
         self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
         self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
         self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', a[0]['RequestedTags']['SeriesInstanceUID'])
