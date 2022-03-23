@@ -217,6 +217,14 @@ class Orthanc(unittest.TestCase):
         self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
         self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
 
+        system = DoGet(_REMOTE, '/system')
+        self.assertIn("MainDicomTags", system)
+        self.assertIn("Patient", system["MainDicomTags"])
+        self.assertIn("Studies", system["MainDicomTags"])
+        self.assertIn("Series", system["MainDicomTags"])
+        self.assertIn("Instance", system["MainDicomTags"])
+
+
     def test_upload(self):
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
@@ -8564,6 +8572,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
         self.assertEqual('2', a[0]['RequestedTags']['NumberOfSeriesRelatedInstances'])
 
+        # Instance level
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientName' : 'BRAINIX' },
+                                             'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SOPInstanceUID', 'InstanceAvailability'],
+                                             'Expand': True
+                                             })
+        self.assertEqual(2, len(a))
+
+        self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
+        self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
+        self.assertEqual('ONLINE', a[0]['RequestedTags']['InstanceAvailability'])
+
     def test_list_resources_requested_tags(self):
 
         instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
@@ -8586,7 +8607,7 @@ class Orthanc(unittest.TestCase):
 
 
         # list instances and request patient, studies and series tags including tags that are not in main dicom tags
-        a = DoGet(_REMOTE, '/patients/%s/instances?expand&simplify&requestedTags=PatientName;StudyInstanceUID;SeriesInstanceUID;SOPInstanceUID;Rows;Columns' % patient)
+        a = DoGet(_REMOTE, '/patients/%s/instances?expand&simplify&requestedTags=PatientName;StudyInstanceUID;SeriesInstanceUID;SOPInstanceUID;Rows;Columns;InstanceAvailability' % patient)
 
         self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', a[0]['RequestedTags']['StudyInstanceUID'])
         self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', a[0]['RequestedTags']['SeriesInstanceUID'])
@@ -8594,6 +8615,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
         self.assertEqual('512', a[0]['RequestedTags']['Rows'])
         self.assertEqual('512', a[0]['RequestedTags']['Columns'])
+        self.assertEqual('ONLINE', a[0]['RequestedTags']['Availability'])
 
 
     def test_list_resources_requested_tags_study_computed_tags(self):
