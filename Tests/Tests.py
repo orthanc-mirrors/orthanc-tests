@@ -8409,7 +8409,7 @@ class Orthanc(unittest.TestCase):
 
     def test_dicomweb_jpeg2k_implicit(self):
         # This is a file encoded using 1.2.840.10008.1.2.4.90 transfer
-        # syntax, in which all the DICOM tags have the "UN" value
+        # syntax, in which most DICOM tags have the "UN" value
         # representation. Support introduced in Orthanc 1.10.1.
         # https://groups.google.com/g/orthanc-users/c/86fobx3ZyoM/m/KBG17un6AQAJ
         a = UploadInstance(_REMOTE, '2022-03-08-RicSmi.dcm') ['ID']
