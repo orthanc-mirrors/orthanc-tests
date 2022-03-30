@@ -8648,3 +8648,13 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
         self.assertEqual('1', a[0]['RequestedTags']['NumberOfSeriesRelatedInstances'])
 
+    def test_dicomweb_jpeg2k_implicit(self):
+        # This is a file encoded using 1.2.840.10008.1.2.4.90 transfer
+        # syntax, in which most DICOM tags have the "UN" value
+        # representation. Support introduced in Orthanc 1.10.1.
+        # https://groups.google.com/g/orthanc-users/c/86fobx3ZyoM/m/KBG17un6AQAJ
+        a = UploadInstance(_REMOTE, '2022-03-08-RicSmi.dcm') ['ID']
+        b = DoGet(_REMOTE, '/instances/%s/file' % a,
+                  headers = { 'Accept' : 'application/dicom+json' })
+        self.assertEqual(b['0020000D']['Value'][0], '1.2.276.0.7230010.3.1.2.2358427580.3460.1646695830.793')
+        self.assertEqual(b['0020000E']['Value'][0], '1.2.276.0.7230010.3.1.3.2358427580.3460.1646695830.794')
