@@ -109,12 +109,15 @@ def CallCommand(command):
         
 def CallDicomizer(suffix):
     CallCommand([ args.dicomizer,
+                  '--orthanc=%s' % args.server,
                   '--username=%s' % args.username,
-                  '--password=%s' % args.password ] + suffix)
+                  '--password=%s' % args.password ] + suffix
+                  )
 
     
 def CallDicomToTiff(suffix):
     CallCommand([ args.to_tiff,
+                  '--orthanc=%s' % args.server,
                   '--username=%s' % args.username,
                   '--password=%s' % args.password ] + suffix)
 
