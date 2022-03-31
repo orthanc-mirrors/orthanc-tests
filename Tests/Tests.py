@@ -8615,7 +8615,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('KNIX', a[0]['RequestedTags']['PatientName'])
         self.assertEqual('512', a[0]['RequestedTags']['Rows'])
         self.assertEqual('512', a[0]['RequestedTags']['Columns'])
-        self.assertEqual('ONLINE', a[0]['RequestedTags']['Availability'])
+        self.assertEqual('ONLINE', a[0]['RequestedTags']['InstanceAvailability'])
 
 
     def test_list_resources_requested_tags_study_computed_tags(self):
