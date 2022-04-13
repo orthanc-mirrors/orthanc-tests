@@ -382,7 +382,16 @@ class Orthanc(unittest.TestCase):
         # This is Little Endian Explicit
         self.assertEqual('1.2.840.10008.1.2.1', DoGet(_REMOTE, '/instances/%s/header?simplify' % i)['TransferSyntaxUID'])
 
+    def test_images_implicit_vr(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 10, 2):
+            i = UploadInstance(_REMOTE, 'Implicit-vr-us-palette.dcm')['ID']
 
+            im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+        
     def test_hierarchy(self):
         UploadFolder(_REMOTE, 'Brainix/Epi')
         UploadFolder(_REMOTE, 'Brainix/Flair')
