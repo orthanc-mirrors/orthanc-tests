@@ -2430,10 +2430,15 @@ class Orthanc(unittest.TestCase):
                 tmp = [ '-xs' ]
 
             with open(os.devnull, 'w') as FNULL:
-                subprocess.check_call([ FindExecutable('storescu') ] + tmp +
-                                      [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                        GetDatabasePath(image) ],
-                                      stderr = FNULL)
+                try:
+                    subprocess.check_call([ FindExecutable('storescu') ] + tmp +
+                                        [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                            GetDatabasePath(image) ],
+                                        stderr = FNULL)
+
+                except subprocess.CalledProcessError as e:
+                    print('storescu failed with error code: %s' % str(e.returncode))
+                    raise e
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
