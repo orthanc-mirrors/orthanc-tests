@@ -208,7 +208,7 @@ class Orthanc(unittest.TestCase):
 
         systemInfo = DoGet(_REMOTE, '/system')
         if systemInfo["Version"] == "mainline":
-            print "Skipping version checks since you're currently in mainline"
+            print("Skipping version checks since you're currently in mainline")
             return
 
         self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 8, 6))
@@ -390,7 +390,16 @@ class Orthanc(unittest.TestCase):
         # This is Little Endian Explicit
         self.assertEqual('1.2.840.10008.1.2.1', DoGet(_REMOTE, '/instances/%s/header?simplify' % i)['TransferSyntaxUID'])
 
+    def test_images_implicit_vr(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 10, 2):
+            i = UploadInstance(_REMOTE, 'Implicit-vr-us-palette.dcm')['ID']
 
+            im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+        
     def test_hierarchy(self):
         UploadFolder(_REMOTE, 'Brainix/Epi')
         UploadFolder(_REMOTE, 'Brainix/Flair')
@@ -2454,6 +2463,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_incoming_jpeg(self):
+        # since this test fails regularly on CI, enable verbosity
+        DoPut(_REMOTE, '/tools/log-level', 'verbose')
+
         def storescu(image, acceptUnknownSopClassUid):
             if acceptUnknownSopClassUid:
                 tmp = [ '-xf', GetDatabasePath('UnknownSopClassUid.cfg'), 'Default' ]
@@ -2461,10 +2473,15 @@ class Orthanc(unittest.TestCase):
                 tmp = [ '-xs' ]
 
             with open(os.devnull, 'w') as FNULL:
-                subprocess.check_call([ FindExecutable('storescu') ] + tmp +
-                                      [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                        GetDatabasePath(image) ],
-                                      stderr = FNULL)
+                try:
+                    subprocess.check_call([ FindExecutable('storescu') ] + tmp +
+                                        [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                            GetDatabasePath(image) ],
+                                        stderr = FNULL)
+
+                except subprocess.CalledProcessError as e:
+                    print('storescu failed with error code: %s' % str(e.returncode))
+                    raise e
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
@@ -2482,6 +2499,7 @@ class Orthanc(unittest.TestCase):
         else:
             InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxDisable.lua')
         
+        # the following line regularly fails on CI !
         self.assertRaises(Exception, lambda: storescu('Knix/Loc/IM-0001-0001.dcm', False))
         self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
@@ -2499,6 +2517,8 @@ class Orthanc(unittest.TestCase):
         storescu('UnknownSopClassUid.dcm', True)
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
 
+        # set back normal verbosity
+        DoPut(_REMOTE, '/tools/log-level', 'default')
 
     def test_storescu_jpeg(self):
         self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
@@ -3760,8 +3780,14 @@ class Orthanc(unittest.TestCase):
         CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
 
     def test_httpClient_lua(self):
+        retries = 3
+        result = ''
+        
         with open(GetDatabasePath('Lua/HttpClient.lua'), 'r') as f:
-            result = DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
+            # retry since this test sometimes fails if httpbin.org is unresponsive
+            while retries > 0 and not ('OK' in result):
+                result = DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
+                retries -= 1
 
         self.assertIn('OK', result)
 
