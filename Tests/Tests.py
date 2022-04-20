@@ -1602,6 +1602,11 @@ class Orthanc(unittest.TestCase):
             'ModalitiesInStudy' : 'US\\CT' })
         self.assertEqual(1, len(t))
 
+        t = DoPost(_REMOTE, '/modalities/orthanctest/find-study', {
+            'PatientID' : 'B9uTHKOZ', 
+            'ModalitiesInStudy' : '' })
+        self.assertEqual(1, len(t))
+
         # Test the "find-series" level
         t = DoPost(_REMOTE, '/modalities/orthanctest/find-series', {
             'PatientID' : 'B9uTHKOZ', 
