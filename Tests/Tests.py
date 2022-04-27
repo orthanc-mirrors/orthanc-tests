@@ -210,7 +210,7 @@ class Orthanc(unittest.TestCase):
             system = DoGet(_REMOTE, '/system')
             self.assertIn("MainDicomTags", system)
             self.assertIn("Patient", system["MainDicomTags"])
-            self.assertIn("Studies", system["MainDicomTags"])
+            self.assertIn("Study", system["MainDicomTags"])
             self.assertIn("Series", system["MainDicomTags"])
             self.assertIn("Instance", system["MainDicomTags"])
 
