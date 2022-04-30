@@ -3779,11 +3779,26 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % a).strip())
         self.assertEqual('test', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % b).strip())
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            # metadata before reconstruct
+            mba = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+            mbb = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+
+        # reconstruct by taking the new instance as the reference -> should repopulate study fields from this instance tags
         DoPost(_REMOTE, '/instances/%s/reconstruct' % b, {})
 
         CompareMainDicomTag('hello', a, 'study', 'StudyDescription')
         CompareMainDicomTag('world', a, 'series', 'SeriesDescription')
         CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            # metadata after reconstruct should have been preserved
+            maa = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+            mab = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+
+            self.assertEqual(mba, maa)
+            self.assertEqual(mbb, mab)
+
 
     def test_httpClient_lua(self):
         retries = 3

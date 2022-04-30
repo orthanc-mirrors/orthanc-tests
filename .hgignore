@@ -8,3 +8,5 @@ PerfsDb/ConfigFiles/
 PerfsDb/Results/
 .vscode/
 *~
+NewTests/storages/**
+NewTests/configurations/*.json

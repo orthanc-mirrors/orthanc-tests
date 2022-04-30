@@ -156,6 +156,12 @@ Note that you will have to install Linux prerequisites under WSL
 and the orthanc package as well.
 
 
+NewTests
+========
+
+Check the README in the NewTests folder for more complex scenarios
+using python3 and a new test framework.
+
 
 Licensing
 =========
