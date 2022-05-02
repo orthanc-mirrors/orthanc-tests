@@ -20,7 +20,8 @@ default_base_config = {
 class Helpers:
 
     orthanc_under_tests_hostname: str = 'localhost'
-    orthanc_under_tests_http_port: int = 8042
+    orthanc_under_tests_http_port: int = 8052
+    orthanc_under_tests_dicom_port: int = 4252
     orthanc_under_tests_exe: str = None
     orthanc_previous_version_exe: str = None
     orthanc_under_tests_docker_image: str = None
@@ -32,10 +33,19 @@ class Helpers:
     def get_orthanc_url(cls):
         return f"http://{cls.orthanc_under_tests_hostname}:{cls.orthanc_under_tests_http_port}"
 
+    @classmethod
+    def is_docker(cls):
+        return cls.orthanc_under_tests_exe is None and cls.orthanc_under_tests_docker_image is not None
+
+    @classmethod
+    def is_exe(cls):
+        return cls.orthanc_under_tests_exe is not None and cls.orthanc_under_tests_docker_image is None
+
 class OrthancTestCase(unittest.TestCase):
 
     o: OrthancApiClient = None  # the orthanc under tests api client
     _orthanc_process = None
+    _orthanc_container_name = None
     _orthanc_is_running = False
     _orthanc_logger_thread = None
 
@@ -67,9 +77,10 @@ class OrthancTestCase(unittest.TestCase):
     def generate_configuration(cls, config_name: str, config: object, storage_name: str, plugins = []):
         
         # add plugins and default storge directory
-        config["Plugins"] = plugins
+        if plugins and len(plugins) > 0:
+            config["Plugins"] = plugins
 
-        if not "StorageDirectory" in config:
+        if Helpers.is_exe() and not "StorageDirectory" in config:
             config["StorageDirectory"] = cls.get_storage_path(storage_name=storage_name)
 
         if not "Name" in config:
@@ -77,6 +88,9 @@ class OrthancTestCase(unittest.TestCase):
 
         if not "HttpPort" in config:
             config["HttpPort"] = Helpers.orthanc_under_tests_http_port
+
+        if not "DicomPort" in config:
+            config["DicomPort"] = Helpers.orthanc_under_tests_dicom_port
 
         # copy the values from the base config
         for k, v in default_base_config.items():
@@ -92,31 +106,72 @@ class OrthancTestCase(unittest.TestCase):
 
     @classmethod
     def clear_storage(cls, storage_name: str):
-        storage_path = cls.get_storage_path(storage_name=storage_name)
-        shutil.rmtree(storage_path)
-
+        if Helpers.is_exe():
+            storage_path = cls.get_storage_path(storage_name=storage_name)
+            shutil.rmtree(storage_path, ignore_errors=True)
+        elif Helpers.is_docker():
+            subprocess.run(["docker", "volume", "rm", storage_name])
 
     @classmethod
-    def launch_orthanc_to_prepare_db(cls, config_name: str, config: object, storage_name: str, plugins = []):
-        # generate the configuration file
-        config_path = cls.generate_configuration(
-            config_name=config_name,
-            storage_name=storage_name,
-            config=config,
-            plugins=plugins
-            )
+    def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = []):
+        if config_name and storage_name and config:
+            # generate the configuration file
+            config_path = cls.generate_configuration(
+                config_name=config_name,
+                storage_name=storage_name,
+                config=config,
+                plugins=plugins
+                )
+        elif not config_path or not storage_name or not config_name:
+            raise RuntimeError("Invalid configuration")
 
         # run orthanc
         if Helpers.orthanc_previous_version_exe:
-            cls.launch_orthanc(
+            cls.launch_orthanc_exe(
                 exe_path=Helpers.orthanc_previous_version_exe,
                 config_path=config_path
             )
+        elif Helpers.orthanc_previous_version_docker_image:
+            cls.launch_orthanc_docker(
+                docker_image=Helpers.orthanc_previous_version_docker_image,
+                storage_name=storage_name,
+                config_name=config_name,
+                config_path=config_path
+            )
         else:
-            raise RuntimeError("No orthanc_previous_version_exe defined, can not launch Orthanc")
+            raise RuntimeError("Invalid configuration, can not launch Orthanc")
 
     @classmethod
-    def launch_orthanc(cls, exe_path: str, config_path: str):
+    def launch_orthanc_under_tests(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = []):
+        if config_name and storage_name and config:
+            # generate the configuration file
+            config_path = cls.generate_configuration(
+                config_name=config_name,
+                storage_name=storage_name,
+                config=config,
+                plugins=plugins
+                )
+        elif not config_path or not storage_name or not config_name:
+            raise RuntimeError("Invalid configuration")
+
+        # run orthanc
+        if Helpers.orthanc_under_tests_exe:
+            cls.launch_orthanc_exe(
+                exe_path=Helpers.orthanc_under_tests_exe,
+                config_path=config_path
+            )
+        elif Helpers.orthanc_under_tests_docker_image:
+            cls.launch_orthanc_docker(
+                docker_image=Helpers.orthanc_under_tests_docker_image,
+                storage_name=storage_name,
+                config_name=config_name,
+                config_path=config_path
+            )
+        else:
+            raise RuntimeError("Invalid configuration, can not launch Orthanc")
+
+    @classmethod
+    def launch_orthanc_exe(cls, exe_path: str, config_path: str):
             cls._orthanc_process = subprocess.Popen(
                 [exe_path, "--verbose", config_path],
                 stdout=subprocess.PIPE,
@@ -131,8 +186,42 @@ class OrthancTestCase(unittest.TestCase):
                 raise RuntimeError(f"Orthanc failed to start '{exe_path}', conf = '{config_path}'.  Check output above")
 
     @classmethod
+    def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str):
+
+            cmd = [
+                    "docker", "run", "--rm", 
+                    "-e", "VERBOSE_ENABLED=true",
+                    "-e", "VERBOSE_STARTUP=true", 
+                    "-v", f"{config_path}:/etc/orthanc/orthanc.json",
+                    "-v", f"{storage_name}:/var/lib/orthanc/db/",
+                    "--name", config_name,
+                    "-p", f"{Helpers.orthanc_under_tests_http_port}:{Helpers.orthanc_under_tests_http_port}",
+                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}",
+                    docker_image
+                ]
+            cls._orthanc_container_name = config_name
+            print("docker cmd line: " + " ".join(cmd))
+
+            cls._orthanc_process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+
+            cls.o.wait_started(10)
+            if not cls.o.is_alive():
+                output = cls.get_orthanc_process_output()
+                print("Orthanc output\n" + output)
+
+                raise RuntimeError(f"Orthanc failed to start Orthanc through Docker '{docker_image}', conf = '{config_path}'.  Check output above")
+
+
+    @classmethod
     def kill_orthanc(cls):
-        cls._orthanc_process.kill()
+        if Helpers.is_exe():
+            cls._orthanc_process.kill()
+        else:
+            subprocess.run(["docker", "stop", cls._orthanc_container_name])
         output = cls.get_orthanc_process_output()
         print("Orthanc output\n" + output)
         cls._orthanc_process = None

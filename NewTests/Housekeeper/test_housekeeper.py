@@ -60,9 +60,11 @@ class TestHousekeeper(OrthancTestCase):
             input("Press Enter to continue")
         else:
             print('-------------- launching TestHousekeeper tests')
-            cls.launch_orthanc(
-                exe_path=Helpers.orthanc_under_tests_exe,
-                config_path=config_path
+            cls.launch_orthanc_under_tests(
+                config_path=config_path,
+                config_name="housekepper_under_tests",
+                storage_name="housekeeper",
+                plugins=Helpers.plugins
             )
 
         print('-------------- waiting for orthanc-under-tests to be available')
