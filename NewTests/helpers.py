@@ -110,7 +110,7 @@ class OrthancTestCase(unittest.TestCase):
             storage_path = cls.get_storage_path(storage_name=storage_name)
             shutil.rmtree(storage_path, ignore_errors=True)
         elif Helpers.is_docker():
-            subprocess.run(["docker", "volume", "rm", storage_name])
+            subprocess.run(["docker", "volume", "rm", "-f", storage_name])
 
     @classmethod
     def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = []):

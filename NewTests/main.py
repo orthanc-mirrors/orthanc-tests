@@ -20,7 +20,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Executes Orthanc integration tests.')
     parser.add_argument('-k', '--pattern', dest='test_name_patterns', action='append', type=str, help='a test pattern (ex: Housekeeper.toto')
     parser.add_argument('--orthanc_under_tests_hostname', type=str, default="localhost", help="orthanc under tests hostname")
-    parser.add_argument('--orthanc_under_tests_http_port', type=int, default=8042, help="orthanc under tests HTTP port")
+    parser.add_argument('--orthanc_under_tests_http_port', type=int, default=8052, help="orthanc under tests HTTP port")
+    parser.add_argument('--orthanc_under_tests_dicom_port', type=int, default=4252, help="orthanc under tests DICOM port")
     parser.add_argument('--orthanc_under_tests_exe', type=str, default=None, help="path to the orthanc executable (if it must be launched by this script)")
     parser.add_argument('--orthanc_previous_version_exe', type=str, default=None, help="path to the orthanc executable used to prepare previous version of storage/db (if it must be launched by this script and if different from orthanc_under_tests_exe)")
     parser.add_argument('--orthanc_under_tests_docker_image', type=str, default=None, help="Docker image of the orthanc under tests (if it must be launched by this script)")
@@ -37,6 +38,7 @@ if __name__ == '__main__':
 
     Helpers.orthanc_under_tests_hostname = args.orthanc_under_tests_hostname
     Helpers.orthanc_under_tests_http_port = args.orthanc_under_tests_http_port
+    Helpers.orthanc_under_tests_dicom_port = args.orthanc_under_tests_dicom_port
     Helpers.plugins = args.plugins
 
     Helpers.orthanc_under_tests_exe = args.orthanc_under_tests_exe
