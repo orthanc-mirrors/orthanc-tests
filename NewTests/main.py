@@ -59,6 +59,8 @@ if __name__ == '__main__':
     if args.break_after_preparation:
         Helpers.break_after_preparation = True
 
+    print("Launching tests")
+    
     result = unittest.TextTestRunner(verbosity=2).run(load_tests(loader=loader))
     if not result.wasSuccessful():
         sys.exit(1)
