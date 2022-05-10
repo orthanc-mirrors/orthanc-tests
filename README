@@ -126,7 +126,7 @@ To run a single test with by fixing the Orthanc 0.8.6 executable path:
 # python2 ./Tests/Run.py --orthanc /home/alain/Releases/Orthanc-0.8.6/Build/Orthanc Orthanc.test_peer_store_straight
 
 To run a plugin test (no need for Orthanc 0.8.6)
-# python2 ./Plugins/DicomWeb/Run.py Orthanc.test_peer_store_straight
+# python2 ./Plugins/DicomWeb/Run.py
 
 Use the flag "--help" to get the full list of arguments. These
 arguments will notably allow you to specify the network parameters
