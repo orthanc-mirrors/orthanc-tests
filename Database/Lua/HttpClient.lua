@@ -45,6 +45,18 @@ response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 if not testSucceeded then print('Failed in HttpGet') PrintRecursive(response) end
 
+
+-- Test SetHttpTimeout
+SetHttpTimeout(10)
+response = HttpGet('https://httpstat.us/200?sleep=1000')
+testSucceeded = testSucceeded and (response == '200 OK')
+if not testSucceeded then print('Failed in SetHttpTimeout1') PrintRecursive(response) end
+
+SetHttpTimeout(1)
+response = HttpGet('https://httpstat.us/200?sleep=2000')
+testSucceeded = testSucceeded and (response == nil)
+if not testSucceeded then print('Failed in SetHttpTimeout2') PrintRecursive(response) end
+
 if testSucceeded then
 	print('OK')
 else

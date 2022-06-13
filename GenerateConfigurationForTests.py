@@ -151,6 +151,7 @@ config['WebDavDeleteAllowed'] = True
 config['WebDavUploadAllowed'] = True
 config['StorageCompression'] = args.compression
 config['CheckRevisions'] = True
+config['HttpsCACertificates'] = "/etc/ssl/certs/ca-certificates.crt"   # for HTTPS lua tests (note: this path is valid only on linux !)
 
 del config['DeidentifyLogsDicomVersion']
 del config['KeepAlive']
