@@ -46,16 +46,20 @@ testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'appli
 if not testSucceeded then print('Failed in HttpGet') PrintRecursive(response) end
 
 
--- Test SetHttpTimeout
-SetHttpTimeout(10)
-response = HttpGet('https://httpstat.us/200?sleep=1000')
-testSucceeded = testSucceeded and (response == '200 OK')
-if not testSucceeded then print('Failed in SetHttpTimeout1') PrintRecursive(response) end
+system = ParseJson(RestApiGet('/system'))
 
-SetHttpTimeout(1)
-response = HttpGet('https://httpstat.us/200?sleep=2000')
-testSucceeded = testSucceeded and (response == nil)
-if not testSucceeded then print('Failed in SetHttpTimeout2') PrintRecursive(response) end
+if system['Version'] == 'mainline' or system['Version'] == '1.11.1' or system['ApiVersion'] >= 18 then  -- introduced in 1.11.1 which is ApiVersion 17 (too lazy to reimplement IsAboveOrthancVersion in lua :-) )
+	-- Test SetHttpTimeout
+	SetHttpTimeout(10)
+	response = HttpGet('https://httpstat.us/200?sleep=1000')
+	testSucceeded = testSucceeded and (response == '200 OK')
+	if not testSucceeded then print('Failed in SetHttpTimeout1') PrintRecursive(response) end
+
+	SetHttpTimeout(1)
+	response = HttpGet('https://httpstat.us/200?sleep=2000')
+	testSucceeded = testSucceeded and (response == nil)
+	if not testSucceeded then print('Failed in SetHttpTimeout2') PrintRecursive(response) end
+end
 
 if testSucceeded then
 	print('OK')
