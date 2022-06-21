@@ -3481,21 +3481,70 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
-        # Upload instance Brainix/Flair/IM-0001-0001.dcm
-        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Instance',
-                                                          'Resources' : [
-                    { 
-                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
-                        'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
-                        'SOPInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549',
-                        }
-                    ]})
+        # Move instance Brainix/Flair/IM-0001-0001.dcm
+        DoPost(_REMOTE, '/modalities/orthanctest/move', { 
+            'Level' : 'Instance',
+            'Resources' : [
+                { 
+                    'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                    'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                    'SOPInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549',
+                }
+            ]})
 
-        # Upload series Brainix/Flair/*
+        # Move series Brainix/Flair/*
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 1):
+            # Reset and test asynchronous C-Move at instance level
+            for p in DoGet(_REMOTE, '/patients'):
+                DoDelete(_REMOTE, '/patients/%s' % p)
+
+            DoPost(_REMOTE, '/modalities/orthanctest/move', { 
+                        'Level' : 'Instance',
+                        'Resources' : [
+                            { 
+                                'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                                'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                                'SOPInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549',
+                            }
+                        ],
+                        'Asynchronous': True
+                        })
+
+            job = MonitorJob2(_REMOTE, lambda: DoPost
+                            (_REMOTE, '/modalities/orthanctest/move', { 
+                        'Level' : 'Instance',
+                        'Resources' : [
+                            { 
+                                'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                                'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                                'SOPInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549',
+                            }
+                        ],
+                        'Asynchronous': True
+                        }))
+
+            self.assertNotEqual(None, job)
+
+            # check the job was successfull
+            self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+
+            # check the job content
+            jobContent = DoGet(_REMOTE, '/jobs/%s' % job)['Content']
+            self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', jobContent['Query'][0]['0020,000d'])
+            self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', jobContent['Query'][0]['0020,000e'])
+            self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549', jobContent['Query'][0]['0008,0018'])
+
+        # Reset and test synchronous C-Move at series level
+        for p in DoGet(_REMOTE, '/patients'):
+            DoDelete(_REMOTE, '/patients/%s' % p)
 
         DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Series',
                                                           'Resources' : [
@@ -3509,7 +3558,39 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
 
-        # Upload series Brainix/Epi/*
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 1):
+            # Reset and test asynchronous C-Move at series level with additional PatientID filter
+            for p in DoGet(_REMOTE, '/patients'):
+                DoDelete(_REMOTE, '/patients/%s' % p)
+
+            job = MonitorJob2(_REMOTE, lambda: DoPost
+                            (_REMOTE, '/modalities/orthanctest/move', { 
+                        'Level' : 'Series',
+                        'Resources' : [
+                            { 
+                                'PatientID' : '5Yp0E',
+                                'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                                'SeriesInstanceUID' : '1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497',
+                            }
+                        ],
+                        'Asynchronous': True
+                        }))
+
+            self.assertNotEqual(None, job)
+
+            # check the job was successfull
+            self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+
+            # check the job content
+            jobContent = DoGet(_REMOTE, '/jobs/%s' % job)['Content']
+            self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', jobContent['Query'][0]['0020,000d'])
+            self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', jobContent['Query'][0]['0020,000e'])
+            self.assertEqual('5Yp0E', jobContent['Query'][0]['0010,0020'])
+
+        # Move series Brainix/Epi/*
         DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Series',
                                                           'Resources' : [
                     { 
@@ -3522,17 +3603,30 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
         self.assertEqual(3, len(DoGet(_REMOTE, '/instances')))
 
-        # Upload study Knee/*
-        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Study',
-                                                          'Resources' : [
-                    { 
-                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
-                        }
-                    ]})
-        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
-        self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
-        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 1):
+            # Move study Knee asynchronously
+            job = MonitorJob2(_REMOTE, lambda: DoPost
+                            (_REMOTE, '/modalities/orthanctest/move', { 
+                        'Level' : 'Study',
+                        'Resources' : [
+                            { 
+                                'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
+                            }
+                        ],
+                        'Asynchronous': True
+                        }))
+
+            self.assertNotEqual(None, job)
+
+            # check the job was successfull
+            self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+
+            # check the job content
+            jobContent = DoGet(_REMOTE, '/jobs/%s' % job)['Content']
+            self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', jobContent['Query'][0]['0020,000d'])
 
         # Reset
         for p in DoGet(_REMOTE, '/patients'):
@@ -3541,20 +3635,27 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
 
-        # Upload all at once
-        DoPost(_REMOTE, '/modalities/orthanctest/move', { 'Level' : 'Study',
-                                                          'Resources' : [
-                    { 
-                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 1):
+            # Move all at once asynchronously at PatientLevel
+            job = MonitorJob2(_REMOTE, lambda: DoPost(_REMOTE, '/modalities/orthanctest/move', 
+                { 
+                    'Level' : 'Patient',
+                    'Resources' : [
+                        { 
+                            'PatientID' : '5Yp0E',
                         },
-                    { 
-                        'StudyInstanceUID' : '2.16.840.1.113669.632.20.1211.10000357775',
+                        { 
+                            'PatientID': '887',
+                            'PatientName' : 'KNEE',
                         }
-                    ]})
-        self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
-        self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
-        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+                    ],
+                    'Synchronous': False
+                    }))
+
+            self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
 
 
 
