@@ -188,13 +188,14 @@ class OrthancTestCase(unittest.TestCase):
 
     @classmethod
     def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str):
+            storage_path = cls.get_storage_path(storage_name=storage_name)
 
             cmd = [
                     "docker", "run", "--rm", 
                     "-e", "VERBOSE_ENABLED=true",
                     "-e", "VERBOSE_STARTUP=true", 
                     "-v", f"{config_path}:/etc/orthanc/orthanc.json",
-                    "-v", f"{storage_name}:/var/lib/orthanc/db/",
+                    "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
                     "-p", f"{Helpers.orthanc_under_tests_http_port}:{Helpers.orthanc_under_tests_http_port}",
                     "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}",
