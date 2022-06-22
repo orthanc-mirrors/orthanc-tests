@@ -28,8 +28,8 @@ if __name__ == '__main__':
     parser.add_argument('--orthanc_previous_version_docker_image', type=str, default=None, help="Docker image of the orthanc version used to prepare previous version of storage/db (if it must be launched by this script)")
     parser.add_argument('--skip_preparation', action='store_true', help="if this is a multi stage tests with preparations, skip the preparation")
     parser.add_argument('--break_after_preparation', action='store_true', help="if this is a multi stage tests with preparations, pause after the preparation (such that you can start your own orthanc-under-tests in your debugger)")
+    parser.add_argument('--break_before_preparation', action='store_true', help="if this is a multi stage tests with preparations, pause before the preparation (such that you can start your own orthanc-under-tests in your debugger)")
     parser.add_argument('-p', '--plugin', dest='plugins', action='append', type=str, help='path to a plugin to add to configuration')
-
 
     args = parser.parse_args()
 
@@ -58,6 +58,8 @@ if __name__ == '__main__':
         Helpers.skip_preparation = True
     if args.break_after_preparation:
         Helpers.break_after_preparation = True
+    if args.break_before_preparation:
+        Helpers.break_before_preparation = True
 
     print("Launching tests")
     

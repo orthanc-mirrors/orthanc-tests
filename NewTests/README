@@ -32,6 +32,7 @@ python3 NewTests/main.py --pattern=* \
                          --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
                          --orthanc_under_tests_http_port=8043 \
                          --plugin=/home/alain/o/build/orthanc/libHousekeeper.so \
+                         --plugin=/home/alain/o/build/orthanc/libDelayedDeletion.so \
                          --plugin=/home/alain/o/build/orthanc-gdcm/libOrthancGdcm.so
 
 

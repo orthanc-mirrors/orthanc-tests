@@ -27,6 +27,7 @@ class Helpers:
     orthanc_under_tests_docker_image: str = None
     skip_preparation: bool = False
     break_after_preparation: bool = False
+    break_before_preparation: bool = False
     plugins: typing.List[str] = []
 
     @classmethod
