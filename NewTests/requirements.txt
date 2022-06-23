@@ -1,1 +1,1 @@
-orthanc-tools==0.4.6
+orthanc-tools==0.4.7
