@@ -8603,7 +8603,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_rest_find_requested_tags(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 1):  # RequestedTags introduced in 1.11.0 but Sequences allowed since 1.11.1
 
             # Upload instances
             for i in range(2):
@@ -8613,7 +8613,7 @@ class Orthanc(unittest.TestCase):
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
                                                 'CaseSensitive' : False,
                                                 'Query' : { 'PatientName' : 'BRAINIX' },
-                                                'RequestedTags' : [ 'PatientName', 'PatientID', 'PatientSex', 'PatientBirthDate' ],
+                                                'RequestedTags' : [ 'PatientName', 'PatientID', 'PatientSex', 'PatientBirthDate'],
                                                 'Expand': True
                                                 })
             self.assertEqual(1, len(a))
@@ -8646,24 +8646,26 @@ class Orthanc(unittest.TestCase):
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
                                                 'CaseSensitive' : False,
                                                 'Query' : { 'PatientName' : 'BRAINIX' },
-                                                'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID'],
+                                                'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID', 'RequestAttributesSequence'],
                                                 'Expand': True
                                                 })
             self.assertEqual(1, len(a))
             self.assertIn('PatientName', a[0]['RequestedTags'])
             self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
             self.assertIn('SeriesInstanceUID', a[0]['RequestedTags'])
+            self.assertIn('RequestAttributesSequence', a[0]['RequestedTags'])
 
             self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
             self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
             self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', a[0]['RequestedTags']['SeriesInstanceUID'])
+            self.assertEqual('A10029316690', a[0]['RequestedTags']['RequestAttributesSequence'][0]['RequestedProcedureID'])
 
 
             # Instance level, request patient, study and series tags too, include tags that are not part of the main dicom tags
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
                                                 'CaseSensitive' : False,
                                                 'Query' : { 'PatientName' : 'BRAINIX' },
-                                                'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PhotometricInterpretation'],
+                                                'RequestedTags' : [ 'PatientName', 'StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID', 'PhotometricInterpretation', 'RequestAttributesSequence'],
                                                 'Expand': True
                                                 })
             self.assertEqual(1, len(a))
@@ -8671,11 +8673,13 @@ class Orthanc(unittest.TestCase):
             self.assertIn('StudyInstanceUID', a[0]['RequestedTags'])
             self.assertIn('SeriesInstanceUID', a[0]['RequestedTags'])
             self.assertIn('PhotometricInterpretation', a[0]['RequestedTags'])
+            self.assertIn('RequestAttributesSequence', a[0]['RequestedTags'])
 
             self.assertEqual('BRAINIX', a[0]['RequestedTags']['PatientName'])
             self.assertEqual('2.16.840.1.113669.632.20.1211.10000357775', a[0]['RequestedTags']['StudyInstanceUID'])
             self.assertEqual('1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114285654497', a[0]['RequestedTags']['SeriesInstanceUID'])
             self.assertEqual('MONOCHROME2', a[0]['RequestedTags']['PhotometricInterpretation'])
+            self.assertEqual('A10029316690', a[0]['RequestedTags']['RequestAttributesSequence'][0]['RequestedProcedureID'])
 
 
     def test_rest_find_requested_tags_computed_tags(self):

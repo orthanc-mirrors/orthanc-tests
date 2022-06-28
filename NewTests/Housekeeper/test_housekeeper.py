@@ -45,7 +45,7 @@ class TestHousekeeper(OrthancTestCase):
                     "Patient" : ["PatientWeight", "PatientAge"],
                     "Study": ["NameOfPhysiciansReadingStudy"],
                     "Series": ["ScanOptions"],
-                    "Instance": ["Rows", "Columns"]
+                    "Instance": ["Rows", "Columns", "DerivationCodeSequence"]
                 },
                 "Housekeeper": {
                     "Enable": True
@@ -111,12 +111,14 @@ class TestHousekeeper(OrthancTestCase):
 
         # extra tags were not in DB before reconstruction
         self.assertNotIn("Rows", self.instance_before["MainDicomTags"])
+        self.assertNotIn("DerivationCodeSequence", self.instance_before["MainDicomTags"])
         self.assertNotIn("ScanOptions", self.series_before["MainDicomTags"])
         self.assertNotIn("NameOfPhysiciansReadingStudy", self.study_before["MainDicomTags"])
         self.assertNotIn("PatientWeight", self.patient_before["MainDicomTags"])
 
         # extra tags are in  DB after reconstruction
         self.assertIn("Rows", instance_after["MainDicomTags"])
+        self.assertIn("DerivationCodeSequence", instance_after["MainDicomTags"])
         self.assertIn("ScanOptions", series_after["MainDicomTags"])
         self.assertIn("NameOfPhysiciansReadingStudy", study_after["MainDicomTags"])
         self.assertIn("PatientWeight", patient_after["MainDicomTags"])

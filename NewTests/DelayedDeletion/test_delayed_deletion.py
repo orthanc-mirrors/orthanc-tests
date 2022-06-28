@@ -46,14 +46,13 @@ class TestDelayedDeletion(OrthancTestCase):
                 config=config,
                 plugins=Helpers.plugins
             )
+        
+        print('-------------- waiting for orthanc-to-prepare-db to be available')
+        cls.o.wait_started()
 
-        populator = OrthancTestDbPopulator(
-            api_client=cls.o,
-            studies_count=2,
-            random_seed=42
-        )
-        populator.execute()
-
+        print('-------------- populating')
+        cls.o.upload_folder(here / "../../Database/Knix/Loc")
+        print('-------------- populated')
         cls.files_count_after_preparation = len(glob.glob(os.path.join(cls.get_storage_path("DelayedDeletion"), "**"), recursive=True))
 
         all_studies_ids = cls.o.studies.get_all_ids()
