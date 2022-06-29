@@ -1008,6 +1008,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(series, a[0]['0020000E']['Value'][0])
         self.assertEqual('MR', a[0]['00080060']['Value'][0])
 
+        # if we ask explicitely for the Patient and Study tags, we must get it
+        a = DoGet(ORTHANC, '/dicom-web/series?0020000D=%s&includefield=00100010&includefield=00080020' % study)
+        self.assertEqual(1, len(a))
+        self.assertTrue('00100010' in a[0])  # PatientName
+        self.assertTrue('00080020' in a[0])  # StudyDate
+
+        # if {StudyInstanceUID} *is not* specified, we must get the PatientName
+        a = DoGet(ORTHANC, '/dicom-web/series')
+        self.assertTrue('00100010' in a[0])  # PatientName
+
         # http://dicom.nema.org/medical/dicom/2019a/output/html/part18.html#table_6.7.1-2b
         a = DoGet(ORTHANC, '/dicom-web/instances?0020000D=%s' % study)
         self.assertEqual(1, len(a))
@@ -1029,6 +1039,18 @@ class Orthanc(unittest.TestCase):
         self.assertFalse('00080060' in a[0])  # Modality
         self.assertEqual(study, a[0]['0020000D']['Value'][0])
         self.assertEqual(series, a[0]['0020000E']['Value'][0])
+
+        # if we ask explicitely for the Patient and Study tags, we must get it
+        a = DoGet(ORTHANC, '/dicom-web/instances?0020000D=%s&includefield=00100010&includefield=00080020' % study)
+        self.assertEqual(1, len(a))
+        self.assertTrue('00100010' in a[0])  # PatientName
+        self.assertTrue('00080020' in a[0])  # StudyDate
+
+        # if {StudyInstanceUID} *is not* specified, we must get all Study, Series and Patient tags
+        a = DoGet(ORTHANC, '/dicom-web/instances')
+        self.assertTrue('00100010' in a[0])  # PatientName
+        self.assertTrue('00080020' in a[0])  # StudyDate
+        self.assertTrue('00080060' in a[0])  # Modality
 
 
     #@unittest.skip("Skip this test on GDCM 2.8.4")
