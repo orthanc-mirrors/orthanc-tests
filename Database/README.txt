@@ -93,6 +93,7 @@ Here is the source of each set of sample images:
 - Multiframe.dcm : From GDCM, "images_of_interest/PHILIPS_Integris_H-8-MONO2-Multiframe.dcm"
 - Phenix/* : From OsiriX, "PHENIX" (sample of uncompressed data).
 - PilatesArgenturGEUltrasoundOsiriX.dcm: From https://groups.google.com/d/msg/orthanc-users/m3zQLyl_jNc/TUrR462UKSMJ
+- PNG16RGBATest.png : From http://www.schaik.com/pngsuite/#basic, License http://www.schaik.com/pngsuite/PngSuite.LICENSE
 - PrivateMDNTags.dcm : From University Hospital of Liege
 - PrivateTags.dcm : From GDCM, "images_of_interest/494APG9K.dcm"
 - SignedCT.dcm : From Sébastien Jodogne.

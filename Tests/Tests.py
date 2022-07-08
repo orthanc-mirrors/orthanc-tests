@@ -8821,3 +8821,28 @@ class Orthanc(unittest.TestCase):
                   headers = { 'Accept' : 'application/dicom+json' })
         self.assertEqual(b['0020000D']['Value'][0], '1.2.276.0.7230010.3.1.2.2358427580.3460.1646695830.793')
         self.assertEqual(b['0020000E']['Value'][0], '1.2.276.0.7230010.3.1.3.2358427580.3460.1646695830.794')
+    
+    def test_create_png16RBGA(self):
+        with open(GetDatabasePath('Png16RBGATest.png'), 'rb') as f:
+            png = f.read()
+
+        i = DoPost(_REMOTE, '/tools/create-dicom',
+                   json.dumps({
+                    'PatientName' : 'Jodogne',
+                    'Modality' : 'CT',
+                    'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
+                    'PixelData' : 'data:image/png;base64,' + base64.b64encode(png)
+                    }))
+
+        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
+
+        png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
+        self.assertEqual((32, 32), png.size)
+
+        png = GetImage(_REMOTE, '/instances/%s/rendered' % i['ID'])
+        self.assertEqual((32, 32), png.size)
+
+        j = DoGet(_REMOTE, i['Path'])
+        self.assertEqual('Instance', j['Type'])
+        self.assertEqual(j['ID'], i['ID'])
