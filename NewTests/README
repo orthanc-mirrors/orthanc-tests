@@ -33,6 +33,7 @@ python3 NewTests/main.py --pattern=* \
                          --orthanc_under_tests_http_port=8043 \
                          --plugin=/home/alain/o/build/orthanc/libHousekeeper.so \
                          --plugin=/home/alain/o/build/orthanc/libDelayedDeletion.so \
+                         --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
                          --plugin=/home/alain/o/build/orthanc-gdcm/libOrthancGdcm.so
 
 
@@ -63,10 +64,6 @@ The test script will:
 - execute tests
 
 
-
-TODO: implement and document usage with Docker !!!!
-
-
 ExtraMainDicomTags:
 ------------------
 
@@ -86,3 +83,21 @@ The test script will:
 - execute tests
 
 
+StorageCompression:
+------------------
+
+Run the StorageCompression tests with your locally build version and break before and after preparation
+and execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=StorageCompression.test_storage_compression.TestStorageCompression.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --break_after_preparation \
+                         --break_before_preparation
+
+The test script will:
+- generate 2 configuration file in the `configurations` folder,
+- start your local Orthanc version to prepare the db with one of the configuration file, 
+- drive this Orthanc to prepare the DB
+- interrupt and instruct you how to start your own version, pointing to the configuration file to use
+- execute tests
