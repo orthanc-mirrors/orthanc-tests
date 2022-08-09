@@ -2477,6 +2477,10 @@ class Orthanc(unittest.TestCase):
                 retries -= 1
                 with open(os.devnull, 'w') as FNULL:
                     try:
+
+                        print([ FindExecutable('storescu') ] + tmp +
+                                            [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                                GetDatabasePath(image) ])
                         subprocess.check_call([ FindExecutable('storescu') ] + tmp +
                                             [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                                 GetDatabasePath(image) ],
@@ -2505,7 +2509,7 @@ class Orthanc(unittest.TestCase):
         else:
             InstallLuaScriptFromPath(_REMOTE, 'Lua/TransferSyntaxDisable.lua')
         
-        # the following line regularly fails on CI because storescu still returns 0 although the C-Store fails !!
+        # the following line regularly fails on CI because storescu still returns 0 although the C-Store fails -> that's why we have implemented retries
         self.assertRaises(Exception, lambda: storescu('Knix/Loc/IM-0001-0001.dcm', False, False, 3))
         self.assertRaises(Exception, lambda: storescu('UnknownSopClassUid.dcm', True, False, 3))
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
@@ -2522,6 +2526,8 @@ class Orthanc(unittest.TestCase):
         storescu('Knix/Loc/IM-0001-0001.dcm', False)
         storescu('UnknownSopClassUid.dcm', True)
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
+
+        time.sleep(200)
 
         # set back normal verbosity
         DoPut(_REMOTE, '/tools/log-level', 'default')

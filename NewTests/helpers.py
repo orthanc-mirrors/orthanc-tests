@@ -2,7 +2,7 @@ import unittest
 from orthanc_api_client import OrthancApiClient
 import subprocess
 import json
-import time
+import os
 import typing
 import shutil
 from threading import Thread
@@ -16,6 +16,7 @@ default_base_config = {
     "AuthenticationEnabled": False,
     "RemoteAccessAllowed": True
 }
+
 
 class Helpers:
 
@@ -35,12 +36,33 @@ class Helpers:
         return f"http://{cls.orthanc_under_tests_hostname}:{cls.orthanc_under_tests_http_port}"
 
     @classmethod
+    def get_orthanc_ip(cls):
+        return cls.orthanc_under_tests_hostname
+
+    @classmethod
+    def get_orthanc_dicom_port(cls):
+        return cls.orthanc_under_tests_dicom_port
+
+    @classmethod
     def is_docker(cls):
         return cls.orthanc_under_tests_exe is None and cls.orthanc_under_tests_docker_image is not None
 
     @classmethod
     def is_exe(cls):
         return cls.orthanc_under_tests_exe is not None and cls.orthanc_under_tests_docker_image is None
+
+    @classmethod
+    def find_executable(cls, name):
+        p = os.path.join('/usr/local/bin', name)
+        if os.path.isfile(p):
+            return p
+
+        p = os.path.join('/usr/local/sbin', name)
+        if os.path.isfile(p):
+            return p
+
+        return name
+
 
 class OrthancTestCase(unittest.TestCase):
 
