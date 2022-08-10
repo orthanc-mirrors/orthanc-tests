@@ -1,5 +1,5 @@
 -- for these tests, we issue HTTP requests to httpbin.org that performs smart echo (it returns all data/headers it has received + some extra data)
-
+-- since these tests to httpbin.org fails a lot, we have added 10 retries
 testSucceeded = true
 
 local payload = {}
@@ -11,25 +11,41 @@ httpHeaders['Content-Type'] = 'application/json'
 httpHeaders['Toto'] = 'Tutu'
 
 -- Issue HttpPost with body
-response = ParseJson(HttpPost('http://httpbin.org/post', DumpJson(payload), httpHeaders))
+retry = 10
+response = nil
+while retry > 0 and response == nil do
+	response = ParseJson(HttpPost('http://httpbin.org/post', DumpJson(payload), httpHeaders))
+end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 testSucceeded = testSucceeded and (response['json']['intMember'] == 2 and response['json']['stringMember'] == 'toto')
 if not testSucceeded then print('Failed in HttpPost with body') PrintRecursive(response) end
 
 -- Issue HttpPost without body
-response = ParseJson(HttpPost('http://httpbin.org/post', nil, httpHeaders))
+retry = 10
+response = nil
+while retry > 0 and response == nil do
+	response = ParseJson(HttpPost('http://httpbin.org/post', nil, httpHeaders))
+end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 testSucceeded = testSucceeded and (response['data'] == '')
 if not testSucceeded then print('Failed in HttpPost without body') PrintRecursive(response) end
 
 -- Issue HttpPut with body
-response = ParseJson(HttpPut('http://httpbin.org/put', DumpJson(payload), httpHeaders))
+retry = 10
+response = nil
+while retry > 0 and response == nil do
+	response = ParseJson(HttpPut('http://httpbin.org/put', DumpJson(payload), httpHeaders))
+end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 testSucceeded = testSucceeded and (response['json']['intMember'] == 2 and response['json']['stringMember'] == 'toto')
 if not testSucceeded then print('Failed in HttpPut with body') PrintRecursive(response) end
 
 -- Issue HttpPut without body
-response = ParseJson(HttpPut('http://httpbin.org/put', nil, httpHeaders))
+retry = 10
+response = nil
+while retry > 0 and response == nil do
+	response = ParseJson(HttpPut('http://httpbin.org/put', nil, httpHeaders))
+end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 testSucceeded = testSucceeded and (response['data'] == '')
 if not testSucceeded then print('Failed in HttpPut without body') PrintRecursive(response) end
@@ -41,7 +57,11 @@ HttpDelete('http://httpbin.org/delete', httpHeaders)
 -- in curl at this point
 
 -- Issue HttpGet
-response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
+retry = 10
+response = nil
+while retry > 0 and response == nil do
+	response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
+end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 if not testSucceeded then print('Failed in HttpGet') PrintRecursive(response) end
 
