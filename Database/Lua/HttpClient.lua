@@ -14,6 +14,7 @@ httpHeaders['Toto'] = 'Tutu'
 retry = 10
 response = nil
 while retry > 0 and response == nil do
+	print("HttpClient test: POST with body to httpbin.org")
 	response = ParseJson(HttpPost('http://httpbin.org/post', DumpJson(payload), httpHeaders))
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
@@ -24,6 +25,7 @@ if not testSucceeded then print('Failed in HttpPost with body') PrintRecursive(r
 retry = 10
 response = nil
 while retry > 0 and response == nil do
+	print("HttpClient test: POST without body to httpbin.org")
 	response = ParseJson(HttpPost('http://httpbin.org/post', nil, httpHeaders))
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
@@ -34,6 +36,7 @@ if not testSucceeded then print('Failed in HttpPost without body') PrintRecursiv
 retry = 10
 response = nil
 while retry > 0 and response == nil do
+	print("HttpClient test: PUT with body to httpbin.org")
 	response = ParseJson(HttpPut('http://httpbin.org/put', DumpJson(payload), httpHeaders))
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
@@ -44,6 +47,7 @@ if not testSucceeded then print('Failed in HttpPut with body') PrintRecursive(re
 retry = 10
 response = nil
 while retry > 0 and response == nil do
+	print("HttpClient test: PUT without body to httpbin.org")
 	response = ParseJson(HttpPut('http://httpbin.org/put', nil, httpHeaders))
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
@@ -60,7 +64,9 @@ HttpDelete('http://httpbin.org/delete', httpHeaders)
 retry = 10
 response = nil
 while retry > 0 and response == nil do
+	print("HttpClient test: GET to httpbin.org")
 	response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
+	sleep(1)
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 if not testSucceeded then print('Failed in HttpGet') PrintRecursive(response) end
@@ -71,11 +77,13 @@ system = ParseJson(RestApiGet('/system'))
 if system['Version'] == 'mainline' or system['Version'] == '1.11.1' or system['ApiVersion'] >= 18 then  -- introduced in 1.11.1 which is ApiVersion 17 (too lazy to reimplement IsAboveOrthancVersion in lua :-) )
 	-- Test SetHttpTimeout
 	SetHttpTimeout(10)
+	print("HttpClient test: GET with timeout (10) to httpstat.us")
 	response = HttpGet('https://httpstat.us/200?sleep=1000')
 	testSucceeded = testSucceeded and (response == '200 OK')
 	if not testSucceeded then print('Failed in SetHttpTimeout1') PrintRecursive(response) end
 
 	SetHttpTimeout(1)
+	print("HttpClient test: GET with timeout (1) to httpstat.us")
 	response = HttpGet('https://httpstat.us/200?sleep=2000')
 	testSucceeded = testSucceeded and (response == nil)
 	if not testSucceeded then print('Failed in SetHttpTimeout2') PrintRecursive(response) end
