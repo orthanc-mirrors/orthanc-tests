@@ -3908,13 +3908,15 @@ class Orthanc(unittest.TestCase):
 
 
     def test_httpClient_lua(self):
-        retries = 3
+        retries = 4
         result = ''
         
         with open(GetDatabasePath('Lua/HttpClient.lua'), 'r') as f:
+            scriptContent = f.read()
             # retry since this test sometimes fails if httpbin.org is unresponsive
             while retries > 0 and not ('OK' in result):
-                result = DoPost(_REMOTE, '/tools/execute-script', f.read(), 'application/lua')
+                print("Executing lua script HttpClient.lua")
+                result = DoPost(_REMOTE, '/tools/execute-script', scriptContent, 'application/lua')
                 retries -= 1
 
         self.assertIn('OK', result)

@@ -66,7 +66,6 @@ response = nil
 while retry > 0 and response == nil do
 	print("HttpClient test: GET to httpbin.org")
 	response = ParseJson(HttpGet('http://httpbin.org/get', httpHeaders))
-	sleep(1)
 end
 testSucceeded = testSucceeded and (response['headers']['Content-Type'] == 'application/json' and response['headers']['Toto'] == 'Tutu')
 if not testSucceeded then print('Failed in HttpGet') PrintRecursive(response) end
