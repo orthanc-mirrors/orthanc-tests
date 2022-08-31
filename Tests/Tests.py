@@ -2527,8 +2527,6 @@ class Orthanc(unittest.TestCase):
         storescu('UnknownSopClassUid.dcm', True)
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients')))
 
-        time.sleep(200)
-
         # set back normal verbosity
         DoPut(_REMOTE, '/tools/log-level', 'default')
 
