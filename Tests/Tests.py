@@ -6287,6 +6287,45 @@ class Orthanc(unittest.TestCase):
             DoGet(_REMOTE, '/instances/%s/file' % k[0])))
         
 
+    def test_modify_need_force_to_change_uids(self):
+        def Modify(level, resourceId, replaceTags, force, keepSource):
+            return DoPost(_REMOTE, '/%s/%s/modify' % (level, resourceId), {
+                'Replace' : replaceTags,
+                'Force': force,
+                'KeepSource' : keepSource
+                })
+        
+        self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
+
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm')
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+
+        # can not change the StudyInstanceUID unless you force it
+        self.assertRaises(Exception, lambda: Modify('studies', i['ParentStudy'], {'StudyInstanceUID': '1.2'}, force=False, keepSource=True))
+        Modify('studies', i['ParentStudy'], {'StudyInstanceUID': '1.2'}, force=True, keepSource=True)
+
+        # can not change the SeriesInstanceUID unless you force it
+        self.assertRaises(Exception, lambda: Modify('series', i['ParentSeries'], {'SeriesInstanceUID': '1.2'}, force=False, keepSource=True))
+        Modify('series', i['ParentSeries'], {'SeriesInstanceUID': '1.2'}, force=True, keepSource=True)
+
+        # can not change the SOPInstanceUID unless you force it
+        self.assertRaises(Exception, lambda: Modify('instances', i['ID'], {'SOPInstanceUID': '1.2'}, force=False, keepSource=True))
+        Modify('instances', i['ID'], {'SOPInstanceUID': '1.2'}, force=True, keepSource=True)
+
+
+        # can not change the PatientID of a study unless you force it
+        self.assertRaises(Exception, lambda: Modify('studies', i['ParentStudy'], {'PatientID': 'NEW'}, force=False, keepSource=True))
+        self.assertRaises(Exception, lambda: Modify('series', i['ParentSeries'], {'StudyInstanceUID': '1.3'}, force=False, keepSource=True))
+        self.assertRaises(Exception, lambda: Modify('instances', i['ID'], {'SeriesInstanceUID': '1.2'}, force=False, keepSource=True))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 2):
+            # this was forbidden even with Force=true till 1.11.2 included
+            Modify('studies', i['ParentStudy'], {'PatientID': 'NEW'}, force=True, keepSource=True)
+            Modify('series', i['ParentSeries'], {'StudyInstanceUID': '1.3'}, force=True, keepSource=True)
+            Modify('instances', i['ID'], {'SeriesInstanceUID': '1.2'}, force=True, keepSource=True)
+
+
+
     def test_store_peer_transcoding(self):
         i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
 
