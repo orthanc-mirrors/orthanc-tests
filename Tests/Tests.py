@@ -6318,7 +6318,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: Modify('series', i['ParentSeries'], {'StudyInstanceUID': '1.3'}, force=False, keepSource=True))
         self.assertRaises(Exception, lambda: Modify('instances', i['ID'], {'SeriesInstanceUID': '1.2'}, force=False, keepSource=True))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 2):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
             # this was forbidden even with Force=true till 1.11.2 included
             Modify('studies', i['ParentStudy'], {'PatientID': 'NEW'}, force=True, keepSource=True)
             Modify('series', i['ParentSeries'], {'StudyInstanceUID': '1.3'}, force=True, keepSource=True)
