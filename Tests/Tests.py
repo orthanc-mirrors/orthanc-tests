@@ -8891,3 +8891,30 @@ class Orthanc(unittest.TestCase):
         j = DoGet(_REMOTE, i['Path'])
         self.assertEqual('Instance', j['Type'])
         self.assertEqual(j['ID'], i['ID'])
+
+    def test_storescu_custom_host_ip_port(self):
+        DropOrthanc(_LOCAL)
+        DropOrthanc(_REMOTE)        
+
+        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+
+        # upload to self -> orthanctest shall not receive any content
+        DoPost(_REMOTE, '/modalities/self/store', {  
+            'Resources' : [ a['ID']]
+        })
+        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+        # upload to self by overriding it with config from orthanctest -> orthanctest shall receive the content
+        c = DoGet(_REMOTE, '/modalities/orthanctest/configuration')
+        DoPost(_REMOTE, '/modalities/self/store', {  
+            'LocalAet' : 'YOP',
+            'CalledAet' : c['AET'],
+            'Port' : c['Port'],
+            'Host' : c['Host'],
+            'Resources' : [ a['ID']]
+        })
+
+        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+
+        DropOrthanc(_REMOTE)        
+        DropOrthanc(_LOCAL)        
