@@ -2477,10 +2477,6 @@ class Orthanc(unittest.TestCase):
                 retries -= 1
                 with open(os.devnull, 'w') as FNULL:
                     try:
-
-                        print([ FindExecutable('storescu') ] + tmp +
-                                            [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                                GetDatabasePath(image) ])
                         subprocess.check_call([ FindExecutable('storescu') ] + tmp +
                                             [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                                 GetDatabasePath(image) ],
