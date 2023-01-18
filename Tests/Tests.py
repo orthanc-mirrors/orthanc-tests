@@ -2477,10 +2477,6 @@ class Orthanc(unittest.TestCase):
                 retries -= 1
                 with open(os.devnull, 'w') as FNULL:
                     try:
-
-                        print([ FindExecutable('storescu') ] + tmp +
-                                            [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
-                                                GetDatabasePath(image) ])
                         subprocess.check_call([ FindExecutable('storescu') ] + tmp +
                                             [ _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                                 GetDatabasePath(image) ],
@@ -3908,6 +3904,7 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual(mbb, mab)
 
 
+    @unittest.skip("httpbin.org is down as of 2022-12-22")  # TODO
     def test_httpClient_lua(self):
         retries = 4
         result = ''
@@ -9213,3 +9210,14 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(_REMOTE)        
         DropOrthanc(_LOCAL)        
+
+    def test_rle_planar_configuration(self):
+        # This test failed in Orthanc <= 1.11.2
+        # https://groups.google.com/g/orthanc-users/c/CSVWfRasSR0/m/y1XDRXVnAgAJ
+        a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
+        uri = '/instances/%s/preview' % a
+        im = GetImage(_REMOTE, uri)
+        self.assertEqual('RGB', im.mode)
+        self.assertEqual(1475, im.size[0])
+        self.assertEqual(1475, im.size[1])
+        self.assertEqual('c684b0050dc2523041240bf2d26dc85e', ComputeMD5(DoGet(_REMOTE, uri)))
