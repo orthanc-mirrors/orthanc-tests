@@ -3850,7 +3850,7 @@ class Orthanc(unittest.TestCase):
         def CompareMainDicomTag(expected, instance, level, tag):
             self.assertEqual(expected, DoGet(_REMOTE, '/instances/%s/%s' % (instance, level))['MainDicomTags'][tag].strip())
 
-        a = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+        originalInstanceId = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
 
         studies = DoGet(_REMOTE, '/studies/')
         self.assertEqual(1, len(DoGet(_REMOTE, '/patients/')))
@@ -3875,34 +3875,37 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_REMOTE, '/series/')))
         self.assertEqual(2, len(instances))
 
-        b = instances[0] if instances[1] == a else instances[1]
+        modifiedInstanceId = instances[0] if instances[1] == originalInstanceId else instances[1]
 
-        CompareMainDicomTag('Knee (R)', a, 'study', 'StudyDescription')
-        CompareMainDicomTag('AX.  FSE PD', a, 'series', 'SeriesDescription')
-        CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
-        CompareMainDicomTag('myid', b, '', 'SOPInstanceUID')
-        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % a).strip())
-        self.assertEqual('test', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % b).strip())
+        # in 1.11.3, we have added an automatic reconstruction at the end of the modification
+        if not IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
+            CompareMainDicomTag('Knee (R)', originalInstanceId, 'study', 'StudyDescription')
+            CompareMainDicomTag('AX.  FSE PD', originalInstanceId, 'series', 'SeriesDescription')
+            CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', originalInstanceId, '', 'SOPInstanceUID')
+            CompareMainDicomTag('myid', modifiedInstanceId, '', 'SOPInstanceUID')
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.4', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % originalInstanceId).strip())
+            self.assertEqual('test', DoGet(_REMOTE, '/instances/%s/metadata/SopClassUid' % modifiedInstanceId).strip())
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            # metadata before reconstruct
-            mba = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
-            mbb = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+            if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+                # metadata before reconstruct
+                mba = DoGet(_REMOTE, '/instances/%s/metadata?expand' % originalInstanceId)
+                mbb = DoGet(_REMOTE, '/instances/%s/metadata?expand' % originalInstanceId)
 
-        # reconstruct by taking the new instance as the reference -> should repopulate study fields from this instance tags
-        DoPost(_REMOTE, '/instances/%s/reconstruct' % b, {})
+            # reconstruct by taking the new instance as the reference -> should repopulate study fields from this instance tags
+            DoPost(_REMOTE, '/instances/%s/reconstruct' % modifiedInstanceId, {})
 
-        CompareMainDicomTag('hello', a, 'study', 'StudyDescription')
-        CompareMainDicomTag('world', a, 'series', 'SeriesDescription')
-        CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', a, '', 'SOPInstanceUID')
+        CompareMainDicomTag('hello', originalInstanceId, 'study', 'StudyDescription')
+        CompareMainDicomTag('world', originalInstanceId, 'series', 'SeriesDescription')
+        CompareMainDicomTag('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', originalInstanceId, '', 'SOPInstanceUID')
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            # metadata after reconstruct should have been preserved
-            maa = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
-            mab = DoGet(_REMOTE, '/instances/%s/metadata?expand' % a)
+        if not IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
+            if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+                # metadata after reconstruct should have been preserved
+                maa = DoGet(_REMOTE, '/instances/%s/metadata?expand' % originalInstanceId)
+                mab = DoGet(_REMOTE, '/instances/%s/metadata?expand' % originalInstanceId)
 
-            self.assertEqual(mba, maa)
-            self.assertEqual(mbb, mab)
+                self.assertEqual(mba, maa)
+                self.assertEqual(mbb, mab)
 
 
     def test_httpClient_lua(self):
@@ -6325,6 +6328,298 @@ class Orthanc(unittest.TestCase):
             Modify('instances', i['ID'], {'SeriesInstanceUID': '1.2'}, force=True, keepSource=True)
 
 
+    def test_modify_study_module_reconstruction(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
+            def UploadAndModify(level, resourceId, replaceTags, force, keepSource, dropOrthanc=True):
+
+                if dropOrthanc:
+                    DropOrthanc(_REMOTE)
+    
+                UploadFolder(_REMOTE, 'Knee/T1')
+                UploadFolder(_REMOTE, 'Knee/T2')
+    
+                if dropOrthanc:
+                    self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % (level, resourceId), {
+                    'Replace' : replaceTags,
+                    'Force': force,
+                    'KeepSource' : keepSource
+                    })
+                modifiedResource = DoGet(_REMOTE, '/%s/%s' % (level, modifyResponse['ID']))
+                return (modifyResponse, modifiedResource)
+
+            kneeSeriesT1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            kneeSeriesT2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeStudy = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+            kneePatient = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+            kneeStudyInstanceUID = '2.16.840.1.113669.632.20.121711.10000160881'
+            kneeSeriesInstanceUIDT1 = '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
+            kneeSeriesInstanceUIDT2 = '1.3.46.670589.11.17521.5.0.3124.2008081909090037350'
+
+            ####### study level tests #######
+
+            # modify study description and make sure the MainDicomTags are updated
+            modifyResponse, modifiedResource = UploadAndModify('studies', kneeStudy, replaceTags={
+                'StudyInstanceUID': kneeStudyInstanceUID, 
+                'StudyDescription': 'TOTO'
+                }, force=True, keepSource=True)
+            self.assertEqual(kneeStudy, modifyResponse['ID'])
+            self.assertEqual('TOTO', modifiedResource['MainDicomTags']['StudyDescription'])
+
+            # modify patient name at study level and make sure the PatientMainDicomTags are updated + the patient has been updated
+            modifyResponse, modifiedResource = UploadAndModify('studies', kneeStudy, replaceTags={
+                'StudyInstanceUID': kneeStudyInstanceUID, 
+                'PatientName': 'TOTO'
+                }, force=True, keepSource=True)
+            self.assertEqual(kneeStudy, modifyResponse['ID'])
+            self.assertEqual('TOTO', modifiedResource['PatientMainDicomTags']['PatientName'])
+            patient = DoGet(_REMOTE, '/patients/%s' % kneePatient)
+            self.assertEqual('TOTO', patient['MainDicomTags']['PatientName'])
+
+            # modify patient name and patient id at study level and make sure the PatientMainDicomTags are updated + a new patient has been created + the old one does not exist anymore
+            modifyResponse, modifiedResource = UploadAndModify('studies', kneeStudy, replaceTags={
+                'StudyInstanceUID': kneeStudyInstanceUID, 
+                'PatientID': 'TOTO_ID',
+                'PatientName': 'TOTO'
+                }, force=True, keepSource=True)
+            self.assertNotEqual(kneeStudy, modifyResponse['ID'])  # the study has changed since the PatientID has changed
+            self.assertEqual('TOTO', modifiedResource['PatientMainDicomTags']['PatientName'])
+            self.assertEqual('TOTO_ID', modifiedResource['PatientMainDicomTags']['PatientID'])
+            patient = DoGet(_REMOTE, '/patients/%s' % modifyResponse['PatientID'])
+            self.assertEqual('TOTO', patient['MainDicomTags']['PatientName'])
+            self.assertEqual('TOTO_ID', patient['MainDicomTags']['PatientID'])
+
+            ####### series level tests #######
+            # modify series description and make sure the MainDicomTags are updated
+            modifyResponse, modifiedResource = UploadAndModify('series', kneeStudy, replaceTags={
+                'SeriesInstanceUID': kneeSeriesInstanceUIDT1,
+                'StudyInstanceUID': kneeStudyInstanceUID,
+                'SeriesDescription': 'TOTO'
+                }, force=True, keepSource=True)
+            self.assertEqual(kneeSeriesT1, modifyResponse['ID'])
+            self.assertEqual('TOTO', modifiedResource['MainDicomTags']['SeriesDescription'])
+            self.assertEqual(kneeStudy, modifyResponse['ParentResources'][0])
+
+
+    def test_rename_patient_with_multiple_studies(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
+
+            patientOrthancId = '5436938e-7ae68340-5ea6ad3c-4e6e09bd-1bd335de'
+            patientDicomId = 'TEST_1'
+            patientName = 'Test'
+            study1234 = '72de3b86-da4b2556-bb33f32f-d1d84f80-fb017059'
+            study2345 = '3594f32b-dcf60e81-58252b67-66222714-c09fca81'
+
+            DropOrthanc(_REMOTE)
+            UploadFolder(_REMOTE, 'PatientWith2studies')
+
+            # each sub-test is in a dedicated 'if' for clarity
+
+            if True:
+                # it shall be impossible to rename a patient when modifying a study if that patient already has other studies
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/%s/%s/modify' % ('studies', study1234), {
+                    'Replace' : {'PatientName': "TOTO"},
+                    'Force': True,
+                    'KeepSource' : True
+                    }))
+
+            if True:
+                # rename the patient (at patient level)
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('patients', patientOrthancId), {
+                    'Replace' : {
+                        'PatientName': 'TOTO'
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    })
+                modifiedPatient = DoGet(_REMOTE, '/%s/%s' % ('patients', modifyResponse['ID']))
+                # make sure the patient name has been edited at patient level
+                self.assertEqual('TOTO', modifiedPatient['MainDicomTags']['PatientName'])
+
+                # there should only be 2 studies since we have set KeepSource=False
+                self.assertEqual(2, len(modifiedPatient['Studies']))
+                modifiedStudy1 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][0]))
+                modifiedStudy2 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][1]))
+                self.assertEqual('TOTO', modifiedStudy1['PatientMainDicomTags']['PatientName'])
+                self.assertEqual('TOTO', modifiedStudy2['PatientMainDicomTags']['PatientName'])
+
+            if True:
+                # rename the patient (at patient level) and don't keep sources and preserve StudyInstanceUID
+                DropOrthanc(_REMOTE)
+                UploadFolder(_REMOTE, 'PatientWith2studies')
+
+                # rename the patient (at patient level) and don't keep sources and preserve StudyInstanceUID, SeriesInstanceUID
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('patients', patientOrthancId), {
+                    'Replace' : {
+                        'PatientName': 'TOTO'
+                    },
+                    'Keep': ['StudyInstanceUID', 'SeriesInstanceUID'],
+                    'Force': True,
+                    'KeepSource' : False
+                    })
+                modifiedPatient = DoGet(_REMOTE, '/%s/%s' % ('patients', modifyResponse['ID']))
+                # make sure tha patient name has been edited at patient level
+                self.assertEqual('TOTO', modifiedPatient['MainDicomTags']['PatientName'])
+
+                # there should only be 2 studies since we have set KeepSource=False
+                self.assertEqual(2, len(modifiedPatient['Studies']))
+                modifiedStudy1 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][0]))
+                modifiedStudy2 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][1]))
+                # the StudyInstanceUID shall not have changed
+                self.assertIn(modifiedStudy1['MainDicomTags']['StudyInstanceUID'], ['1.2.3', '2.3.4'])
+                self.assertIn(modifiedStudy2['MainDicomTags']['StudyInstanceUID'], ['1.2.3', '2.3.4'])
+                # the DB model of parent shall have been reconstructed
+                self.assertEqual('TOTO', modifiedStudy1['PatientMainDicomTags']['PatientName'])
+                self.assertEqual('TOTO', modifiedStudy2['PatientMainDicomTags']['PatientName'])
+
+            if True:
+                # it shall not be possible to keep all dicom UID and have KeepSource at False since the modified instances 
+                # would have the same orthanc ids as the source ids -> they would be deleted
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/%s/%s/modify' % ('patients', study1234), {
+                    'Replace' : {'PatientName': "TOTO"},
+                    'Force': True,
+                    'Keep': ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                    'KeepSource' : False
+                    }))
+
+            if True:
+                # rename the patient (at patient level) and don't keep sources and preserve all DicomID
+                DropOrthanc(_REMOTE)
+                UploadFolder(_REMOTE, 'PatientWith2studies')
+
+                # rename the patient (at patient level) and don't keep sources and preserve StudyInstanceUID
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('patients', patientOrthancId), {
+                    'Replace' : {
+                        'PatientName': 'TOTO'
+                    },
+                    'Keep': ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                    'Force': True,
+                    'KeepSource' : True
+                    })
+                modifiedPatient = DoGet(_REMOTE, '/%s/%s' % ('patients', modifyResponse['ID']))
+                # make sure tha patient name has been edited at patient level
+                self.assertEqual('TOTO', modifiedPatient['MainDicomTags']['PatientName'])
+
+                # there should only be 2 studies since we have set KeepSource=False
+                self.assertEqual(2, len(modifiedPatient['Studies']))
+                modifiedStudy1 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][0]))
+                modifiedStudy2 = DoGet(_REMOTE, '/%s/%s' % ('studies', modifiedPatient['Studies'][1]))
+                # the StudyInstanceUID shall not have changed
+                self.assertIn(modifiedStudy1['MainDicomTags']['StudyInstanceUID'], ['1.2.3', '2.3.4'])
+                self.assertIn(modifiedStudy2['MainDicomTags']['StudyInstanceUID'], ['1.2.3', '2.3.4'])
+                # the DB model of parent shall have been reconstructed
+                self.assertEqual('TOTO', modifiedStudy1['PatientMainDicomTags']['PatientName'])
+                self.assertEqual('TOTO', modifiedStudy2['PatientMainDicomTags']['PatientName'])
+
+
+            if True:
+                # try to attach the knee study to an existing patient
+                DropOrthanc(_REMOTE)
+                UploadFolder(_REMOTE, 'PatientWith2studies')
+                UploadFolder(_REMOTE, 'Knee/T1')
+
+                kneeStudy = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+
+                # try to change the PatientID at study level.  This only works if we specify all Patient Tags and if they are identical to the existing Patient in DB
+                
+                # this should fail if only specifying the PatientID
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientID': 'TEST_1'
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    }))
+
+                # this should fail if specifying all tags but one of them is not correct
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientID': 'TEST_1',
+                        'PatientName': 'Test',
+                        'PatientBirthDate': '19000101',
+                        'PatientSex': 'F'  # this is wrong !
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    }))
+
+                # this should fail if specifying a tag that is not defined in DB for that patient
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientID': 'TEST_1',
+                        'PatientName': 'Test',
+                        'PatientBirthDate': '19000101',
+                        'PatientSex': 'M',
+                        '0010,1000': 'TUTU'  # this does not exist in DB
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    }))
+
+                # this should now work with all correct tags
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientID': 'TEST_1',
+                        'PatientName': 'Test',
+                        'PatientBirthDate': '19000101',
+                        'PatientSex': 'M'
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    })
+                modifiedStudy = DoGet(_REMOTE, '/%s/%s' % ('studies', modifyResponse['ID']))
+                self.assertEqual('Test', modifiedStudy['PatientMainDicomTags']['PatientName'])
+                patient = DoGet(_REMOTE, '/%s/%s' % ('patients', patientOrthancId))
+                # make sure tha patient name remains the same at patient level
+                self.assertEqual('Test', patient['MainDicomTags']['PatientName'])
+
+
+            if True:
+                # try to edit patient in Knee (only study from this patient)
+                DropOrthanc(_REMOTE)
+                UploadFolder(_REMOTE, 'PatientWith2studies')
+                UploadFolder(_REMOTE, 'Knee/T1')
+
+                kneeStudy = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+                originalKneePatientId = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+
+                originalKneePatient = DoGet(_REMOTE, '/%s/%s' % ('patients', originalKneePatientId))
+
+                # try to change the PatientName and StudyDescription at study level.
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientName': 'Test Knee',
+                        'StudyDescription': 'Knee study'
+                    },
+                    'Keep': ['StudyInstanceUID'],
+                    'Force': True,
+                    'KeepSource' : False
+                    })
+                modifiedStudy = DoGet(_REMOTE, '/%s/%s' % ('studies', modifyResponse['ID']))
+                self.assertEqual('Test Knee', modifiedStudy['PatientMainDicomTags']['PatientName'])
+                # reload the patient, it shall have been updated as well (and kept the same ID since we did not change the PatientID)
+                modifiedPatient = DoGet(_REMOTE, '/%s/%s' % ('patients', originalKneePatientId))
+                self.assertEqual('Test Knee', modifiedPatient['MainDicomTags']['PatientName'])
+
+                # try to change the PatientID and PatientName and StudyDescription at study level.  Since we use a new PatientID, we can modify its name too
+                modifyResponse = DoPost(_REMOTE, '/%s/%s/modify' % ('studies', kneeStudy), {
+                    'Replace' : {
+                        'PatientName': 'Test Knee 2',
+                        'PatientID': 'TEST_KNEE_2',
+                        'StudyDescription': 'Knee study 2'
+                    },
+                    'Force': True,
+                    'KeepSource' : False
+                    })
+                modifiedStudy = DoGet(_REMOTE, '/%s/%s' % ('studies', modifyResponse['ID']))
+                self.assertEqual('Test Knee 2', modifiedStudy['PatientMainDicomTags']['PatientName'])
+                self.assertEqual('Knee study 2', modifiedStudy['MainDicomTags']['StudyDescription'])
+                # reload the patient, now, its orthanc id has changed
+                modifiedPatient = DoGet(_REMOTE, '/%s/%s' % ('patients', modifiedStudy['ParentPatient']))
+                self.assertEqual('Test Knee 2', modifiedPatient['MainDicomTags']['PatientName'])
+                # the previous patient shall not exist anymore
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/%s/%s' % ('patients', originalKneePatientId)))
 
     def test_store_peer_transcoding(self):
         i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
