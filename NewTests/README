@@ -82,6 +82,23 @@ The test script will:
 - interrupt and instruct you how to start your own version, pointing to the configuration file to use
 - execute tests
 
+WithIngestTranscoding:
+------------------
+
+Runs an Orthanc with IngestTranscoding configured.
+
+Run theses tests with your locally build version.
+
+python3 NewTests/main.py --pattern=WithIngestTranscoding.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --break_after_preparation
+
+The test script will:
+- generate 1 configuration file in the `configurations` folder,
+- interrupt and instruct you how to start your own version, pointing to the configuration file to use
+- execute tests
+
 
 StorageCompression:
 ------------------
