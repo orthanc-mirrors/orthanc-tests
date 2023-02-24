@@ -9221,3 +9221,53 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1475, im.size[0])
         self.assertEqual(1475, im.size[1])
         self.assertEqual('c684b0050dc2523041240bf2d26dc85e', ComputeMD5(DoGet(_REMOTE, uri)))
+
+
+    def test_nonexistent_archives(self):
+        def GetNumberOfFiles(uri):
+            archive = DoGet(_REMOTE, uri)
+            z = zipfile.ZipFile(StringIO(archive), 'r')
+            return len(z.namelist())            
+        
+        def IsExistent(uri):
+            try:
+                DoGet(_REMOTE, uri)
+                return True
+            except:
+                return False
+                
+        instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+        patient = DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID']
+        study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
+        series = DoGet(_REMOTE, '/instances/%s/series' % instance) ['ID']
+
+        self.assertEqual(1, GetNumberOfFiles('/patients/%s/archive' % patient))
+        self.assertEqual(2, GetNumberOfFiles('/patients/%s/media' % patient))
+        self.assertEqual(1, GetNumberOfFiles('/studies/%s/archive' % study))
+        self.assertEqual(2, GetNumberOfFiles('/studies/%s/media' % study))
+        self.assertEqual(1, GetNumberOfFiles('/series/%s/archive' % series))
+        self.assertEqual(2, GetNumberOfFiles('/series/%s/media' % series))
+
+        self.assertTrue(IsExistent('/patients/%s/archive' % patient))
+        self.assertFalse(IsExistent('/studies/%s/archive' % patient))
+        self.assertFalse(IsExistent('/series/%s/archive' % patient))
+
+        self.assertFalse(IsExistent('/patients/%s/archive' % study))
+        self.assertTrue(IsExistent('/studies/%s/archive' % study))
+        self.assertFalse(IsExistent('/series/%s/archive' % study))
+
+        self.assertFalse(IsExistent('/patients/%s/archive' % series))
+        self.assertFalse(IsExistent('/studies/%s/archive' % series))
+        self.assertTrue(IsExistent('/series/%s/archive' % series))
+
+        self.assertTrue(IsExistent('/patients/%s/media' % patient))
+        self.assertFalse(IsExistent('/studies/%s/media' % patient))
+        self.assertFalse(IsExistent('/series/%s/media' % patient))
+
+        self.assertFalse(IsExistent('/patients/%s/media' % study))
+        self.assertTrue(IsExistent('/studies/%s/media' % study))
+        self.assertFalse(IsExistent('/series/%s/media' % study))
+
+        self.assertFalse(IsExistent('/patients/%s/media' % series))
+        self.assertFalse(IsExistent('/studies/%s/media' % series))
+        self.assertTrue(IsExistent('/series/%s/media' % series))
