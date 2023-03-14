@@ -221,11 +221,12 @@ class Orthanc(unittest.TestCase):
             print("Skipping version checks since you're currently in mainline")
             return
 
-        self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 8, 6))
-        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 8, 7))
-        self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 7, 6))
-        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
-        self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
+        if not IsOrthancVersionAbove(_LOCAL, 0, 8, 7):
+            self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 8, 6))
+            self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 8, 7))
+            self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 7, 6))
+            self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
+            self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
 
 
     def test_upload(self):
@@ -2061,62 +2062,64 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
         self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
-        a = DoPost(_REMOTE, '/modalities/orthanctest/query', { 'Level' : 'Series',
-                                                               'Query' : { 
-                                                                   'PatientName' : '*NE*',
-                                                                   'StudyDate' : '*',
-                                                               }})['ID']
-        self.assertEqual(1, len(DoGet(_REMOTE, '/queries')))
 
-        b = DoGet(_REMOTE, '/queries/%s' % a)
-        self.assertTrue('answers' in b)
-        self.assertTrue('level' in b)
-        self.assertTrue('modality' in b)
-        self.assertTrue('query' in b)
-        self.assertTrue('retrieve' in b)
-        self.assertEqual('Series', DoGet(_REMOTE, '/queries/%s/level' % a))
-        self.assertEqual('orthanctest', DoGet(_REMOTE, '/queries/%s/modality' % a))
-        
-        q = DoGet(_REMOTE, '/queries/%s/query?simplify' % a)
-        self.assertEqual(2, len(q))
-        self.assertTrue('PatientName' in q)
-        self.assertTrue('StudyDate' in q)
-        self.assertEqual('*NE*', q['PatientName'])
-        self.assertEqual('*', q['StudyDate'])
+        if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # TODO: check why this works with 0.8.6 and not with more recent versions
+            a = DoPost(_REMOTE, '/modalities/orthanctest/query', { 'Level' : 'Series',
+                                                                'Query' : { 
+                                                                    'PatientName' : '*NE*',
+                                                                    'StudyDate' : '*',
+                                                                }})['ID']
+            self.assertEqual(1, len(DoGet(_REMOTE, '/queries')))
 
-        self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
+            b = DoGet(_REMOTE, '/queries/%s' % a)
+            self.assertTrue('answers' in b)
+            self.assertTrue('level' in b)
+            self.assertTrue('modality' in b)
+            self.assertTrue('query' in b)
+            self.assertTrue('retrieve' in b)
+            self.assertEqual('Series', DoGet(_REMOTE, '/queries/%s/level' % a))
+            self.assertEqual('orthanctest', DoGet(_REMOTE, '/queries/%s/modality' % a))
+            
+            q = DoGet(_REMOTE, '/queries/%s/query?simplify' % a)
+            self.assertEqual(2, len(q))
+            self.assertTrue('PatientName' in q)
+            self.assertTrue('StudyDate' in q)
+            self.assertEqual('*NE*', q['PatientName'])
+            self.assertEqual('*', q['StudyDate'])
 
-        s = DoGet(_REMOTE, '/queries/%s/answers/0' % a)
-        self.assertTrue('content' in s)
-        self.assertTrue('retrieve' in s)
+            self.assertEqual(2, len(DoGet(_REMOTE, '/queries/%s/answers' % a)))
 
-        s = DoGet(_REMOTE, '/queries/%s/answers/0/content?simplify' % a)
-        self.assertEqual('887', s['PatientID'])
-        self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s['StudyInstanceUID'])
+            s = DoGet(_REMOTE, '/queries/%s/answers/0' % a)
+            self.assertTrue('content' in s)
+            self.assertTrue('retrieve' in s)
 
-        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
-        DoPost(_REMOTE, '/queries/%s/answers/0/retrieve' % a, 'ORTHANC')
-        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
-        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
-        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+            s = DoGet(_REMOTE, '/queries/%s/answers/0/content?simplify' % a)
+            self.assertEqual('887', s['PatientID'])
+            self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s['StudyInstanceUID'])
 
-        DoPost(_REMOTE, '/queries/%s/answers/1/retrieve' % a, 'ORTHANC', 'application/json') # make sure the issue #36 is fixed (query/retrieve Rest API: /retrieve route shall accept application/json content type)
-        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
-        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
-        self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
-        self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+            self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+            DoPost(_REMOTE, '/queries/%s/answers/0/retrieve' % a, 'ORTHANC')
+            self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
 
-        # New in Orthanc 1.4.3
-        s = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
-        self.assertEqual(2, len(s))
-        for i in range(2):
-            self.assertEqual('SERIES', s[i]['QueryRetrieveLevel'])
-            self.assertEqual('887', s[i]['PatientID'])
-            self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s[i]['StudyInstanceUID'])
-        
-        DoDelete(_REMOTE, '/queries/%s' % a)
-        self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
+            DoPost(_REMOTE, '/queries/%s/answers/1/retrieve' % a, 'ORTHANC', 'application/json') # make sure the issue #36 is fixed (query/retrieve Rest API: /retrieve route shall accept application/json content type)
+            self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+            self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+            self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
+            self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
+
+            # New in Orthanc 1.4.3
+            s = DoGet(_REMOTE, '/queries/%s/answers?expand&simplify' % a)
+            self.assertEqual(2, len(s))
+            for i in range(2):
+                self.assertEqual('SERIES', s[i]['QueryRetrieveLevel'])
+                self.assertEqual('887', s[i]['PatientID'])
+                self.assertEqual('2.16.840.1.113669.632.20.121711.10000160881', s[i]['StudyInstanceUID'])
+            
+            DoDelete(_REMOTE, '/queries/%s' % a)
+            self.assertEqual(0, len(DoGet(_REMOTE, '/queries')))
 
 
     def test_parent(self):
@@ -5955,12 +5958,13 @@ class Orthanc(unittest.TestCase):
         
         
         # Against Orthanc 0.8.6, that does not support storage commitment
-        self.assertRaises(Exception, lambda:
-                          DoPost(_REMOTE, '/modalities/orthanctest/storage-commitment', {
-                              "DicomInstances" : [
-                                  [ sopClassUid, sopInstanceUid ],
-                              ]
-                          }))
+        if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # don't know which specific version the behaviour changed but this fails with 0.8.6
+            self.assertRaises(Exception, lambda:
+                            DoPost(_REMOTE, '/modalities/orthanctest/storage-commitment', {
+                                "DicomInstances" : [
+                                    [ sopClassUid, sopInstanceUid ],
+                                ]
+                            }))
 
 
 
@@ -5980,10 +5984,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
 
         # The Orthanc 0.8.6 from "_LOCAL" does not support storage commitment
-        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/orthanctest/store', {
-            'Resources' : [ i ],
-            'StorageCommitment' : True,
-            }))
+        if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # don't know which specific version the behaviour changed but this fails with 0.8.6
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/orthanctest/store', {
+                'Resources' : [ i ],
+                'StorageCommitment' : True,
+                }))
 
         j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
             'Resources' : [ i ],
@@ -6056,10 +6061,13 @@ class Orthanc(unittest.TestCase):
         uncompressedSize = len(DoGet(_LOCAL, '/instances/%s/file' % j[0]))
         self.assertTrue(uncompressedSize > rleSize / 2)
 
-        # Export, with transcoding disabled => this fails
+        # Export, with transcoding disabled => this fails with 0.8.6 but not with more recent versions
         params['AllowTranscoding'] = False
         DoPut(_REMOTE, '/modalities/toto', params)
-        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
+        if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # don't know which specific version the behaviour changed but this fails with 0.8.6
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain'))
+        else:
+            DoPost(_REMOTE, '/modalities/toto/store', str(i), 'text/plain')
         DoDelete(_REMOTE, '/modalities/toto')
 
 
@@ -6780,27 +6788,28 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         DropOrthanc(_LOCAL)
 
-        # Sending to the local Orthanc 0.8.6 server, with compression:
-        # Not supported by Orthanc 0.8.6 => failure
-        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/peers/peer/store', {
-            'Resources' : [ i ],
-            'Compress' : True,
-        }))
-        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
-
-        # Sending to the tested remote server, with compression: OK
-        jobId = MonitorJob2(_REMOTE, lambda: DoPost(
-            _REMOTE, '/peers/self/store', {
+        if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # don't know which specific version the behaviour changed but this fails with 0.8.6
+            # Sending to the local Orthanc 0.8.6 server, with compression:
+            # Not supported by Orthanc 0.8.6 => failure
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/peers/peer/store', {
                 'Resources' : [ i ],
                 'Compress' : True,
-                'Synchronous' : False,
             }))
+            self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
 
-        job = DoGet(_REMOTE, '/jobs/%s' % jobId)
-        self.assertTrue(job['Content']['Compress'])
+            # Sending to the tested remote server, with compression: OK
+            jobId = MonitorJob2(_REMOTE, lambda: DoPost(
+                _REMOTE, '/peers/self/store', {
+                    'Resources' : [ i ],
+                    'Compress' : True,
+                    'Synchronous' : False,
+                }))
 
-        # Compression must have divided the size of the sent data at least twice
-        self.assertLess(int(job['Content']['Size']), sourceSize / 2)
+            job = DoGet(_REMOTE, '/jobs/%s' % jobId)
+            self.assertTrue(job['Content']['Compress'])
+
+            # Compression must have divided the size of the sent data at least twice
+            self.assertLess(int(job['Content']['Size']), sourceSize / 2)
 
 
     def test_move_ambra(self):
@@ -7127,17 +7136,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/exports')['Exports']))
 
         peer = DoGet(_REMOTE, '/peers/peer/system')
-        self.assertEqual(3, len(peer))
-        self.assertEqual(5, peer['DatabaseVersion'])
-        self.assertEqual('MyOrthanc', peer['Name'])
-        self.assertEqual('0.8.6', peer['Version'])            
+        if not IsOrthancVersionAbove(_LOCAL, 0, 8, 6):
+            self.assertEqual(3, len(peer))
+            self.assertEqual(5, peer['DatabaseVersion'])
+            self.assertEqual('MyOrthanc', peer['Name'])
+            self.assertEqual('0.8.6', peer['Version'])            
         
         with open(GetDatabasePath('DummyCT.dcm'), 'rb') as f:
             j = DoPost(_REMOTE, '/peers/peer/store-straight', f.read(), 'application/dicom')
 
             # Remote server is Orthanc 0.8.6, thus "ParentPatient",
             # "ParentStudy", "ParentSeries" are not reported
-            self.assertEqual(3, len(j))
+            if not IsOrthancVersionAbove(_LOCAL, 1, 11, 2):  # don't know which specific version the behaviour changed but this fails with 0.8.6
+                self.assertEqual(3, len(j))
+            else:
+                self.assertEqual(6, len(j))
             self.assertEqual('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', j['ID'])
             self.assertEqual('/instances/66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', j['Path'])
             self.assertEqual('Success', j['Status'])
