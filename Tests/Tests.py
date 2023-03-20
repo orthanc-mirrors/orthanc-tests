@@ -9201,31 +9201,32 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(j['ID'], i['ID'])
 
     def test_storescu_custom_host_ip_port(self):
-        DropOrthanc(_LOCAL)
-        DropOrthanc(_REMOTE)        
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 3):
+            DropOrthanc(_LOCAL)
+            DropOrthanc(_REMOTE)        
 
-        a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+            a = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
 
-        # upload to self -> orthanctest shall not receive any content
-        DoPost(_REMOTE, '/modalities/self/store', {  
-            'Resources' : [ a['ID']]
-        })
-        self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+            # upload to self -> orthanctest shall not receive any content
+            DoPost(_REMOTE, '/modalities/self/store', {  
+                'Resources' : [ a['ID']]
+            })
+            self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
 
-        # upload to self by overriding it with config from orthanctest -> orthanctest shall receive the content
-        c = DoGet(_REMOTE, '/modalities/orthanctest/configuration')
-        DoPost(_REMOTE, '/modalities/self/store', {  
-            'LocalAet' : 'YOP',
-            'CalledAet' : c['AET'],
-            'Port' : c['Port'],
-            'Host' : c['Host'],
-            'Resources' : [ a['ID']]
-        })
+            # upload to self by overriding it with config from orthanctest -> orthanctest shall receive the content
+            c = DoGet(_REMOTE, '/modalities/orthanctest/configuration')
+            DoPost(_REMOTE, '/modalities/self/store', {  
+                'LocalAet' : 'YOP',
+                'CalledAet' : c['AET'],
+                'Port' : c['Port'],
+                'Host' : c['Host'],
+                'Resources' : [ a['ID']]
+            })
 
-        self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+            self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
 
-        DropOrthanc(_REMOTE)        
-        DropOrthanc(_LOCAL)        
+            DropOrthanc(_REMOTE)        
+            DropOrthanc(_LOCAL)        
 
     def test_rle_planar_configuration(self):
         # This test failed in Orthanc <= 1.11.2

@@ -331,7 +331,7 @@ class Orthanc(unittest.TestCase):
                                            '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285',
                                            'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
                                          'Synchronous' : True })
-        pprint.pprint(r)
+        # pprint.pprint(r)
         self.assertEqual(l, len(r))
         self.assertEqual("ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17", r['Resources']['Patients'][0])
         self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
