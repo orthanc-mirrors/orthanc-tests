@@ -208,15 +208,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalDiskSize'])
         self.assertEqual('0', DoGet(_REMOTE, '/statistics')['TotalUncompressedSize'])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            system = DoGet(_REMOTE, '/system')
-            self.assertIn("MainDicomTags", system)
-            self.assertIn("Patient", system["MainDicomTags"])
-            self.assertIn("Study", system["MainDicomTags"])
-            self.assertIn("Series", system["MainDicomTags"])
-            self.assertIn("Instance", system["MainDicomTags"])
-
         systemInfo = DoGet(_REMOTE, '/system')
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertIn("MainDicomTags", systemInfo)
+            self.assertIn("Patient", systemInfo["MainDicomTags"])
+            self.assertIn("Study", systemInfo["MainDicomTags"])
+            self.assertIn("Series", systemInfo["MainDicomTags"])
+            self.assertIn("Instance", systemInfo["MainDicomTags"])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+            self.assertIn("UserMetadata", systemInfo)
+            self.assertEqual(1098, systemInfo['UserMetadata']['my-metadata'] )
+
         if systemInfo["Version"] == "mainline":
             print("Skipping version checks since you're currently in mainline")
             return
@@ -227,6 +231,7 @@ class Orthanc(unittest.TestCase):
             self.assertTrue(IsOrthancVersionAbove(_LOCAL, 0, 7, 6))
             self.assertFalse(IsOrthancVersionAbove(_LOCAL, 0, 9, 6))
             self.assertFalse(IsOrthancVersionAbove(_LOCAL, 1, 8, 6))
+
 
 
     def test_upload(self):
@@ -9238,3 +9243,8 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1475, im.size[0])
         self.assertEqual(1475, im.size[1])
         self.assertEqual('c684b0050dc2523041240bf2d26dc85e', ComputeMD5(DoGet(_REMOTE, uri)))
+
+    def test_rest_api_write_to_file_system(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+            a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/instances/%s/export' % a, '/tmp/test.dcm'))

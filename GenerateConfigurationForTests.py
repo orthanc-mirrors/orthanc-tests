@@ -164,6 +164,10 @@ config['Dictionary'] = {
     '0009,0010' : [ 'LO', 'Private data element', 1, 1, 'Lunit' ],  # For issue 168
 }
 
+config['UserMetadata'] = {
+    'my-metadata': 1098
+}
+
 config['DefaultPrivateCreator'] = 'Lunit'  # For issue 168
 
 config['DicomWeb'] = {
