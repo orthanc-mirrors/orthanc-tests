@@ -9248,3 +9248,24 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
             a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
             self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/instances/%s/export' % a, '/tmp/test.dcm'))
+
+    def test_labels(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+            patient = DoGet(_REMOTE, '/instances/%s/patient' % u) ['ID']
+            study = DoGet(_REMOTE, '/instances/%s/study' % u) ['ID']
+            series = DoGet(_REMOTE, '/instances/%s/series' % u) ['ID']
+
+            for base in [ '/instances/%s' % u,
+                          '/series/%s' % series,
+                          '/studies/%s' % study,
+                          '/series/%s' % series ]:
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
