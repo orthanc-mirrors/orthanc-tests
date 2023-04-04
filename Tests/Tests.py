@@ -9329,3 +9329,26 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(upload1["ParentStudy"], upload2["ParentStudy"])
             self.assertEqual(2, len(changes2))
             self.assertEqual(changes1[0], changes2[0])
+
+    def test_labels(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+            patient = DoGet(_REMOTE, '/instances/%s/patient' % u) ['ID']
+            study = DoGet(_REMOTE, '/instances/%s/study' % u) ['ID']
+            series = DoGet(_REMOTE, '/instances/%s/series' % u) ['ID']
+
+            for base in [ '/instances/%s' % u,
+                          '/series/%s' % series,
+                          '/studies/%s' % study,
+                          '/series/%s' % series ]:
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))  # Ignore double tagging
+                self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+
