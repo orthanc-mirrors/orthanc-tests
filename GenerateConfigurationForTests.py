@@ -139,6 +139,7 @@ config['OrthancPeers'] = {
 config['RegisteredUsers'] = { 'alice' : 'orthanctest' }
 config['RemoteAccessAllowed'] = True
 config['OverwriteInstances'] = True
+config['StableAge'] = 1
 config['JobsHistorySize'] = 1000
 config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1

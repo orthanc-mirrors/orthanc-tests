@@ -31,6 +31,7 @@ import pprint
 import shutil
 import tempfile
 import unittest
+import time
 
 from PIL import ImageChops
 from Toolbox import *
@@ -187,8 +188,9 @@ class Orthanc(unittest.TestCase):
 
         # Reset stuff possibly set by some integration tests
         DoPut(_REMOTE, '/tools/default-encoding', 'Latin1')
-        DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', [ '1.2.840.10008.1.*' ])
-        DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', '0')
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 0):
+            DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', [ '1.2.840.10008.1.*' ])
+            DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', '0')
 
         for i in [ 'toto', 'tata' ]:
             if i in DoGet(_REMOTE, '/modalities'):
@@ -9248,3 +9250,82 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
             a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
             self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/instances/%s/export' % a, '/tmp/test.dcm'))
+
+    def test_overwrite_generates_stable_study(self):
+
+        # This test makes sure there are no regression wrt StableStudy when uploading instances in Orthanc
+        # The current behaviour (tested from 1.5.7 to 1.12.0) is
+        # If you upload 2 instances with a delay > StableAge, you get 2 StableStudy events and they are both listed in /changes
+        # If you upload twice the same instance with a delay > StableAge, you get 2 StableStudy events but only the last one is listed in /changes, the first one is deleted
+        # If you upload an instance and a modified version of this instance with a delay > StableAge, you get 2 StableStudy events but only the last one is listed in /changes, the first one is deleted
+
+
+        def GetAllStableStudyChangesIds(studyId, timeout):
+            # try to be as fast as possible -> stop as soon as we've found a StableStudy event that appeared after we started monitoring
+            fromSeq = DoGet(_REMOTE, '/changes')["Last"]
+
+            endTime = time.time() + timeout
+            newStableStudyFound = False
+            while not newStableStudyFound and time.time() < endTime:
+                time.sleep(0.1)
+                changes = DoGet(_REMOTE, '/changes')
+                stableStudyChangesIds = []
+
+                for change in changes["Changes"]:
+                    if change["ChangeType"] == "StableStudy" and studyId == change["ID"]:
+                        stableStudyChangesIds.append(change["Seq"])
+                        if change["Seq"] > fromSeq:
+                            newStableStudyFound = True
+
+            return stableStudyChangesIds
+
+        if True:
+            DropOrthanc(_REMOTE)        
+            upload1 = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+            # StableAge is set to 1, expect a StableStudy within 4 seconds
+            changes1 = GetAllStableStudyChangesIds(upload1["ParentStudy"], 4)
+            self.assertEqual(1, len(changes1))
+
+            # upload the same instance again and check a new change has been generated with a new id, the first change has been deleted
+            upload1b = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+            changes1b = GetAllStableStudyChangesIds(upload1b["ParentStudy"], 4)
+            self.assertEqual(1, len(changes1b))
+            self.assertNotEqual(changes1[0], changes1b[0])
+
+        if True:
+            DropOrthanc(_REMOTE)        
+            upload1 = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+            # StableAge is set to 1, expect a StableStudy within 4 seconds
+            changes1 = GetAllStableStudyChangesIds(upload1["ParentStudy"], 4)
+            self.assertEqual(1, len(changes1))
+
+            # reupload a modified instance in the same study and check a new change has been generated with a new id, the first change has been deleted
+            modified = DoPost(_REMOTE, '/instances/%s/modify' % upload1["ID"],
+                            json.dumps({
+                                "Replace" : {
+                                    "InstitutionName" : "hello",
+                                    "SOPInstanceUID": "1.2.840.113619.2.176.2025.1499492.7040.1171286241.705"
+                                    },
+                                "Force": True
+                                }),
+                                'application/json')
+            upload1b = DoPost(_REMOTE, '/instances', modified, 'application/dicom')
+            changes1b = GetAllStableStudyChangesIds(upload1b["ParentStudy"], 4)
+            self.assertEqual(upload1["ParentStudy"], upload1b["ParentStudy"])
+            self.assertEqual(1, len(changes1b))
+            self.assertNotEqual(changes1[0], changes1b[0])
+
+
+        if True:
+            DropOrthanc(_REMOTE)        
+            upload1 = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+            # StableAge is set to 1, expect a StableStudy within 4 seconds
+            changes1 = GetAllStableStudyChangesIds(upload1["ParentStudy"], 4)
+            self.assertEqual(1, len(changes1))
+
+            # upload a new instance in the same study and check a second StableStudy change has been generated with a new id
+            upload2 = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0003.dcm')
+            changes2 = GetAllStableStudyChangesIds(upload2["ParentStudy"], 4)
+            self.assertEqual(upload1["ParentStudy"], upload2["ParentStudy"])
+            self.assertEqual(2, len(changes2))
+            self.assertEqual(changes1[0], changes2[0])
