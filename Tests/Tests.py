@@ -9265,6 +9265,7 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
                 self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))  # Ignore double tagging
                 self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
