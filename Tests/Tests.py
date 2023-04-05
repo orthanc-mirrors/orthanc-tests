@@ -9354,3 +9354,93 @@ class Orthanc(unittest.TestCase):
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
         else:
             print("Your database backend doesn't support labels")
+
+    def test_find_labels(self):
+        def Execute(withLabels, withoutLabels):
+            return DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                    'Query' : { },
+                                                    'WithLabels' : withLabels,
+                                                    'WithoutLabels' : withoutLabels, })
+        
+        if (IsOrthancVersionAbove(_REMOTE, 1, 12, 0) and
+            DoGet(_REMOTE, '/system') ['HasLabels']):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(0, len(Execute([ 'a' ], [])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(1, len(Execute([], [ 'c' ])))
+            self.assertEqual(1, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+
+            DoPut(_REMOTE, '/instances/%s/labels/a' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(1, len(Execute([ 'a' ], [])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(1, len(Execute([], [ 'c' ])))
+            self.assertEqual(1, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(1, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(1, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+
+            DoPut(_REMOTE, '/instances/%s/labels/b' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(1, len(Execute([ 'a' ], [])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(1, len(Execute([], [ 'c' ])))
+            self.assertEqual(1, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(1, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(1, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+
+            DoPut(_REMOTE, '/instances/%s/labels/d' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(1, len(Execute([ 'a' ], [])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(1, len(Execute([], [ 'c' ])))
+            self.assertEqual(0, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(1, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+
+            DoPut(_REMOTE, '/instances/%s/labels/c' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(1, len(Execute([ 'a' ], [])))
+            self.assertEqual(1, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(0, len(Execute([], [ 'c' ])))
+            self.assertEqual(0, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+            
+            DoDelete(_REMOTE, '/instances/%s/labels/b' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(1, len(Execute([ 'a' ], [])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(0, len(Execute([], [ 'c' ])))
+            self.assertEqual(0, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+            
+            DoDelete(_REMOTE, '/instances/%s/labels/a' % u)
+            self.assertEqual(1, len(Execute([], [])))
+            self.assertEqual(0, len(Execute([ 'a' ], [])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [])))
+            self.assertEqual(0, len(Execute([], [ 'c' ])))
+            self.assertEqual(0, len(Execute([], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a' ], [ 'c', 'd' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c' ])))
+            self.assertEqual(0, len(Execute([ 'a', 'b' ], [ 'c', 'd' ])))
+
+        else:
+            print("Your database backend doesn't support labels")
