@@ -9331,7 +9331,8 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(changes1[0], changes2[0])
 
     def test_labels(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+        if (IsOrthancVersionAbove(_REMOTE, 1, 12, 0) and
+            DoGet(_REMOTE, '/system') ['HasLabels']):
             u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
             patient = DoGet(_REMOTE, '/instances/%s/patient' % u) ['ID']
             study = DoGet(_REMOTE, '/instances/%s/study' % u) ['ID']
@@ -9351,4 +9352,5 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
-
+        else:
+            print("Your database backend doesn't support labels")
