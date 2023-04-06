@@ -9341,17 +9341,19 @@ class Orthanc(unittest.TestCase):
             for base in [ '/instances/%s' % u,
                           '/series/%s' % series,
                           '/studies/%s' % study,
-                          '/series/%s' % series ]:
+                          '/patients/%s' % patient ]:
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoPut(_REMOTE, '%s/labels/@' % base)) # Not an alphanumeric label
                 self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))  # Ignore double tagging
                 self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.' % base))
         else:
             print("Your database backend doesn't support labels")
 
