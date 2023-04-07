@@ -9342,17 +9342,53 @@ class Orthanc(unittest.TestCase):
                           '/series/%s' % series,
                           '/studies/%s' % study,
                           '/patients/%s' % patient ]:
+
+                # no tags by default
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                
+                # 404 if requesting a tag that does apply for a resource
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+                
+                # delete a non existing tag does not generate an error
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
-                self.assertRaises(Exception, lambda: DoPut(_REMOTE, '%s/labels/@' % base)) # Not an alphanumeric label
+                
+                # Not an alphanumeric label -> 400
+                self.assertRaises(Exception, lambda: DoPut(_REMOTE, '%s/labels/@' % base))
+
+                # add a tag
                 self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
-                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))  # Ignore double tagging
+                self.assertEqual(1, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual('hello', DoGet(_REMOTE, base) ['Labels'][0])
+
+                # double tagging does not generate any error
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/hello' % base))
                 self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(1, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual('hello', DoGet(_REMOTE, base) ['Labels'][0])
+
+                # add a second tag
+                self.assertEqual('', DoPut(_REMOTE, '%s/labels/world' % base))
+                self.assertEqual('', DoGet(_REMOTE, '%s/labels/world' % base))
+                self.assertEqual('', DoGet(_REMOTE, '%s/labels/hello' % base))
+                self.assertEqual(2, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertIn(DoGet(_REMOTE, base) ['Labels'][0], ['hello', 'world'])
+                self.assertIn(DoGet(_REMOTE, base) ['Labels'][1], ['hello', 'world'])
+
+                # list all tags defined in the system (not only on this resource)
+
+                # delete the first tag
                 self.assertEqual('', DoDelete(_REMOTE, '%s/labels/hello' % base))
-                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual(1, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertEqual('world', DoGet(_REMOTE, base) ['Labels'][0])
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/hello' % base))
+
+                # delete the second tag
+                self.assertEqual('', DoDelete(_REMOTE, '%s/labels/world' % base))
+                self.assertEqual(0, len(DoGet(_REMOTE, base) ['Labels']))
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '%s/labels/world' % base))
+
+                # test all valid chars
                 self.assertEqual('', DoPut(_REMOTE, '%s/labels/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-.' % base))
         else:
             print("Your database backend doesn't support labels")
