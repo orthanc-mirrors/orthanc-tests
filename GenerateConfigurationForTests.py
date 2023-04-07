@@ -27,7 +27,12 @@ import socket
 import subprocess
 import sys
 import json
-import urllib
+import sys
+
+if sys.version_info[0] < 3:
+    from urllib2 import urlopen
+else:
+    from urllib.request import urlopen
 
 
 ##
@@ -85,11 +90,11 @@ ip = socket.gethostbyname(socket.gethostname())
 
 
 # Download the content of the default configuration file
-with open(args.target, 'w') as f:
+with open(args.target, 'wb') as f:
     url = 'https://hg.orthanc-server.com/orthanc/raw-file/default/OrthancServer/Resources/Configuration.json'
     #url = 'https://hg.orthanc-server.com/orthanc/raw-file/default/Resources/Configuration.json'
     #url = 'https://bitbucket.org/sjodogne/orthanc/raw/default/Resources/Configuration.json'
-    http = urllib.urlopen(url)
+    http = urlopen(url)
     if http.getcode() != 200:
         raise Exception('Cannot download: %s' % url)
     
