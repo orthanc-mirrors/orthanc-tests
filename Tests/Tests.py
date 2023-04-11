@@ -9410,9 +9410,9 @@ class Orthanc(unittest.TestCase):
             print("Your database backend doesn't support labels")
 
     def test_find_labels(self):
-        def Execute(labels, constraint):
+        def Execute(labels, constraint, query = { }):
             return DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                                    'Query' : { },
+                                                    'Query' : query,
                                                     'Labels' : labels,
                                                     'LabelsConstraint' : constraint, })
         
@@ -9448,6 +9448,48 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(0, len(Execute([ 'a', 'b' ], 'All')))
             self.assertEqual(1, len(Execute([ 'a', 'b' ], 'Any')))
             self.assertEqual(0, len(Execute([ 'a', 'b' ], 'None')))
+
+            self.assertEqual(0, len(Execute([ 'a' ], 'All', { 'PatientID' : 'nope' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'PatientID' : '' })))
+            self.assertEqual(0, len(Execute([ 'a' ], 'All', { 'StudyInstanceUID' : 'nope' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'StudyInstanceUID' : '' })))
+            self.assertEqual(0, len(Execute([ 'a' ], 'All', { 'SeriesInstanceUID' : 'nope' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SeriesInstanceUID' : '' })))
+            self.assertEqual(0, len(Execute([ 'a' ], 'All', { 'SOPInstanceUID' : 'nope' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SOPInstanceUID' : '' })))
+            
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'PatientID' : 'ozp00SjY2xG' })))
+            return
+        
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SOPInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109' })))
+            self.assertEqual(1, len(Execute([ 'a' ], 'All', {
+                'PatientID' : 'ozp00SjY2xG',
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394',
+                'SOPInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+            })))
+
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'PatientID' : 'nope' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'PatientID' : '' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'StudyInstanceUID' : 'nope' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'StudyInstanceUID' : '' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SeriesInstanceUID' : 'nope' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SeriesInstanceUID' : '' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SOPInstanceUID' : 'nope' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SOPInstanceUID' : '' })))
+            
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'PatientID' : 'ozp00SjY2xG' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', { 'SOPInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109' })))
+            self.assertEqual(0, len(Execute([ 'b' ], 'All', {
+                'PatientID' : 'ozp00SjY2xG',
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390',
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394',
+                'SOPInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109',
+            })))
 
             DoPut(_REMOTE, '/instances/%s/labels/b' % u)
             # The instance has labels "a" and "b"
