@@ -9505,6 +9505,12 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(Execute([ 'a', 'b' ], 'All')))
             self.assertEqual(1, len(Execute([ 'a', 'b' ], 'Any')))
             self.assertEqual(0, len(Execute([ 'a', 'b' ], 'None')))
+            self.assertEqual(0, len(Execute([ 'b', 'c' ], 'All')))
+            self.assertEqual(1, len(Execute([ 'b', 'c' ], 'Any')))
+            self.assertEqual(0, len(Execute([ 'b', 'c' ], 'None')))
+            self.assertEqual(0, len(Execute([ 'c', 'd' ], 'All')))
+            self.assertEqual(0, len(Execute([ 'c', 'd' ], 'Any')))
+            self.assertEqual(1, len(Execute([ 'c', 'c' ], 'None')))
             
             DoDelete(_REMOTE, '/instances/%s/labels/a' % u)
             # The instance has label "b"
