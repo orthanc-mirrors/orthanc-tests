@@ -9544,3 +9544,37 @@ class Orthanc(unittest.TestCase):
             
         else:
             print("Your database backend doesn't support labels")
+
+
+    def test_numeric_metadata(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
+            instance = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+            study = DoGet(_REMOTE, '/instances/%s/study' % instance)['ID']
+
+            m = DoGet(_REMOTE, '/studies/%s/metadata' % study)
+            self.assertEqual(2, len(m))
+            self.assertTrue('LastUpdate' in m)
+            self.assertTrue('MainDicomTagsSignature' in m)
+            lastUpdate = DoGet(_REMOTE, '/studies/%s/metadata/%s' % (study, 'LastUpdate'))
+            signature = DoGet(_REMOTE, '/studies/%s/metadata/%s' % (study, 'MainDicomTagsSignature'))
+            
+            m = DoGet(_REMOTE, '/studies/%s/metadata?numeric' % study)
+            self.assertEqual(2, len(m))
+            self.assertTrue(7 in m)   # MetadataType_LastUpdate
+            self.assertTrue(15 in m)  # MetadataType_MainDicomTagsSignature
+            self.assertEqual(lastUpdate, DoGet(_REMOTE, '/studies/%s/metadata/%d' % (study, 7)))
+            self.assertEqual(signature, DoGet(_REMOTE, '/studies/%s/metadata/%d' % (study, 15)))
+
+            m = DoGet(_REMOTE, '/studies/%s/metadata?expand' % study)
+            self.assertEqual(2, len(m))
+            self.assertTrue('LastUpdate' in m)
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertEqual(lastUpdate, m['LastUpdate'])
+            self.assertEqual(signature, m['MainDicomTagsSignature'])
+            
+            m = DoGet(_REMOTE, '/studies/%s/metadata?expand&numeric' % study)
+            self.assertEqual(2, len(m))
+            self.assertTrue('7' in m)
+            self.assertTrue('15' in m)
+            self.assertEqual(lastUpdate, m['7'])
+            self.assertEqual(signature, m['15'])
