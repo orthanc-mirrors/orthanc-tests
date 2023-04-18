@@ -598,24 +598,18 @@ class Orthanc(unittest.TestCase):
         countInstances = 0
         completed = 0
         while True:
-            c = DoGet(_REMOTE, '/changes', { 'since' : since, 'limit' : 3 })
+            c = DoGet(_REMOTE, '/changes', { 'since' : since, 'limit' : 1000 })
             since = c['Last']
             for i in c['Changes']:
-                if i['ResourceType'] == 'Instance':
+                # We have set StableAge to 1 -> we might have StabeStudy but this is not sure -> detect only the 'New' events
+
+                if i['ResourceType'] == 'Instance' and i['ChangeType'] == 'NewInstance':
                     countInstances += 1
-                if i['ResourceType'] == 'Patient':
+                if i['ResourceType'] == 'Patient' and i['ChangeType'] == 'NewPatient':
                     countPatients += 1
-                if i['ResourceType'] == 'Study':
+                if i['ResourceType'] == 'Study' and i['ChangeType'] == 'NewStudy':
                     countStudies += 1
-                if i['ResourceType'] == 'Series':
-                    countSeries += 1
-                if i['ChangeType'] == 'NewInstance':
-                    countInstances += 1
-                if i['ChangeType'] == 'NewPatient':
-                    countPatients += 1
-                if i['ChangeType'] == 'NewStudy':
-                    countStudies += 1
-                if i['ChangeType'] == 'NewSeries':
+                if i['ResourceType'] == 'Series' and i['ChangeType'] == 'NewSeries':
                     countSeries += 1
                 if i['ChangeType'] == 'CompletedSeries':
                     completed += 1
@@ -624,11 +618,11 @@ class Orthanc(unittest.TestCase):
                 self.assertTrue('Seq' in i)
             if c['Done']:
                 break
-
-        self.assertEqual(2 * 50, countInstances)
-        self.assertEqual(2 * 1, countPatients)
-        self.assertEqual(2 * 1, countStudies)
-        self.assertEqual(2 * 2, countSeries)
+        # we count only the events since before the upload of 2 Knee series !
+        self.assertEqual(50, countInstances)
+        self.assertEqual(1, countPatients)
+        self.assertEqual(1, countStudies)
+        self.assertEqual(2, countSeries)
         self.assertEqual(0, completed)
 
 
