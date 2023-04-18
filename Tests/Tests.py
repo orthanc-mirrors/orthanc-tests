@@ -32,6 +32,7 @@ import shutil
 import tempfile
 import unittest
 import time
+import os
 
 from PIL import ImageChops
 from Toolbox import *
@@ -6688,7 +6689,7 @@ class Orthanc(unittest.TestCase):
             # This is "getscu" from DCMTK 3.6.5 compiled using LSB,
             # and running in a GNU/Linux distribution running DCMTK
             # 3.6.0. Tell "getscu" where it can find the DICOM dictionary.
-            env['DCMDICTPATH'] = '/usr/share/libdcmtk2/dicom.dic'
+            env['DCMDICTPATH'] = os.environ.get('DCMDICTPATH', '/usr/share/libdcmtk2/dicom.dic')
 
         # no transcoding required
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
