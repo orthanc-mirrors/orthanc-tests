@@ -9231,15 +9231,26 @@ class Orthanc(unittest.TestCase):
             DropOrthanc(_LOCAL)        
 
     def test_rle_planar_configuration(self):
-        # This test failed in Orthanc <= 1.11.2
-        # https://groups.google.com/g/orthanc-users/c/CSVWfRasSR0/m/y1XDRXVnAgAJ
-        a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
-        uri = '/instances/%s/preview' % a
-        im = GetImage(_REMOTE, uri)
-        self.assertEqual('RGB', im.mode)
-        self.assertEqual(1475, im.size[0])
-        self.assertEqual(1475, im.size[1])
-        self.assertEqual('c684b0050dc2523041240bf2d26dc85e', ComputeMD5(DoGet(_REMOTE, uri)))
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 2):
+            # https://groups.google.com/g/orthanc-users/c/CSVWfRasSR0/m/y1XDRXVnAgAJ
+            a = UploadInstance(_REMOTE, '2022-11-14-RLEPlanarConfiguration.dcm') ['ID']
+            uri = '/instances/%s/preview' % a
+            im = GetImage(_REMOTE, uri)
+            self.assertEqual('RGB', im.mode)
+            self.assertEqual(1475, im.size[0])
+            self.assertEqual(1475, im.size[1])
+            self.assertEqual('c684b0050dc2523041240bf2d26dc85e', ComputeMD5(DoGet(_REMOTE, uri)))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            a = UploadInstance(_REMOTE, '2023-04-21-RLEPlanarConfigurationYBR_FULL.dcm') ['ID']
+            uri = '/instances/%s/preview' % a
+            im = GetImage(_REMOTE, uri)
+            pprint.pprint(im)
+            self.assertEqual('RGB', im.mode)
+            self.assertEqual(1260, im.size[0])
+            self.assertEqual(910, im.size[1])
+            self.assertEqual('07a3ea7ea08d54362f744cc5945e8743', ComputeMD5(DoGet(_REMOTE, uri)))
+
 
     def test_rest_api_write_to_file_system(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 0):
