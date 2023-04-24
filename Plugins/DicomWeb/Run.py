@@ -1648,6 +1648,32 @@ class Orthanc(unittest.TestCase):
         self.assertLessEqual(abs(GetLinear(0x30 * rs + ri, 127, 256) - im.getpixel((1, 1))), 1)
 
 
+    def test_forwarded_headers(self):
+        study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
+        studyId = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
+
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId)
+        self.assertIn("http://localhost:8042/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+            'host': 'my-domain'
+        })
+        self.assertIn("http://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+            'forwarded': 'host=my-domain;proto=https'
+        })
+        self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 13, 1):
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+                'X-Forwarded-Host': 'my-domain',
+                'X-Forwarded-Proto': 'https'
+            })
+            self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)

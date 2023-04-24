@@ -354,6 +354,27 @@ def IsOrthancVersionAbove(orthanc, major, minor, revision):
                 (a == major and b > minor) or
                 (a == major and b == minor and c >= revision))
 
+def IsPluginVersionAbove(orthanc, plugin, major, minor, revision):
+    v = DoGet(orthanc, '/plugins/%s' % plugin)['Version']
+
+    if v == 'mainline':
+        return True
+    else:
+        tmp = v.split('.')
+        if len(tmp) >= 3:
+            a = int(tmp[0])
+            b = int(tmp[1])
+            c = int(tmp[2])
+            return (a > major or
+                    (a == major and b > minor) or
+                    (a == major and b == minor and c >= revision))
+        elif len(tmp) >= 2:
+            a = int(tmp[0])
+            b = int(tmp[1])
+            return (a > major or
+                    (a == major and b > minor))
+        else:
+            return False
 
 class ExternalCommandThread:
     @staticmethod
