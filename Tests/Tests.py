@@ -4157,6 +4157,7 @@ class Orthanc(unittest.TestCase):
                                                  'Query' : { 'PatientName' : name }})
             self.assertEqual(expectedSensitive, len(a))
 
+        # SpecificCharacterSet = ISO_IR 100 (Latin1), PatientName=Test-éüäöò
         UploadInstance(_REMOTE, 'Encodings/Lena-latin1.dcm')
 
         # WildcardConstraint

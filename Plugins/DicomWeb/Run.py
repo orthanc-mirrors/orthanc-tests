@@ -1653,7 +1653,7 @@ class Orthanc(unittest.TestCase):
         studyId = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
 
         m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId)
-        self.assertIn("http://localhost:8042/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+        self.assertIn(ORTHANC['Url'], m[0][u'7FE00010']['BulkDataURI'])
 
         m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
             'host': 'my-domain'
