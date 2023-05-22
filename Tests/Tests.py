@@ -9585,3 +9585,8 @@ class Orthanc(unittest.TestCase):
             self.assertTrue('15' in m)
             self.assertEqual(lastUpdate, m['7'])
             self.assertEqual(signature, m['15'])
+
+    def test_add_attachment_to_non_existing_resource(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1): # till 1.12.0, it returned a 200
+            (headers, body) = DoPutRaw(_REMOTE, '/instances/11111111-11111111-11111111-11111111-11111111/attachments/1025', 'hello')
+            self.assertEqual('404', headers['status'])
