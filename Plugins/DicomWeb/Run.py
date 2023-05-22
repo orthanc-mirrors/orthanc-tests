@@ -444,6 +444,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('SH', a[0]['00080050']['vr'])
 
 
+    # this test fails if SeriesMetadata = "MainDicomTags" (this is expected since the reference json is the full json)
     def test_wado_hierarchy(self):
         def CheckJson(uri, headers = {}):
             with open(GetDatabasePath('DummyCT.json'), 'r') as f:
