@@ -9590,3 +9590,27 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 1): # till 1.12.0, it returned a 200
             (headers, body) = DoPutRaw(_REMOTE, '/instances/11111111-11111111-11111111-11111111-11111111/attachments/1025', 'hello')
             self.assertEqual('404', headers['status'])
+
+    def test_delete_updates_parents_last_update_metadata(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            i = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')
+            j = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0002.dcm')
+            
+            #instanceLastUpdate1 = DoGet(_REMOTE, '/instances/%s/metadata/LastUpdate' % i['ID'])
+            seriesLastUpdate1 = DoGet(_REMOTE, '/series/%s/metadata/LastUpdate' % i['ParentSeries'])
+            studyLastUpdate1 = DoGet(_REMOTE, '/studies/%s/metadata/LastUpdate' % i['ParentStudy'])
+            patientLastUpdate1 = DoGet(_REMOTE, '/patients/%s/metadata/LastUpdate' % i['ParentPatient'])
+            
+            time.sleep(1.01)
+            DoDelete(_REMOTE, '/instances/%s' % j['ID'])
+
+            #instanceLastUpdate2 = DoGet(_REMOTE, '/instances/%s/metadata/LastUpdate' % i['ID'])
+            seriesLastUpdate2 = DoGet(_REMOTE, '/series/%s/metadata/LastUpdate' % i['ParentSeries'])
+            studyLastUpdate2 = DoGet(_REMOTE, '/studies/%s/metadata/LastUpdate' % i['ParentStudy'])
+            patientLastUpdate2 = DoGet(_REMOTE, '/patients/%s/metadata/LastUpdate' % i['ParentPatient'])
+
+            #self.assertEqual(instanceLastUpdate1, instanceLastUpdate2)
+            self.assertNotEqual(seriesLastUpdate1, seriesLastUpdate2)
+            self.assertNotEqual(studyLastUpdate1, studyLastUpdate2)
+            self.assertNotEqual(patientLastUpdate1, patientLastUpdate2)
+
