@@ -235,6 +235,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(RunQuery('Sequences/Queries/7814.without.seq.dump', [])))
         self.assertEqual(2, len(RunQuery('Sequences/Queries/orig.7814.dump', [])))
 
+    def test_private_creator(self):
+        AddToDatabase('private-creator-wl.dump')
+        
+        self.assertEqual(1, len(RunQuery('private-creator-query.dump', [])))
+
 
     @unittest.skip("This test requires to enable option 'FilterIssuerAet' in the sample worklist plugin")
     def test_filter_issuer_aet(self):
