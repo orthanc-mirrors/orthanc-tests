@@ -1081,13 +1081,22 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(p))
         self.assertEqual(743 * 975 * 3, len(p[0]))
 
+        metadata = DoGet(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/metadata')
+        self.assertEqual("YBR_FULL_422", metadata[0]['00280004']['Value'][0])
+
+        # starting from 1.12.1, Orthanc does not convert YBR to RGB anymore -> new checksum (https://discourse.orthanc-server.org/t/orthanc-convert-ybr-to-rgb-but-does-not-change-metadata/3533)
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
+            expectedDcmtkChecksum = '7535a11e7da0fa590c467ac9d323c5c1'
+        else:
+            expectedDcmtkChecksum = 'b3662c4bfa24a0c73abb08548c63319b'
+
         if HasGdcmPlugin(ORTHANC):
             self.assertTrue(ComputeMD5(p[0]) in [
                 'b952d67da9ff004b0adae3982e89d620', # GDCM >= 3.0
-                'b3662c4bfa24a0c73abb08548c63319b'  # Fallback to DCMTK
+                expectedDcmtkChecksum  # Fallback to DCMTK
                 ])
         else:
-            self.assertEqual('b3662c4bfa24a0c73abb08548c63319b', ComputeMD5(p[0]))  # DCMTK
+            self.assertEqual(expectedDcmtkChecksum, ComputeMD5(p[0]))  # DCMTK
 
 
     def test_bitbucket_issue_168(self):
@@ -1238,8 +1247,11 @@ class Orthanc(unittest.TestCase):
             }
 
         uri = 'dicom-web%s' % UploadAndGetWadoPath('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm')
-        truth = Image.open(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.png'))
-        
+        truthRGB = Image.open(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.png'))
+        with open(GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.4.50.YBR.raw'), 'rb') as f:  
+            truthRawYbr = f.read()
+
+        # first test: no transcoding since we accept the JPEG transfer syntax
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
                            headers = { 'Accept' : ACCEPT['1.2.840.10008.1.2.4.50'] },
                            returnHeaders = True)
@@ -1252,13 +1264,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(53476, len(a[0][0]))
         self.assertEqual('142fdb8a1dc2aa7e6b8952aa294a6e22', ComputeMD5(a[0][0]))
 
+        # second test: no accept header -> defaults to raw explicit
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri)
         self.assertEqual(1, len(a))
         self.assertEqual(480 * 640 * 3, len(a[0]))
 
-        # http://effbot.org/zone/pil-comparing-images.htm
-        img = Image.frombytes('RGB', [ 640, 480 ], a[0])
-        self.assertLessEqual(GetMaxImageDifference(img, truth), 2)
+        # Orthanc is now returning the YBR image instead of the RGB
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 1) and not HasGdcmPlugin(ORTHANC):
+            # GetMaxImageDifference does not work with YBR images -> strict comparison with the output of dcmdjpeg
+            self.assertEqual('d4aacc6c7758c7c968a4fc8d59b041d5', ComputeMD5(a[0]))
+        else:
+            # http://effbot.org/zone/pil-comparing-images.htm
+            img = Image.frombytes('RGB', [ 640, 480 ], a[0])
+            self.assertLessEqual(GetMaxImageDifference(img, truthRGB), 2)
 
         ACCEPT2 = copy.deepcopy(ACCEPT)
         if HasGdcmPlugin(ORTHANC):
@@ -1266,7 +1284,8 @@ class Orthanc(unittest.TestCase):
             ACCEPT2['1.2.840.10008.1.2.1'] = 'multipart/related; type=application/octet-stream'
             del ACCEPT2['1.2.840.10008.1.2']
         else:
-            self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
+            if not IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
+                self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
             IS_GDCM = False
 
         a = DoGetMultipart(ORTHANC, '%s/frames/1' % uri,
@@ -1274,10 +1293,15 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         self.assertEqual(480 * 640 * 3, len(a[0]))
 
-        img = Image.frombytes('RGB', [ 640, 480 ], a[0])
-        self.assertLessEqual(GetMaxImageDifference(img, truth), 2)
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 1) and not HasGdcmPlugin(ORTHANC):
+            # GetMaxImageDifference does not work with YBR images -> strict comparison with the output of dcmdjpeg
+            self.assertEqual('d4aacc6c7758c7c968a4fc8d59b041d5', ComputeMD5(a[0]))
+        else:
+            # http://effbot.org/zone/pil-comparing-images.htm
+            img = Image.frombytes('RGB', [ 640, 480 ], a[0])
+            self.assertLessEqual(GetMaxImageDifference(img, truthRGB), 2)
 
-        if not IS_GDCM:
+        if not IS_GDCM and not IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
             self.assertEqual('dfdc79f5070926bbb8ac079ee91f5b91', ComputeMD5(a[0]))
 
 
