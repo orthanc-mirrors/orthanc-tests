@@ -4727,6 +4727,38 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, info['Content']['UncompressedSizeMB'])
         
         
+    def test_archive_job_delete_output(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+            kneeT1 = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            kneeT2 = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+
+            job = MonitorJob2(_REMOTE, lambda: DoPost
+                            (_REMOTE, '/series/%s/archive' % kneeT1, {
+                                'Synchronous' : False
+                            }))
+
+            z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+            # delete the output
+            DoDelete(_REMOTE, '/jobs/%s/archive' % job)
+            # make sure it is not available anymore afterwards
+            self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
+
+            # repeat with another resource/job
+            job = MonitorJob2(_REMOTE, lambda: DoPost
+                            (_REMOTE, '/series/%s/archive' % kneeT2, {
+                                'Synchronous' : False
+                            }))
+            z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+            # delete the output
+            DoDelete(_REMOTE, '/jobs/%s/archive' % job)
+            # make sure it is not available anymore afterwards
+            self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
+
+
+
     def test_queries_hierarchy(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
