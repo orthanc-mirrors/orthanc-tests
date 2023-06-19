@@ -431,8 +431,7 @@ def GetTransferSyntax(dicom):
         with open(os.devnull, 'w') as devnull:
             data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ],
                                            stderr = devnull)
-
-    return re.search('<data-set xfer="(.*?)"', data).group(1)
+    return re.search('<data-set xfer="(.*?)"', data.decode('utf-8')).group(1)
 
 
 def HasGdcmPlugin(orthanc):
