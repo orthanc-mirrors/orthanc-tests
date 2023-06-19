@@ -133,6 +133,9 @@ Use the flag "--help" to get the full list of arguments. These
 arguments will notably allow you to specify the network parameters
 of your remote instance of Orthanc.
 
+To run the IngestTranscoding tests:
+# rm -rf /tmp/OrthancTest && python ./Tests/CheckIngestTranscoding.py /home/alain/o/build/orthanc/orthanc
+
 
 (Option 2b) With Docker:
 

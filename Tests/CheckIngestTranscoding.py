@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 import Toolbox
-
+import pprint
 
 if len(sys.argv) < 2:
     print('Must provide a path to Orthanc binaries')
@@ -75,6 +75,7 @@ def TestTranscoding(config, tests):
     try:
         for test in tests:
             DropOrthanc()
+            print(test[0])
             with open(Toolbox.GetDatabasePath(test[0]), 'rb') as f:
                 Toolbox.DoPost(ORTHANC, '/instances', f.read(), 'application/dicom')
 
@@ -93,6 +94,24 @@ def TestTranscoding(config, tests):
             if metadata['TransferSyntax'] != test[1]:
                 print('TRANSFER SYNTAX MISMATCH: %s vs %s' % (metadata['TransferSyntax'], test[1]))
                 success = False
+
+            if len(test) >= 3:
+                tags = Toolbox.DoGet(ORTHANC, "/instances/%s/tags?simplify" % instances[0])
+                if tags["PhotometricInterpretation"] != test[2]:
+                    print('Invalid PhotometricInterpretation: %s' % tags["PhotometricInterpretation"])
+                    success = False
+                    break;
+                if len(test) >= 5:
+                    resp, content = Toolbox.DoGetRaw(ORTHANC, "/instances/%s/frames/0/raw" % instances[0])
+                    if resp['content-type'] != test[3]:
+                        print('Invalid Content-Type: %s' % resp['content-type'])
+                        success = False
+                    if resp['content-length'] != str(test[4]):
+                        print('Invalid Content-Length: %s' % resp['content-length'])
+                        success = False
+                    # pprint.pprint(resp)
+
+
     except:
         success = False
             
@@ -112,6 +131,7 @@ Assert(TestTranscoding({ }, [
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.2'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.50', 'YBR_FULL_422', 'image/jpeg', 53476),
 ]))
 
 print('==== TEST 2 ====')
@@ -121,6 +141,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.1'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.1', 'RGB', 'octect-stream', 921600),  # We expect YBR to become RGB with transcoding to raw
 ]))
 
 print('==== TEST 3 ====')
@@ -132,6 +153,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.1'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.1', 'RGB'),  # We expect YBR to become RGB with transcoding to raw
 ]))
 
 print('==== TEST 4 ====')
@@ -143,6 +165,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.50', 'YBR_FULL_422'),
 ]))
 
 print('==== TEST 5 ====')
@@ -154,6 +177,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.2'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.1'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.1', 'RGB'),  # We expect YBR to become RGB with transcoding to raw
 ]))
 
 print('==== TEST 6 ====')
@@ -165,6 +189,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.2'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.50', 'YBR_FULL_422'),
 ]))
 
 print('==== TEST 7 ====')
@@ -176,6 +201,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm', '1.2.840.10008.1.2.4.51'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.51', 'YBR_FULL_422'),
 ]))
 
 print('==== TEST 8 ====')
@@ -187,6 +213,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm', '1.2.840.10008.1.2.4.57'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.50', 'YBR_FULL_422'),
 ]))
 
 print('==== TEST 9 ====')
@@ -198,6 +225,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm', '1.2.840.10008.1.2.4.51'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.51', 'YBR_FULL_422'),
 ]))
 
 print('==== TEST 10 ====')
@@ -209,6 +237,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.4.51'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.57.dcm', '1.2.840.10008.1.2.4.57'),
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.4.50', 'YBR_FULL_422'),
 ]))
 
 
