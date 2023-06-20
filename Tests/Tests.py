@@ -6737,7 +6737,7 @@ class Orthanc(unittest.TestCase):
         f1 = '/tmp/GETSCU/MR.1.3.46.670589.11.0.0.11.4.2.0.8743.5.5396.2006120114314079549'
         self.assertTrue(os.path.isfile(f1))
         with open(f1, 'rb') as f:
-            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read(), encoding='ISO-8859-1'))
 
         CleanTarget()
 
@@ -6757,7 +6757,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertTrue(os.path.isfile(f1))
         with open(f1, 'rb') as f:
-            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read()))
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(f.read(), encoding='ISO-8859-1'))
 
         # This file is transcoded from "1.2.840.10008.1.2.4.50" to "1.2.840.10008.1.2.1"
         # (LittleEndianExplicit is proposed by default by "getscu")

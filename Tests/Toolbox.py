@@ -423,7 +423,7 @@ def AssertAlmostEqualRecursive(self, a, b, places = 7, ignoreKeys = []):
         self.assertAlmostEqual(a, b, places = places)
 
 
-def GetTransferSyntax(dicom):
+def GetTransferSyntax(dicom, encoding='utf-8'):
     with tempfile.NamedTemporaryFile(delete = True) as f:
         f.write(dicom)
         f.flush()
@@ -431,7 +431,7 @@ def GetTransferSyntax(dicom):
         with open(os.devnull, 'w') as devnull:
             data = subprocess.check_output([ FindExecutable('dcm2xml'), f.name ],
                                            stderr = devnull)
-    return re.search('<data-set xfer="(.*?)"', data.decode('utf-8')).group(1)
+    return re.search('<data-set xfer="(.*?)"', data.decode(encoding)).group(1)
 
 
 def HasGdcmPlugin(orthanc):
