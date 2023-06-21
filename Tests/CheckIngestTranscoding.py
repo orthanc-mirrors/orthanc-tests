@@ -141,7 +141,7 @@ Assert(TestTranscoding({
     ('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', '1.2.840.10008.1.2.1'),
     ('TransferSyntaxes/1.2.840.10008.1.2.4.51.dcm', '1.2.840.10008.1.2.1'),
-    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.1', 'RGB', 'octect-stream', 921600),  # We expect YBR to become RGB with transcoding to raw
+    ('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', '1.2.840.10008.1.2.1', 'RGB', 'application/octect-stream', 921600),  # We expect YBR to become RGB with transcoding to raw
 ]))
 
 print('==== TEST 3 ====')
