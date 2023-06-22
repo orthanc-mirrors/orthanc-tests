@@ -1947,12 +1947,61 @@ class Orthanc(unittest.TestCase):
 
 
     def test_rest_find(self):
-        # Upload 8 instances
-        for i in range(2):
+        # Upload 12 instances
+        for i in range(3):
             UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
             UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
             UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
             UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'PatientName' : '*NE*',
+                                                 'StudyDate': '20080819'
+                                              }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'PatientName' : '*NE*',
+                                                 'PatientSex': '0000'
+                                              }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
+                                              }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+                                                 'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
+                                              }})
+        self.assertEqual(3, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'StudyDate' : '20080818-20080820',
+                                                 'Modality': 'MR'
+                                              }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 
+                                                 'StudyDate' : '20080818-',
+                                                 'ModalitiesInStudy': 'MR'
+                                              }})
+        self.assertEqual(1, len(a))
+
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
                                              'CaseSensitive' : False,
@@ -1999,7 +2048,7 @@ class Orthanc(unittest.TestCase):
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
                                              'CaseSensitive' : True,
                                              'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(4, len(a))
+        self.assertEqual(6, len(a))
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient', 'Query' : { }})
         self.assertEqual(2, len(a))
@@ -2011,7 +2060,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(a))
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance', 'Query' : { }})
-        self.assertEqual(8, len(a))
+        self.assertEqual(12, len(a))
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
                                              'Expand' : True,
@@ -9472,15 +9521,20 @@ class Orthanc(unittest.TestCase):
             print("Your database backend doesn't support labels")
 
     def test_find_labels(self):
-        def Execute(labels, constraint, query = { }):
-            return DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+        def Execute(labels, constraint, query = { }, level='Instance'):
+            return DoPost(_REMOTE, '/tools/find', { 'Level' : level,
                                                     'Query' : query,
                                                     'Labels' : labels,
                                                     'LabelsConstraint' : constraint, })
         
         if (IsOrthancVersionAbove(_REMOTE, 1, 12, 0) and
             DoGet(_REMOTE, '/system') ['HasLabels']):
-            u = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+            studyId = u["ParentStudy"]
+            seriesId = u["ParentSeries"]
+            patientId = u["ParentPatient"]
+            u = u["ID"]
+            self.assertEqual(1, len(Execute([ 'a' ], 'None')))
 
             # The instance has no label
             self.assertEqual(1, len(Execute([], 'All')))
@@ -9521,7 +9575,6 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SOPInstanceUID' : '' })))
             
             self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'PatientID' : 'ozp00SjY2xG' })))
-            return
         
             self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390' })))
             self.assertEqual(1, len(Execute([ 'a' ], 'All', { 'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394' })))
@@ -9603,7 +9656,77 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(0, len(Execute([ 'a', 'b' ], 'All')))
             self.assertEqual(0, len(Execute([ 'a', 'b' ], 'Any')))
             self.assertEqual(1, len(Execute([ 'a', 'b' ], 'None')))
-            
+
+
+            # tests at series levels (make sure to test only with series levels and with multiple levels)
+            DoPut(_REMOTE, '/series/%s/labels/b' % seriesId)
+            self.assertEqual(1, len(Execute([ 'a' ], 'None', {
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+            }, 'Series')))
+            self.assertEqual(0, len(Execute([ 'a' ], 'Any', {
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+            }, 'Series')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'Any', {
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+            }, 'Series')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'All', {
+                'SeriesInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+            }, 'Series')))
+            self.assertEqual(1, len(Execute([ 'a' ], 'None', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Series')))
+            self.assertEqual(0, len(Execute([ 'a' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Series')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Series')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'All', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Series')))
+
+            # tests at study levels (make sure to test only with study levels and with multiple levels)
+            DoPut(_REMOTE, '/studies/%s/labels/b' % studyId)
+            self.assertEqual(1, len(Execute([ 'a' ], 'None', {
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+            }, 'Study')))
+            self.assertEqual(0, len(Execute([ 'a' ], 'Any', {
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+            }, 'Study')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'Any', {
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+            }, 'Study')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'All', {
+                'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+            }, 'Study')))
+            self.assertEqual(1, len(Execute([ 'a' ], 'None', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Study')))
+            self.assertEqual(0, len(Execute([ 'a' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Study')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Study')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'All', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Study')))
+
+            # tests at patient levels
+            DoPut(_REMOTE, '/patients/%s/labels/b' % patientId)
+            self.assertEqual(1, len(Execute([ 'a' ], 'None', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Patient')))
+            self.assertEqual(0, len(Execute([ 'a' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Patient')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'Any', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Patient')))
+            self.assertEqual(1, len(Execute([ 'b' ], 'All', {
+               'PatientID' : 'ozp00SjY2xG',
+            }, 'Patient')))
+
         else:
             print("Your database backend doesn't support labels")
 
