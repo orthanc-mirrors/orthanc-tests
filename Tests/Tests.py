@@ -1171,15 +1171,26 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            self.assertEqual(11, len(m))
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(10, len(m))
-            self.assertTrue('MainDicomTagsSignature' in m)
         elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
-            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
-            self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
         else:
             self.assertEqual(8, len(m))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            # ./Tests/GetPixelDataVR.py ./Database/Knee/T1/IM-0001-0001.dcm
+            self.assertTrue('PixelDataVR' in m)  # New in Orthanc 1.12.1
+            self.assertEqual('OW', DoGet(_REMOTE, '/instances/%s/metadata/PixelDataVR' % i))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertTrue('MainDicomTagsSignature' in m)
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
+            self.assertEqual(int(DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i)), 0x0c78)
 
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
@@ -1382,15 +1393,27 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(i))
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            self.assertEqual(11, len(m))
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(10, len(m))
-            self.assertTrue('MainDicomTagsSignature' in m)  # New in Orthanc 1.11.0
         elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
-            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
         else:
             self.assertEqual(8, len(m))
-            
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            # ./Tests/GetPixelDataVR.py ./Database/ColorTestImageJ.dcm
+            self.assertTrue('PixelDataVR' in m)  # New in Orthanc 1.12.1
+            self.assertEqual('OB', DoGet(_REMOTE, '/instances/%s/metadata/PixelDataVR' % i[0]))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertTrue('MainDicomTagsSignature' in m)  # New in Orthanc 1.11.0
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
+            self.assertTrue('PixelDataOffset' in m)  # New in Orthanc 1.9.1
+            self.assertEqual(2242, DoGet(_REMOTE, '/instances/%s/metadata/PixelDataOffset' % i[0]))
+
         self.assertTrue('IndexInSeries' in m)
         self.assertTrue('ReceptionDate' in m)
         self.assertTrue('RemoteAET' in m)
