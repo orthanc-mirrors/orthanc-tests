@@ -726,18 +726,14 @@ class Orthanc(unittest.TestCase):
 
     def test_allowed_methods(self):
         self.assertEqual(0, len(DoGet(ORTHANC, '/dicom-web/studies')))
-        
-        with self.assertRaises(Exception) as e:
-            DoPut(ORTHANC, '/dicom-web/studies')
 
-        self.assertEqual(405, e.exception[0])
-        self.assertEqual("GET,POST", e.exception[1]['allow'])
-        
-        with self.assertRaises(Exception) as e:
-            DoDelete(ORTHANC, '/dicom-web/studies')
+        e = DoPutRaw(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(405, int(e[0]['status']))
+        self.assertEqual('GET,POST', e[0]['allow'])
 
-        self.assertEqual(405, e.exception[0])
-        self.assertEqual("GET,POST", e.exception[1]['allow'])
+        e = DoDeleteRaw(ORTHANC, '/dicom-web/studies')
+        self.assertEqual(405, int(e[0]['status']))
+        self.assertEqual('GET,POST', e[0]['allow'])
 
 
     def test_add_server(self):
@@ -811,31 +807,19 @@ class Orthanc(unittest.TestCase):
         # https://bugs.orthanc-server.com/show_bug.cgi?id=143
         UploadInstance(ORTHANC, 'Issue143.dcm')
 
-        try:
-            DoGet(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.55.3.671756986.106.1316467036.460/series/1.2.840.113619.2.55.3.671756986.106.1316467036.465/instances/0.0.0.0.0/metadata')
-            self.assertFail()
-        except Exception as e:
-            self.assertEqual(404, e[0])
+        e = DoGetRaw(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.55.3.671756986.106.1316467036.460/series/1.2.840.113619.2.55.3.671756986.106.1316467036.465/instances/0.0.0.0.0/metadata')
+        self.assertEqual(404, int(e[0]['status']))
         
         DoGet(ORTHANC, '/dicom-web/studies/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.2/series/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.3/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
 
-        try:
-            DoGet(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.3/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
-            self.fail()
-        except Exception as e:
-            self.assertEqual(404, e[0])
+        e = DoGetRaw(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.3/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
+        self.assertEqual(404, int(e[0]['status']))
 
-        try:
-            DoGet(ORTHANC, '/dicom-web/studies/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.2/series/0.0.0.0.0/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
-            self.assertFail()
-        except Exception as e:
-            self.assertEqual(404, e[0])
+        e = DoGetRaw(ORTHANC, '/dicom-web/studies/1.3.6.1.4.1.34261.90254037371867.41912.1553085024.2/series/0.0.0.0.0/instances/1.2.276.0.7230010.3.1.4.253549293.36648.1555586123.754/metadata')
+        self.assertEqual(404, int(e[0]['status']))
 
-        try:
-            DoGet(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/0.0.0.0.0/instances/0.0.0.0.0/metadata')
-            self.assertFail()
-        except Exception as e:
-            self.assertEqual(404, e[0])
+        e = DoGetRaw(ORTHANC, '/dicom-web/studies/0.0.0.0.0/series/0.0.0.0.0/instances/0.0.0.0.0/metadata')
+        self.assertEqual(404, int(e[0]['status']))
 
 
     def test_encodings_qido(self):
@@ -1705,7 +1689,6 @@ class Orthanc(unittest.TestCase):
                 'X-Forwarded-Proto': 'https'
             })
             self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
-
 
 
 try:
