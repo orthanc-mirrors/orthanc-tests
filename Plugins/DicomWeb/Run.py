@@ -1692,35 +1692,36 @@ class Orthanc(unittest.TestCase):
 
 
     def test_issue_216(self):
-        study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
-        studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
+            study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
+            studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
 
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'image/webp, */*;q=0.8, text/html, application/xhtml+xml, application/xml;q=0.9'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'image/webp, */*;q=0.8, text/html, application/xhtml+xml, application/xml;q=0.9'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'text/html, application/xhtml+xml, application/xml, image/webp, */*;q=0.8'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'text/html, application/xhtml+xml, application/xml, image/webp, */*;q=0.8'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        # This fails on Orthanc <= 1.12.0 because of the "; q=.2"
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=216
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            # This fails on Orthanc <= 1.12.0 because of the "; q=.2"
+            # https://bugs.orthanc-server.com/show_bug.cgi?id=216
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
 
 try:
