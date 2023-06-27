@@ -1171,19 +1171,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(DoGet(_REMOTE, '/series/%s/metadata/RemoteAET' % series), '')  # None, received by REST API
 
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
-            self.assertEqual(11, len(m))
-        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(10, len(m))
         elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
         else:
             self.assertEqual(8, len(m))
-
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
-            # ./Tests/GetPixelDataVR.py ./Database/Knee/T1/IM-0001-0001.dcm
-            self.assertTrue('PixelDataVR' in m)  # New in Orthanc 1.12.1
-            self.assertEqual('OW', DoGet(_REMOTE, '/instances/%s/metadata/PixelDataVR' % i))
 
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertTrue('MainDicomTagsSignature' in m)
@@ -1393,19 +1386,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(i))
         m = DoGet(_REMOTE, '/instances/%s/metadata' % i[0])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
-            self.assertEqual(11, len(m))
-        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(10, len(m))
         elif IsOrthancVersionAbove(_REMOTE, 1, 9, 1):
             self.assertEqual(9, len(m))
         else:
             self.assertEqual(8, len(m))
-
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
-            # ./Tests/GetPixelDataVR.py ./Database/ColorTestImageJ.dcm
-            self.assertTrue('PixelDataVR' in m)  # New in Orthanc 1.12.1
-            self.assertEqual('OB', DoGet(_REMOTE, '/instances/%s/metadata/PixelDataVR' % i[0]))
 
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertTrue('MainDicomTagsSignature' in m)  # New in Orthanc 1.11.0
@@ -9793,3 +9779,38 @@ class Orthanc(unittest.TestCase):
             self.assertNotEqual(studyLastUpdate1, studyLastUpdate2)
             self.assertNotEqual(patientLastUpdate1, patientLastUpdate2)
 
+    def test_pixel_data_vr(self):
+        def Check(path, hasPixelData, hasMetadata, expectedVR):
+            i = UploadInstance(_REMOTE, path) ['ID']
+            m = DoGet(_REMOTE, '/instances/%s/metadata?expand' % i)
+            if hasMetadata:
+                self.assertTrue('PixelDataVR' in m)
+                self.assertEqual(expectedVR, m['PixelDataVR'])
+            else:
+                self.assertFalse('PixelDataVR' in m)
+
+            if hasPixelData:
+                self.assertTrue('PixelDataOffset' in m)
+                j = DoGet(_REMOTE, '/instances/%s/file?expand' % i, headers = {
+                    'Accept': 'application/dicom+json'
+                    })
+                self.assertEqual(expectedVR, j['7FE00010']['vr'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            # File without pixel data
+            Check('MarekLatin2.dcm', False, False, None)
+
+            # Those files are badly formatted, and should be 'OB'
+            # according to the DICOM standard => medata is present
+            Check('Issue143.dcm', True, True, 'OW')              # Little Endian Explicit, 8bpp
+            Check('KarstenHilbertRF.dcm', True, True, 'OW')      # Little Endian Explicit, 8bpp
+            Check('PilatesArgenturGEUltrasoundOsiriX.dcm', True, True, 'OW')  # Little Endian Explicit, 8bpp
+
+            # Those files are formatted as expected
+            Check('ColorTestMalaterre.dcm', True, False, 'OW')   # Implicit Little Endian, 8bpp
+            Check('Issue94.dcm', True, False, 'OW')              # Implicit Little Endian, 16bpp
+            Check('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', True, False, 'OB') # Explicit Little Endian, 8bpp
+            Check('Phenix/IM-0001-0001.dcm', True, False, 'OW')  # Explicit Little Endian, 16bpp
+            Check('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', True, False, 'OB') # Explicit Big Endian, 8bpp
+            Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
+            Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
