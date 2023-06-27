@@ -7706,15 +7706,20 @@ class Orthanc(unittest.TestCase):
         tags2008 = GetTags(study, { 'DicomVersion' : '2008' })
         tags2017c = GetTags(study, { 'DicomVersion' : '2017c' })
         tags2021b = GetTags(study, { 'DicomVersion' : '2021b' })
+        tags2023b = GetTags(study, { 'DicomVersion' : '2023b' })
         tagsDefault = GetTags(study, {})
 
         orthancVersion = DoGet(_REMOTE, '/system') ['Version']
         self.assertEqual('Orthanc %s - PS 3.15-2008 Table E.1-1' % orthancVersion, tags2008['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2017c Table E.1-1 Basic Profile' % orthancVersion, tags2017c['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2021b Table E.1-1 Basic Profile' % orthancVersion, tags2021b['0012,0063'])
-        self.assertEqual(tagsDefault['0012,0063'], tags2021b['0012,0063'])
+        self.assertEqual('Orthanc %s - PS 3.15-2023b Table E.1-1 Basic Profile' % orthancVersion, tags2023b['0012,0063'])
+        self.assertEqual(tagsDefault['0012,0063'], tags2023b['0012,0063'])
 
-        for t in [ tags2008, tags2017c, tags2021b, tagsDefault ]:
+        self.assertEqual(len(tags2021b), len(tags2023b))
+        self.assertNotEqual(tags2021b, tags2023b)
+
+        for t in [ tags2008, tags2017c, tags2021b, tags2023b, tagsDefault ]:
             self.assertTrue(t['0010,0010'].startswith('Anonymized'))
             self.assertEqual('1.2.840.10008.5.1.4.1.1.4', t['0008,0016'])
             self.assertEqual(36, len(t['0010,0020']))  # Length of a UUID
@@ -7723,14 +7728,14 @@ class Orthanc(unittest.TestCase):
         for t in [ tags2008 ]:
             self.assertEqual('20200101', t['0008,0020'])
             
-        for t in [ tags2017c, tags2021b, tagsDefault ]:
+        for t in [ tags2017c, tags2021b, tags2023b, tagsDefault ]:
             self.assertEqual('', t['0008,0020'])  # Study Date, anonymized between 2008 and 2017c
         
         for t in [ tags2008, tags2017c ]:
             self.assertEqual('HELLO^C', t['0050,0020'])
             self.assertEqual('HELLO^D', t['3006,0002'])
             
-        for t in [ tags2021b, tagsDefault ]:
+        for t in [ tags2021b, tags2023b, tagsDefault ]:
             self.assertFalse('0050,0020' in t)    # Device Description, anonymized between 2017c and 2019c
             self.assertEqual('', t['3006,0002'])  # StructureSetLabel, anonymized between 2019c and 2021b
 
@@ -7848,6 +7853,7 @@ class Orthanc(unittest.TestCase):
                   '(5200,9230)[*].2005,140f[*].(0008,0023)',  # Compatibility with Orthanc 1.9.4
                   '(5200,9230)[*].2005,140f[*].(0008,0033)',  # Compatibility with Orthanc 1.9.4
               ],
+              'DicomVersion' : '2021b',
               'KeepPrivateTags' : True  # Compatibility with Orthanc 1.9.4
             })
         tags3 = GetTags(a['ID'])
