@@ -1967,6 +1967,7 @@ class Orthanc(unittest.TestCase):
                                              'CaseSensitive' : True,
                                              'Query' : { 
                                                  'PatientName' : '*NE*',
+                                                 'PatientBirthDate': '20080101-20081231',
                                                  'PatientSex': '0000'
                                               }})
         self.assertEqual(1, len(a))

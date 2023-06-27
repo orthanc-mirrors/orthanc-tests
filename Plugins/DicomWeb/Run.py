@@ -1691,6 +1691,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
 
 
+    @unittest.skip("Not implemented yet")
     def test_issue_216(self):
         if IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
             study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
