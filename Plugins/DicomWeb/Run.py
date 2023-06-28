@@ -37,6 +37,7 @@ import argparse
 import copy
 import os
 import pprint
+import pydicom
 import re
 import sys
 import unittest
@@ -1753,6 +1754,30 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('application/dicom+xml', response[0][1]['Content-Type'])
             xml.dom.minidom.parseString(response[0][0])
 
+        def CheckIsDicom(uri, accept):
+            if accept != None:
+                response = DoGetMultipart(ORTHANC, uri, headers = {
+                    'accept': accept
+                }, returnHeaders = True)
+            else:
+                response = DoGetMultipart(ORTHANC, uri, returnHeaders = True)
+            self.assertEqual(1, len(response))
+            self.assertEqual(2, len(response[0]))
+            self.assertEqual('application/dicom', response[0][1]['Content-Type'])
+            pydicom.dcmread(BytesIO(response[0][0]), force=True)
+
+        def CheckIsBulk(uri, accept):
+            if accept != None:
+                response = DoGetMultipart(ORTHANC, uri, headers = {
+                    'accept': accept
+                }, returnHeaders = True)
+            else:
+                response = DoGetMultipart(ORTHANC, uri,  returnHeaders = True)
+            self.assertEqual(1, len(response))
+            self.assertEqual(2, len(response[0]))
+            self.assertEqual('application/octet-stream', response[0][1]['Content-Type'])
+            self.assertTrue(len(response[0][0]) > 1)
+
         study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
         studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
 
@@ -1765,6 +1790,29 @@ class Orthanc(unittest.TestCase):
         CheckIsXml('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type="application/dicom+xml"')
         CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type="application/nope"')
         CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type=application/dicom+xml; transfer-syntax=nope')
+
+        CheckBadRequest('/dicom-web/studies/%s' % studyUid, 'multipart/nope')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, None)
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related; type=application/dicom')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related; type="application/dicom"')
+        CheckBadRequest('/dicom-web/studies/%s' % studyUid, 'multipart/related; type=application/nope')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related; transfer-syntax=*')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related; type=application/dicom; transfer-syntax=*')
+        CheckBadRequest('/dicom-web/studies/%s' % studyUid, 'multipart/related; transfer-syntax=nope')
+        CheckIsDicom('/dicom-web/studies/%s' % studyUid, 'multipart/related; type=application/dicom; transfer-syntax=1.2.840.10008.1.2.1')
+
+        uri = '/dicom-web/studies/%s/series/%s/instances/%s/bulk/0010,0010' % (
+            studyUid, '1.3.12.2.1107.5.99.2.1255.30000007020811545343700000012',
+            '1.2.276.0.7230010.3.1.4.2455711835.6056.1170936079.1')
+        CheckIsBulk(uri, None)
+        CheckBadRequest(uri, 'multipart/nope')
+        CheckIsBulk(uri, 'multipart/related')
+        CheckIsBulk(uri, 'multipart/related;type=application/octet-stream')
+        CheckIsBulk(uri, 'multipart/related;   type =  "application/octet-stream"  ')
+        CheckBadRequest(uri, 'multipart/related;   type =  "  application/octet-stream"  ')
+        CheckBadRequest(uri, 'multipart/related;type=application/nope')
+        CheckBadRequest(uri, 'multipart/related;range=')
 
 
 try:
