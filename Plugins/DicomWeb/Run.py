@@ -1708,21 +1708,22 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(m))
         self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        # This fails on DICOMweb <= 1.13 because of the "; q=.2",
-        # since multiple accepts were not supported
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=216
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'text/html, image/gif, image/jpeg, */*; q=.2, */*; q=.2'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 13, 1) and IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
+            # This fails on DICOMweb <= 1.13 because of the "; q=.2",
+            # since multiple accepts were not supported
+            # https://bugs.orthanc-server.com/show_bug.cgi?id=216
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'text/html, image/gif, image/jpeg, */*; q=.2, */*; q=.2'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
-        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-            'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
-        })
-        self.assertEqual(1, len(m))
-        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
+            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+                'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
+            })
+            self.assertEqual(1, len(m))
+            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
 
     def test_accept_negotiation(self):
