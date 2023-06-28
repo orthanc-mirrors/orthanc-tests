@@ -33,13 +33,14 @@
 
 
 
+import argparse
 import copy
 import os
 import pprint
-import sys
-import argparse
-import unittest
 import re
+import sys
+import unittest
+import xml.dom.minidom
 from PIL import ImageChops
 
 from DicomWeb import *
@@ -1691,38 +1692,78 @@ class Orthanc(unittest.TestCase):
             self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
 
 
-    @unittest.skip("Not implemented yet")
     def test_issue_216(self):
-        if IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
-            study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
-            studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
+        study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
+        studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
 
-            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-                'accept': 'image/webp, */*;q=0.8, text/html, application/xhtml+xml, application/xml;q=0.9'
-            })
-            self.assertEqual(1, len(m))
-            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+            'accept': 'image/webp, */*;q=0.8, text/html, application/xhtml+xml, application/xml;q=0.9'
+        })
+        self.assertEqual(1, len(m))
+        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-                'accept': 'text/html, application/xhtml+xml, application/xml, image/webp, */*;q=0.8'
-            })
-            self.assertEqual(1, len(m))
-            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+            'accept': 'text/html, application/xhtml+xml, application/xml, image/webp, */*;q=0.8'
+        })
+        self.assertEqual(1, len(m))
+        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-            # This fails on Orthanc <= 1.12.0 because of the "; q=.2"
-            # https://bugs.orthanc-server.com/show_bug.cgi?id=216
-            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-                'accept': 'text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2'
-            })
-            self.assertEqual(1, len(m))
-            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+        # This fails on DICOMweb <= 1.13 because of the "; q=.2",
+        # since multiple accepts were not supported
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=216
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+            'accept': 'text/html, image/gif, image/jpeg, */*; q=.2, */*; q=.2'
+        })
+        self.assertEqual(1, len(m))
+        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-            # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
-            m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
-                'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
+        # This fails on Orthanc <= 1.12.0 because of the ";q=0.9"
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
+            'accept': 'text/html, application/xhtml+xml, application/xml;q=0.9, image/webp, */*;q=0.8'
+        })
+        self.assertEqual(1, len(m))
+        self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+
+
+    def test_accept_negotiation(self):
+        def CheckBadRequest(uri, accept):
+            response = DoGetRaw(ORTHANC, uri, headers = {
+                'accept': accept
             })
-            self.assertEqual(1, len(m))
-            self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
+            self.assertEqual(int(response[0]['status']), 400)
+
+        def CheckIsJson(uri, accept):
+            if accept != None:
+                response = DoGetRaw(ORTHANC, uri, headers = {
+                    'accept': accept
+                })
+            else:
+                response = DoGetRaw(ORTHANC, uri)
+            self.assertEqual(int(response[0]['status']), 200)
+            self.assertEqual(response[0]['content-type'], 'application/dicom+json')
+            json.loads(response[1])
+
+        def CheckIsXml(uri, accept):
+            response = DoGetMultipart(ORTHANC, uri, headers = {
+                'accept': accept
+            }, returnHeaders = True)
+            self.assertEqual(1, len(response))
+            self.assertEqual(2, len(response[0]))
+            self.assertEqual('application/dicom+xml', response[0][1]['Content-Type'])
+            xml.dom.minidom.parseString(response[0][0])
+
+        study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
+        studyUid = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
+
+        CheckIsJson('/dicom-web/studies/%s/metadata' % studyUid, None)
+        CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'application/nope')
+        CheckIsJson('/dicom-web/studies/%s/metadata' % studyUid, 'application/json')
+        CheckIsJson('/dicom-web/studies/%s/metadata' % studyUid, 'application/dicom+json')
+        CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related')
+        CheckIsXml('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type=application/dicom+xml')
+        CheckIsXml('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type="application/dicom+xml"')
+        CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type="application/nope"')
+        CheckBadRequest('/dicom-web/studies/%s/metadata' % studyUid, 'multipart/related; type=application/dicom+xml; transfer-syntax=nope')
 
 
 try:
