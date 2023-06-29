@@ -43,7 +43,7 @@ import sys
 import unittest
 import xml.dom.minidom
 from PIL import ImageChops
-
+from io import BytesIO
 from DicomWeb import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
