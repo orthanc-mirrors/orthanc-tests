@@ -361,6 +361,77 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(20.0 / 512.0 * (2.0 ** (3 - i)), float(s[0])) 
             self.assertEqual(10.0 / 512.0 * (2.0 ** (3 - i)), float(s[1])) 
 
+
+    def test_http_accept(self):
+        # https://discourse.orthanc-server.org/t/orthanc-wsi-image-quality-issue/3331
+
+        def TestTransferSyntax(s, expected):
+            instance = DoGet(ORTHANC, '/series/%s' % s[0]) ['Instances'][0]
+            self.assertEqual(expected, DoGet(ORTHANC, '/instances/%s/metadata/TransferSyntax' % instance))
+        
+        def TestDefaultAccept(s, mime):
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0])
+            self.assertEqual(mime, tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'text/html,*/*'
+            })
+            self.assertEqual(mime, tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/*,text/html'
+            })
+            self.assertEqual(mime, tile.format)
+
+            tile = DoGetRaw(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], headers = {
+                'Accept' : 'text/html'
+            })
+            self.assertEqual(406, int(tile[0]['status']))
+
+        def TestForceAccept(s):
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/jpeg'
+            })
+            self.assertEqual('JPEG', tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/png'
+            })
+            self.assertEqual('PNG', tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/jp2'
+            })
+            self.assertEqual('JPEG2000', tile.format)
+
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg') ])
+        
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+        TestTransferSyntax(s, '1.2.840.10008.1.2.4.50')
+        TestDefaultAccept(s, 'JPEG')
+        TestForceAccept(s)
+
+        DoDelete(ORTHANC, '/series/%s' % s[0])
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg'), '--compression', 'none' ])
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        TestTransferSyntax(s, '1.2.840.10008.1.2')
+        TestDefaultAccept(s, 'PNG')
+        TestForceAccept(s)
+
+        DoDelete(ORTHANC, '/series/%s' % s[0])
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg'), '--compression', 'jpeg2000' ])
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        TestTransferSyntax(s, '1.2.840.10008.1.2.4.90')
+        TestDefaultAccept(s, 'PNG')
+        TestForceAccept(s)
         
 try:
     print('\nStarting the tests...')
