@@ -100,7 +100,10 @@ def CallCommand(command):
     
     log = subprocess.check_output(prefix + command,
                                   stderr=subprocess.STDOUT)
-                                  
+
+    if sys.version_info >= (3, 0):
+        log = log.decode('ascii')
+
     # If using valgrind, only print the lines from the log starting
     # with '==' (they contain the report from valgrind)
     if args.valgrind:
