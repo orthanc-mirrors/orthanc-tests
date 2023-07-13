@@ -526,6 +526,44 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('ImageService3', body['service'][0]['type'])
         self.assertEqual('http://localhost:8042%s' % uri, body['service'][0]['id'])
 
+    def test_iiif_radiology(self):
+        a = UploadInstance(ORTHANC, 'ColorTestMalaterre.dcm') ['ID']
+        b = UploadInstance(ORTHANC, 'Multiframe.dcm') ['ID']
+        c = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm') ['ID']
+        d = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0002.dcm') ['ID']
+
+        s1 = DoGet(ORTHANC, '/instances/%s/series' % a) ['ID']
+        s2 = DoGet(ORTHANC, '/instances/%s/series' % b) ['ID']
+        s3 = DoGet(ORTHANC, '/instances/%s/series' % c) ['ID']
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s1)
+        self.assertEqual(1, len(manifest['items']))
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s2)
+        self.assertEqual(76, len(manifest['items']))
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s3)
+        self.assertEqual(2, len(manifest['items']))
+
+        for (i, width, height) in [ (a, 41, 41),
+                                    (b, 512, 512),
+                                    (c, 256, 256),
+                                    (d, 256, 256) ]:
+            uri = '/wsi/iiif/frames/%s/0' % i
+            info = DoGet(ORTHANC, uri + '/info.json')
+            self.assertEqual(8, len(info))
+            self.assertEqual('http://iiif.io/api/image/3/context.json', info['@context'])
+            self.assertEqual('http://iiif.io/api/image', info['protocol'])
+            self.assertEqual('http://localhost:8042%s' % uri, info['id'])
+            self.assertEqual('level0', info['profile'])
+            self.assertEqual('ImageService3', info['type'])
+            self.assertEqual(width, info['width'])
+            self.assertEqual(height, info['height'])
+            self.assertEqual(1, len(info['tiles']))
+            self.assertEqual(3, len(info['tiles'][0]))
+            self.assertEqual(width, info['tiles'][0]['width'])
+            self.assertEqual(height, info['tiles'][0]['height'])
+            self.assertEqual([ 1 ], info['tiles'][0]['scaleFactors'])
 
 try:
     print('\nStarting the tests...')
