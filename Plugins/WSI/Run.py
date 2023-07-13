@@ -56,10 +56,10 @@ parser.add_argument('--password',
                     default = 'orthanctest',
                     help = 'Password to the REST API')
 parser.add_argument('--dicomizer',
-                    default = '/home/jodogne/Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomizer',
+                    default = os.path.join(os.environ['HOME'], 'Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomizer'),
                     help = 'Password to the REST API')
 parser.add_argument('--to-tiff',
-                    default = '/home/jodogne/Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomToTiff',
+                    default = os.path.join(os.environ['HOME'], 'Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomToTiff'),
                     help = 'Password to the REST API')
 parser.add_argument('--valgrind', help = 'Use valgrind while running the DICOM-izer',
                     action = 'store_true')
@@ -131,6 +131,9 @@ def CallTiffInfoOnSeries(series):
         except:
             print('\ntiffinfo is probably not installed => sudo apt-get install libtiff-tools\n')
             tiff = None
+
+        if (tiff != None and sys.version_info >= (3, 0)):
+            tiff = tiff.decode('ascii')
             
         os.unlink(temp.name)
 
@@ -180,7 +183,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, pyramid['TilesCount'][0][1])
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(1, len(p))
         self.assertTrue('YCbCr' in p[0])
 
@@ -235,7 +238,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, pyramid['TilesCount'][3][1])
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('min-is-black' in p[j])
@@ -251,7 +254,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('min-is-black' in p[j])
@@ -267,7 +270,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('YCbCr' in p[j])
@@ -283,7 +286,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('RGB' in p[j])

@@ -227,6 +227,11 @@ config['Odbc'] = {
     'MaximumConnectionRetries' : 7,
 }
 
+config['WholeSlideImaging'] = {
+    'ServeMirador' : True,
+    'ServeOpenSeadragon' : True,
+}
+
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
