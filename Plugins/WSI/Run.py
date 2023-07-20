@@ -56,10 +56,10 @@ parser.add_argument('--password',
                     default = 'orthanctest',
                     help = 'Password to the REST API')
 parser.add_argument('--dicomizer',
-                    default = '/home/jodogne/Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomizer',
+                    default = os.path.join(os.environ['HOME'], 'Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomizer'),
                     help = 'Password to the REST API')
 parser.add_argument('--to-tiff',
-                    default = '/home/jodogne/Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomToTiff',
+                    default = os.path.join(os.environ['HOME'], 'Subversion/orthanc-wsi/Applications/i/OrthancWSIDicomToTiff'),
                     help = 'Password to the REST API')
 parser.add_argument('--valgrind', help = 'Use valgrind while running the DICOM-izer',
                     action = 'store_true')
@@ -100,7 +100,10 @@ def CallCommand(command):
     
     log = subprocess.check_output(prefix + command,
                                   stderr=subprocess.STDOUT)
-                                  
+
+    if sys.version_info >= (3, 0):
+        log = log.decode('ascii')
+
     # If using valgrind, only print the lines from the log starting
     # with '==' (they contain the report from valgrind)
     if args.valgrind:
@@ -131,6 +134,9 @@ def CallTiffInfoOnSeries(series):
         except:
             print('\ntiffinfo is probably not installed => sudo apt-get install libtiff-tools\n')
             tiff = None
+
+        if (tiff != None and sys.version_info >= (3, 0)):
+            tiff = tiff.decode('ascii')
             
         os.unlink(temp.name)
 
@@ -180,7 +186,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, pyramid['TilesCount'][0][1])
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(1, len(p))
         self.assertTrue('YCbCr' in p[0])
 
@@ -235,7 +241,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, pyramid['TilesCount'][3][1])
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('min-is-black' in p[j])
@@ -251,7 +257,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('min-is-black' in p[j])
@@ -267,7 +273,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('YCbCr' in p[j])
@@ -283,7 +289,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(4, len(pyramid['Resolutions']))
 
         tiff = CallTiffInfoOnSeries(s[0])
-        p = filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines())
+        p = list(filter(lambda x: 'Photometric Interpretation' in x, tiff.splitlines()))
         self.assertEqual(4, len(p))
         for j in range(4):
             self.assertTrue('RGB' in p[j])
@@ -361,7 +367,207 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(20.0 / 512.0 * (2.0 ** (3 - i)), float(s[0])) 
             self.assertEqual(10.0 / 512.0 * (2.0 ** (3 - i)), float(s[1])) 
 
+
+    def test_http_accept(self):
+        # https://discourse.orthanc-server.org/t/orthanc-wsi-image-quality-issue/3331
+
+        def TestTransferSyntax(s, expected):
+            instance = DoGet(ORTHANC, '/series/%s' % s[0]) ['Instances'][0]
+            self.assertEqual(expected, DoGet(ORTHANC, '/instances/%s/metadata/TransferSyntax' % instance))
         
+        def TestDefaultAccept(s, mime):
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0])
+            self.assertEqual(mime, tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'text/html,*/*'
+            })
+            self.assertEqual(mime, tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/*,text/html'
+            })
+            self.assertEqual(mime, tile.format)
+
+            tile = DoGetRaw(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], headers = {
+                'Accept' : 'text/html'
+            })
+            self.assertEqual(406, int(tile[0]['status']))
+
+        def TestForceAccept(s):
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/jpeg'
+            })
+            self.assertEqual('JPEG', tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/png'
+            })
+            self.assertEqual('PNG', tile.format)
+
+            tile = GetImage(ORTHANC, '/wsi/tiles/%s/0/0/0' % s[0], {
+                'Accept' : 'image/jp2'
+            })
+            self.assertEqual('JPEG2000', tile.format)
+
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg') ])
+        
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+        TestTransferSyntax(s, '1.2.840.10008.1.2.4.50')
+        TestDefaultAccept(s, 'JPEG')
+        TestForceAccept(s)
+
+        DoDelete(ORTHANC, '/series/%s' % s[0])
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg'), '--compression', 'none' ])
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        TestTransferSyntax(s, '1.2.840.10008.1.2')
+        TestDefaultAccept(s, 'PNG')
+        TestForceAccept(s)
+
+        DoDelete(ORTHANC, '/series/%s' % s[0])
+
+        CallDicomizer([ GetDatabasePath('Lena.jpg'), '--compression', 'jpeg2000' ])
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        TestTransferSyntax(s, '1.2.840.10008.1.2.4.90')
+        TestDefaultAccept(s, 'PNG')
+        TestForceAccept(s)
+        
+    def test_iiif(self):
+        CallDicomizer([ GetDatabasePath('LenaGrayscale.png'),  # Image is 512x512
+                        '--levels=3', '--tile-width=128', '--tile-height=128' ])
+
+        self.assertEqual(3, len(DoGet(ORTHANC, '/instances')))
+
+        s = DoGet(ORTHANC, '/series')
+        self.assertEqual(1, len(s))
+
+        uri = '/wsi/iiif/tiles/%s' % s[0]
+        info = DoGet(ORTHANC, '%s/info.json' % uri)
+        self.assertEqual('http://iiif.io/api/image/3/context.json', info['@context'])
+        self.assertEqual('http://iiif.io/api/image', info['protocol'])
+        self.assertEqual('http://localhost:8042%s' % uri, info['id'])
+        self.assertEqual('level0', info['profile'])
+        self.assertEqual('ImageService3', info['type'])
+        self.assertEqual(512, info['width'])
+        self.assertEqual(512, info['height'])
+
+        self.assertEqual(3, len(info['sizes']))
+        self.assertEqual(512, info['sizes'][0]['width'])
+        self.assertEqual(512, info['sizes'][0]['height'])
+        self.assertEqual(256, info['sizes'][1]['width'])
+        self.assertEqual(256, info['sizes'][1]['height'])
+        self.assertEqual(128, info['sizes'][2]['width'])
+        self.assertEqual(128, info['sizes'][2]['height'])
+
+        self.assertEqual(1, len(info['tiles']))
+        self.assertEqual(128, info['tiles'][0]['width'])
+        self.assertEqual(128, info['tiles'][0]['height'])
+        self.assertEqual([ 1, 2, 4 ], info['tiles'][0]['scaleFactors'])
+
+        # The list of URIs below was generated by "orthanc-wsi/Resources/TestIIIFTiles.py"
+
+        # Level 0
+        GetImage(ORTHANC, '/%s/0,0,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/128,0,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,0,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/384,0,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/0,128,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/128,128,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,128,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/384,128,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/0,256,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/128,256,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,256,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/384,256,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/0,384,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/128,384,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,384,128,128/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/384,384,128,128/128,128/0/default.jpg' % uri)
+
+        # Level 1
+        GetImage(ORTHANC, '/%s/0,0,256,256/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,0,256,256/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/0,256,256,256/128,128/0/default.jpg' % uri)
+        GetImage(ORTHANC, '/%s/256,256,256,256/128,128/0/default.jpg' % uri)
+
+        # Level 2
+        i = GetImage(ORTHANC, '/%s/0,0,512,512/128,128/0/default.jpg' % uri)
+        self.assertEqual(128, i.width)
+        self.assertEqual(128, i.height)
+
+        uri2 = '/wsi/iiif/series/%s/manifest.json' % s[0]
+        manifest = DoGet(ORTHANC, uri2)
+        self.assertEqual('http://iiif.io/api/presentation/3/context.json', manifest['@context'])
+        self.assertEqual('http://localhost:8042%s' % uri2, manifest['id'])
+
+        self.assertEqual(1, len(manifest['items']))
+        self.assertEqual(1, len(manifest['items'][0]['items']))
+        self.assertEqual(1, len(manifest['items'][0]['items'][0]['items']))
+
+        self.assertEqual('Manifest', manifest['type'])
+        self.assertEqual('Canvas', manifest['items'][0]['type'])
+        self.assertEqual('AnnotationPage', manifest['items'][0]['items'][0]['type'])
+        self.assertEqual('Annotation', manifest['items'][0]['items'][0]['items'][0]['type'])
+
+        self.assertEqual(512, manifest['items'][0]['width'])
+        self.assertEqual(512, manifest['items'][0]['height'])
+
+        body = manifest['items'][0]['items'][0]['items'][0]['body']
+        self.assertEqual(1, len(body['service']))
+        self.assertEqual('image/jpeg', body['format'])
+        self.assertEqual('Image', body['type'])
+        self.assertEqual(512, body['width'])
+        self.assertEqual(512, body['height'])
+        self.assertEqual('level0', body['service'][0]['profile'])
+        self.assertEqual('ImageService3', body['service'][0]['type'])
+        self.assertEqual('http://localhost:8042%s' % uri, body['service'][0]['id'])
+
+    def test_iiif_radiology(self):
+        a = UploadInstance(ORTHANC, 'ColorTestMalaterre.dcm') ['ID']
+        b = UploadInstance(ORTHANC, 'Multiframe.dcm') ['ID']
+        c = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm') ['ID']
+        d = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0002.dcm') ['ID']
+
+        s1 = DoGet(ORTHANC, '/instances/%s/series' % a) ['ID']
+        s2 = DoGet(ORTHANC, '/instances/%s/series' % b) ['ID']
+        s3 = DoGet(ORTHANC, '/instances/%s/series' % c) ['ID']
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s1)
+        self.assertEqual(1, len(manifest['items']))
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s2)
+        self.assertEqual(76, len(manifest['items']))
+
+        manifest = DoGet(ORTHANC, '/wsi/iiif/series/%s/manifest.json' % s3)
+        self.assertEqual(2, len(manifest['items']))
+
+        for (i, width, height) in [ (a, 41, 41),
+                                    (b, 512, 512),
+                                    (c, 256, 256),
+                                    (d, 256, 256) ]:
+            uri = '/wsi/iiif/frames/%s/0' % i
+            info = DoGet(ORTHANC, uri + '/info.json')
+            self.assertEqual(8, len(info))
+            self.assertEqual('http://iiif.io/api/image/3/context.json', info['@context'])
+            self.assertEqual('http://iiif.io/api/image', info['protocol'])
+            self.assertEqual('http://localhost:8042%s' % uri, info['id'])
+            self.assertEqual('level0', info['profile'])
+            self.assertEqual('ImageService3', info['type'])
+            self.assertEqual(width, info['width'])
+            self.assertEqual(height, info['height'])
+            self.assertEqual(1, len(info['tiles']))
+            self.assertEqual(3, len(info['tiles'][0]))
+            self.assertEqual(width, info['tiles'][0]['width'])
+            self.assertEqual(height, info['tiles'][0]['height'])
+            self.assertEqual([ 1 ], info['tiles'][0]['scaleFactors'])
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)

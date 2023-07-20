@@ -2885,6 +2885,10 @@ class Orthanc(unittest.TestCase):
                    }))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.104.1', DoGet(_REMOTE, '/instances/%s/content/SOPClassUID' % i['ID']).strip('\x00'))
+        self.assertEqual('WSD', DoGet(_REMOTE, '/instances/%s/content/ConversionType' % i['ID']).strip())
+        self.assertEqual('application/pdf', DoGet(_REMOTE, '/instances/%s/content/MIMETypeOfEncapsulatedDocument' % i['ID']).strip())
+
         # In Orthanc <= 1.9.7, the "CT" would have been replaced by "OT"
         # https://groups.google.com/g/orthanc-users/c/eNSddNrQDtM/m/wc1HahimAAAJ
         self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
@@ -2909,6 +2913,10 @@ class Orthanc(unittest.TestCase):
                    }))
         
         self.assertEqual(brainixPatient, DoGet(_REMOTE, '/instances/%s/patient' % i['ID'])['ID'])
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.104.1', DoGet(_REMOTE, '/instances/%s/content/SOPClassUID' % i['ID']).strip('\x00'))
+        self.assertEqual('OT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip('\x00'))
+        self.assertEqual('WSD', DoGet(_REMOTE, '/instances/%s/content/ConversionType' % i['ID']).strip())
+        self.assertEqual('application/pdf', DoGet(_REMOTE, '/instances/%s/content/MIMETypeOfEncapsulatedDocument' % i['ID']).strip())
 
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps({
@@ -9838,3 +9846,43 @@ class Orthanc(unittest.TestCase):
             Check('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', True, False, 'OB') # Explicit Big Endian, 8bpp
             Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
             Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
+
+    def test_encapsulate_stl(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
+            stl = b'Hello, world'
+
+            i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+                'Content' : 'data:model/stl;base64,%s' % base64.b64encode(stl).decode(),
+                'Force' : True,
+                'Tags' : {
+                    'PatientName' : 'Jodogne'
+                }
+            })) ['ID']
+
+            tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+            self.assertEqual('Jodogne', tags['PatientName'])
+            self.assertEqual('M3D', tags['Modality'])
+            self.assertEqual('model/stl', tags['MIMETypeOfEncapsulatedDocument'])
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.104.3', tags['SOPClassUID'])
+
+            i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+                'Content' : 'data:model/mtl;base64,%s' % base64.b64encode(stl).decode(),
+                'Tags' : {}
+            })) ['ID']
+
+            tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+            self.assertFalse('PatientName' in tags)
+            self.assertEqual('M3D', tags['Modality'])
+            self.assertEqual('model/mtl', tags['MIMETypeOfEncapsulatedDocument'])
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.104.5', tags['SOPClassUID'])
+
+            i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+                'Content' : 'data:model/obj;base64,%s' % base64.b64encode(stl).decode(),
+                'Tags' : {}
+            })) ['ID']
+
+            tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+            self.assertFalse('PatientName' in tags)
+            self.assertEqual('M3D', tags['Modality'])
+            self.assertEqual('model/obj', tags['MIMETypeOfEncapsulatedDocument'])
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.104.4', tags['SOPClassUID'])
