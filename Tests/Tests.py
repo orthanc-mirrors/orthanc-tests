@@ -4815,7 +4815,25 @@ class Orthanc(unittest.TestCase):
             DoDelete(_REMOTE, '/jobs/%s/archive' % job)
             # make sure it is not available anymore afterwards
             self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
+            # job is still available
+            DoGet(_REMOTE, '/jobs/%s' % job)
 
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+                # delete the job itself
+                DoDelete(_REMOTE, '/jobs/%s' % job)
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/jobs/%s' % job))
+
+                # test deletion of jobs in history
+                job = MonitorJob2(_REMOTE, lambda: DoPost
+                                (_REMOTE, '/series/%s/archive' % kneeT2, {
+                                    'Synchronous' : False
+                                }))
+                z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+                # delete the job itself
+                DoDelete(_REMOTE, '/jobs/%s' % job)
+                # make sure it is not available anymore afterwards (and its output is not available either)
+                self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/jobs/%s' % job))
+                self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
 
 
     def test_queries_hierarchy(self):
