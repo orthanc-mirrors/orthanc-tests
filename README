@@ -170,6 +170,14 @@ Check the README in the NewTests folder for more complex scenarios
 using python3 and a new test framework.
 
 
+Contributing
+============
+
+Instructions for contributing to the Orthanc project are included in
+the Orthanc Book:
+https://book.orthanc-server.com/developers/repositories.html
+
+
 Licensing
 =========
 
