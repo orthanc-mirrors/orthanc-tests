@@ -42,6 +42,7 @@ import re
 import sys
 import unittest
 import xml.dom.minidom
+import time
 from PIL import ImageChops
 from io import BytesIO
 from DicomWeb import *
@@ -1691,6 +1692,17 @@ class Orthanc(unittest.TestCase):
                 'X-Forwarded-Proto': 'https'
             })
             self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+
+    def test_full_mode_cache(self):
+        study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
+        studyId = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
+        
+        # wait for the StableSeries to happen to pre-compute the series/metadata
+        time.sleep(4)
+
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId)
+        self.assertIn(ORTHANC['Url'], m[0][u'7FE00010']['BulkDataURI'])
 
 
     def test_issue_216(self):
