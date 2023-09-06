@@ -1,1 +1,3 @@
-orthanc-tools==0.4.9
+orthanc-api-client>=0.13.6
+orthanc-tools>=0.8.9
+uvicorn

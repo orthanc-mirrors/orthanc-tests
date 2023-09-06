@@ -82,9 +82,14 @@ class OrthancTestCase(unittest.TestCase):
     def tearDownClass(cls):
         if not Helpers.break_after_preparation:
             cls.kill_orthanc()
+        cls._terminate()
 
     @classmethod
     def prepare(cls):
+        pass # to override
+
+    @classmethod
+    def terminate(cls):
         pass # to override
 
     @classmethod
@@ -243,7 +248,10 @@ class OrthancTestCase(unittest.TestCase):
     @classmethod
     def kill_orthanc(cls):
         if Helpers.is_exe():
-            cls._orthanc_process.kill()
+            if cls._orthanc_process:
+                cls._orthanc_process.kill()
+            else:
+                return
         else:
             subprocess.run(["docker", "stop", cls._orthanc_container_name])
         output = cls.get_orthanc_process_output()

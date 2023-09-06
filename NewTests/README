@@ -132,3 +132,15 @@ python3 NewTests/main.py --pattern=MaxStorageReject.test_max_storage_reject.Test
                          --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
                          --break_after_preparation
 
+
+Authorization:
+--------------
+
+Run the Authorization tests with your locally build version and break before execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthorization.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
+                         --plugin=/home/alain/o/build/orthanc-authorization/libOrthancAuthorization.so \
+                         --break_before_preparation
