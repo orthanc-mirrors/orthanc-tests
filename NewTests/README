@@ -144,3 +144,10 @@ python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthoriz
                          --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
                          --plugin=/home/alain/o/build/orthanc-authorization/libOrthancAuthorization.so \
                          --break_before_preparation
+
+with Docker:
+
+python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthorization. \
+                         --orthanc_under_tests_docker_image=osimis/orthanc:current \
+                         --orthanc_previous_version_docker_image=osimis/orthanc:22.4.0 \
+                         --orthanc_under_tests_http_port=8043

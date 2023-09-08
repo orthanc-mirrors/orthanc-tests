@@ -82,7 +82,7 @@ class OrthancTestCase(unittest.TestCase):
     def tearDownClass(cls):
         if not Helpers.break_after_preparation:
             cls.kill_orthanc()
-        cls._terminate()
+        cls.terminate()
 
     @classmethod
     def prepare(cls):
@@ -141,6 +141,12 @@ class OrthancTestCase(unittest.TestCase):
             subprocess.run(["docker", "volume", "rm", "-f", storage_name])
 
     @classmethod
+    def create_docker_network(cls, network: str):
+        if Helpers.is_docker():
+            subprocess.run(["docker", "network", "rm", network])      # ignore error
+            subprocess.run(["docker", "network", "create", network])
+
+    @classmethod
     def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = []):
         if config_name and storage_name and config:
             # generate the configuration file
@@ -170,7 +176,7 @@ class OrthancTestCase(unittest.TestCase):
             raise RuntimeError("Invalid configuration, can not launch Orthanc")
 
     @classmethod
-    def launch_orthanc_under_tests(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = []):
+    def launch_orthanc_under_tests(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None):
         if config_name and storage_name and config:
             # generate the configuration file
             config_path = cls.generate_configuration(
@@ -193,7 +199,8 @@ class OrthancTestCase(unittest.TestCase):
                 docker_image=Helpers.orthanc_under_tests_docker_image,
                 storage_name=storage_name,
                 config_name=config_name,
-                config_path=config_path
+                config_path=config_path,
+                network=docker_network
             )
         else:
             raise RuntimeError("Invalid configuration, can not launch Orthanc")
@@ -214,7 +221,7 @@ class OrthancTestCase(unittest.TestCase):
                 raise RuntimeError(f"Orthanc failed to start '{exe_path}', conf = '{config_path}'.  Check output above")
 
     @classmethod
-    def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str):
+    def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str, network: str = None):
             storage_path = cls.get_storage_path(storage_name=storage_name)
 
             cmd = [
@@ -225,9 +232,12 @@ class OrthancTestCase(unittest.TestCase):
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
                     "-p", f"{Helpers.orthanc_under_tests_http_port}:{Helpers.orthanc_under_tests_http_port}",
-                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}",
-                    docker_image
+                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}"
                 ]
+            if network:
+                cmd.extend(["--network", network])
+            cmd.append(docker_image)
+
             cls._orthanc_container_name = config_name
             print("docker cmd line: " + " ".join(cmd))
 
