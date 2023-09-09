@@ -22,7 +22,11 @@ class TestAuthorization(OrthancTestCase):
 
     @classmethod
     def terminate(cls):
-        cls.auth_service_process.terminate()
+
+        if Helpers.is_docker():
+            subprocess.run(["docker", "rm", "-f", "auth-service"])
+        else:
+            cls.auth_service_process.terminate()
 
     @classmethod
     def prepare(cls):
@@ -49,6 +53,9 @@ class TestAuthorization(OrthancTestCase):
                     "CheckedLevel": "studies",
                     "TokenHttpHeaders": ["user-token-key", "resource-token-key"],
                     "TokenGetArguments": ["resource-token-key"]
+                },
+                "DicomWeb": {
+                    "Enable": True
                 }
             }
 
@@ -82,21 +89,37 @@ class TestAuthorization(OrthancTestCase):
                 docker_network="auth-test-network"
             )
 
-        uploader = OrthancApiClient(cls.o._root_url, headers={"user-token-key": "token-uploader"})
+        o = OrthancApiClient(cls.o._root_url, headers={"user-token-key": "token-uploader"})
 
-        uploader.delete_all_content()
+        o.delete_all_content()
 
         # upload a few studies and add labels
-        instances_ids = uploader.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")
-        cls.label_a_study_id = uploader.instances.get_parent_study_id(instances_ids[0])
-        uploader.studies.add_label(cls.label_a_study_id, "label_a")
+        cls.label_a_instance_id = o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")[0]
+        cls.label_a_study_id = o.instances.get_parent_study_id(cls.label_a_instance_id)
+        cls.label_a_series_id = o.instances.get_parent_series_id(cls.label_a_instance_id)
+        cls.label_a_study_dicom_id = o.studies.get_tags(cls.label_a_study_id)["StudyInstanceUID"]
+        cls.label_a_series_dicom_id = o.series.get_tags(cls.label_a_series_id)["SeriesInstanceUID"]
+        cls.label_a_instance_dicom_id = o.instances.get_tags(cls.label_a_instance_id)["SOPInstanceUID"]
+        o.studies.add_label(cls.label_a_study_id, "label_a")
 
-        instances_ids = uploader.upload_file(here / "../../Database/Brainix/Epi/IM-0001-0001.dcm")
-        cls.label_b_study_id = uploader.instances.get_parent_study_id(instances_ids[0])
-        uploader.studies.add_label(cls.label_b_study_id, "label_b")
+        cls.label_b_instance_id = o.upload_file(here / "../../Database/Brainix/Epi/IM-0001-0001.dcm")[0]
+        cls.label_b_study_id = o.instances.get_parent_study_id(cls.label_b_instance_id)
+        cls.label_b_series_id = o.instances.get_parent_series_id(cls.label_b_instance_id)
+        cls.label_b_study_dicom_id = o.studies.get_tags(cls.label_b_study_id)["StudyInstanceUID"]
+        cls.label_b_series_dicom_id = o.series.get_tags(cls.label_b_series_id)["SeriesInstanceUID"]
+        cls.label_b_instance_dicom_id = o.instances.get_tags(cls.label_b_instance_id)["SOPInstanceUID"]
+        o.studies.add_label(cls.label_b_study_id, "label_b")
 
-        instances_ids = uploader.upload_file(here / "../../Database/Comunix/Pet/IM-0001-0001.dcm")
-        cls.no_label_study_id = uploader.instances.get_parent_study_id(instances_ids[0])
+        instances_ids = o.upload_file(here / "../../Database/Comunix/Pet/IM-0001-0001.dcm")
+        cls.no_label_study_id = o.instances.get_parent_study_id(instances_ids[0])
+
+        cls.no_label_instance_id = o.upload_file(here / "../../Database/Comunix/Pet/IM-0001-0001.dcm")[0]
+        cls.no_label_study_id = o.instances.get_parent_study_id(cls.no_label_instance_id)
+        cls.no_label_series_id = o.instances.get_parent_series_id(cls.no_label_instance_id)
+        cls.no_label_study_dicom_id = o.studies.get_tags(cls.no_label_study_id)["StudyInstanceUID"]
+        cls.no_label_series_dicom_id = o.series.get_tags(cls.no_label_series_id)["SeriesInstanceUID"]
+        cls.no_label_instance_dicom_id = o.instances.get_tags(cls.no_label_instance_id)["SOPInstanceUID"]
+
 
 
     def assert_is_forbidden(self, api_call):
@@ -143,7 +166,7 @@ class TestAuthorization(OrthancTestCase):
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-a"})
 
         # # make sure we can access all these urls (they would throw if not)
-        # system = o.get_system()
+        system = o.get_system()
 
         all_labels = o.get_all_labels()
         self.assertEqual(1, len(all_labels))
@@ -215,6 +238,14 @@ class TestAuthorization(OrthancTestCase):
         self.assert_is_forbidden(lambda: o.get_json('studies'))
         self.assert_is_forbidden(lambda: o.get_json('studies/'))
 
+        # make sure the label_a study is accessible (it does not throw)
+        o.studies.get_tags(self.label_a_study_id)
+        o.series.get_tags(self.label_a_series_id)
+        o.instances.get_tags(self.label_a_instance_id)
+        
+        # right now, a user token can not access the dicom-web routes, only a resource token can
+        self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata"))
+
 
 
     def test_resource_token(self):
@@ -224,7 +255,7 @@ class TestAuthorization(OrthancTestCase):
         # with a resource token, we can access only the given resource, not generic resources or resources from other studies
 
         # generic resources are forbidden
-        self.assert_is_forbidden(lambda: o.studies.find(query={"PatientName": "KNIX"},  # KNIX is label_a
+        self.assert_is_forbidden(lambda: o.studies.find(query={"PatientName": "KNIX"},  # tools/find is forbidden with a resource token
                                                         labels=['label_b'],
                                                         labels_constraint='Any'))
         self.assert_is_forbidden(lambda: o.get_all_labels())
@@ -236,6 +267,8 @@ class TestAuthorization(OrthancTestCase):
         self.assert_is_forbidden(lambda: o.get_json('studies?expand'))
         self.assert_is_forbidden(lambda: o.get_json('series?expand'))
         self.assert_is_forbidden(lambda: o.get_json('instances?expand'))
+        self.assert_is_forbidden(lambda: o.get_json('studies'))
+        self.assert_is_forbidden(lambda: o.get_json('studies/'))
         
         # some resources are still accessible to the 'anonymous' user  -> does not throw
         o.get_system()
@@ -247,4 +280,10 @@ class TestAuthorization(OrthancTestCase):
         # the label_a study is allowed
         o.studies.get_series_ids(self.label_a_study_id)
 
-        # TODO: test with DicomWEB routes + sub-routes
+        # test with DicomWEB routes + sub-routes
+        o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}")
+        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
+        o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}")
+        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/metadata")
+        o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
+        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}/metadata")
