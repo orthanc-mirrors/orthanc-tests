@@ -74,7 +74,7 @@ class TestAuthorization(OrthancTestCase):
             # first build the docker image for the auth-service
             subprocess.run(["docker", "build", "-t", "auth-service", "."], cwd=here)
             cls.auth_service_process = subprocess.Popen(["docker", "run", "-p", "8020:8020", "--network", "auth-test-network", "--name", "auth-service", "auth-service"])
-            pass
+            time.sleep(5)
 
 
         if Helpers.break_before_preparation:
