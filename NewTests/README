@@ -147,7 +147,7 @@ python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthoriz
 
 with Docker:
 
-python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthorization. \
+python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthorization.* \
                          --orthanc_under_tests_docker_image=osimis/orthanc:current \
                          --orthanc_previous_version_docker_image=osimis/orthanc:22.4.0 \
                          --orthanc_under_tests_http_port=8043

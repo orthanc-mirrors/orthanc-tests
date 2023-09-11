@@ -34,6 +34,7 @@ class TestHousekeeper(OrthancTestCase):
         cls.instance_before, cls.series_before, cls.study_before, cls.patient_before = cls.get_infos()
 
         cls.kill_orthanc()
+        time.sleep(3)
 
         # generate config for orthanc-under-tests (change StorageCompression and add ExtraMainDicomTags)
         config_path = cls.generate_configuration(
