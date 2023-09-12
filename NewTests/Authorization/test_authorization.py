@@ -283,7 +283,12 @@ class TestAuthorization(OrthancTestCase):
         # test with DicomWEB routes + sub-routes
         o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
+        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series")
         o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}")
         o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/metadata")
         o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
         o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}/metadata")
+        o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_a_study_dicom_id}")
+        o.get_json(f"dicom-web/studies?0020000D={self.label_a_study_dicom_id}")
+        o.get_json(f"dicom-web/series?0020000D={self.label_a_study_dicom_id}")
+        o.get_json(f"dicom-web/instances?0020000D={self.label_a_study_dicom_id}")
