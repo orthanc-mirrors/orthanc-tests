@@ -629,33 +629,87 @@ class Orthanc(unittest.TestCase):
     def test_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
-        knee = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+        kneePatient = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+        kneeStudy = DoGet(_REMOTE, '/studies')[0]
+        kneeSeries = DoGet(_REMOTE, '/series')[0]
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % knee)
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
-        z = GetArchive(_REMOTE, '/studies/%s/archive' % DoGet(_REMOTE, '/studies')[0])
+        z = GetArchive(_REMOTE, '/studies/%s/archive' % kneeStudy)
         self.assertEqual(2, len(z.namelist()))
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
-        z = GetArchive(_REMOTE, '/series/%s/archive' % DoGet(_REMOTE, '/series')[0])
+        z = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
         self.assertEqual(1, len(z.namelist()))
+        self.assertIn('MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
-        brainix = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
+        brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
+        brainixStudy = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % knee)
+        z = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
 
+        # archive with 2 patients
         z = PostArchive(_REMOTE, '/tools/create-archive', {
-            'Resources' : [ brainix, knee ]
+            'Resources' : [ brainixPatient, kneePatient ]
             })
         self.assertEqual(3, len(z.namelist()))
+        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
-        z = PostArchive(_REMOTE, '/patients/%s/archive' % knee, {
+        z = PostArchive(_REMOTE, '/patients/%s/archive' % kneePatient, {
             'Synchronous' : True
             })
         self.assertEqual(2, len(z.namelist()))
-       
+
+        # archive with 2 studies
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ brainixStudy, kneeStudy ]
+            })
+        self.assertEqual(3, len(z.namelist()))
+        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+
+        # archive with 1 patient & 1 study
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ brainixPatient, kneeStudy ]
+            })
+        self.assertEqual(3, len(z.namelist()))
+        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+
+
+    def test_archive_with_patient_ids_collision(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            # one PatientID: COMMON
+            # 2 PatientName: HELLO & WORLD
+
+            hello = UploadInstance(_REMOTE, 'PatientIdsCollision/Image1.dcm')
+            world = UploadInstance(_REMOTE, 'PatientIdsCollision/Image2.dcm')
+            helloStudy = hello['ParentStudy']
+            worldStudy = world['ParentStudy']
+            helloPatient = hello['ParentPatient']
+            worldPatient = world['ParentPatient']
+
+            self.assertEqual(helloPatient, worldPatient)
+
+            # when downloading the Patient, we do not really know what PatientName we will get in the zip
+            z = GetArchive(_REMOTE, '/patients/%s/archive' % helloPatient)
+            self.assertEqual(2, len(z.namelist()))
+
+            # when downloading studies individually, we want to have the PatientName that appears in the study
+            z = GetArchive(_REMOTE, '/studies/%s/archive' % helloStudy)
+            self.assertEqual(1, len(z.namelist()))
+            self.assertIn('COMMON HELLO/HELLO SERIES/Unknown Series/00000000.dcm', z.namelist())
+
+            z = GetArchive(_REMOTE, '/studies/%s/archive' % worldStudy)
+            self.assertEqual(1, len(z.namelist()))
+            self.assertIn('COMMON WORLD/WORLD SERIES/Unknown Series/00000000.dcm', z.namelist())
+
+
 
     def test_media_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
