@@ -643,7 +643,7 @@ class Orthanc(unittest.TestCase):
 
         z = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
         self.assertEqual(1, len(z.namelist()))
-        self.assertIn('MR T1W_aTSE/MR000000.dcm', z.namelist())
+        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
         brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
