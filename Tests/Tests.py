@@ -1732,6 +1732,11 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/toto'))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/modalities/tata'))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            self.assertEqual(DoGet(_REMOTE, '/modalities?expand'), DoGet(_REMOTE, '/modalities?expand=true'))
+            self.assertEqual(DoGet(_REMOTE, '/modalities'), DoGet(_REMOTE, '/modalities?expand=false'))
+
+
 
     def test_update_peers(self):
         # curl -X PUT http://localhost:8042/peers/toto -d '["http://localhost:8042/"]' -v
@@ -1773,6 +1778,11 @@ class Orthanc(unittest.TestCase):
         DoDelete(_REMOTE, '/peers/tata')
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/toto'))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/peers/tata'))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            self.assertEqual(DoGet(_REMOTE, '/peers?expand'), DoGet(_REMOTE, '/peers?expand=true'))
+            self.assertEqual(DoGet(_REMOTE, '/peers'), DoGet(_REMOTE, '/peers?expand=false'))
+
 
 
     def test_mesterhazy_modification(self):
@@ -9836,6 +9846,47 @@ class Orthanc(unittest.TestCase):
             self.assertTrue('15' in m)
             self.assertEqual(lastUpdate, m['7'])
             self.assertEqual(signature, m['15'])
+
+    def test_expand(self):
+        # test new expand options introduced in 1.12.2
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            r = UploadInstance(_REMOTE, 'DummyCT.dcm')
+            instanceId = r['ID']
+            seriesId = r['ParentSeries']
+            studyId = r['ParentStudy']
+
+            self.assertEqual(DoGet(_REMOTE, '/instances?expand'), DoGet(_REMOTE, '/instances?expand=true'))
+            self.assertEqual(DoGet(_REMOTE, '/instances'), DoGet(_REMOTE, '/instances?expand=false'))
+
+            self.assertEqual(DoGet(_REMOTE, '/series?expand'), DoGet(_REMOTE, '/series?expand=true'))
+            self.assertEqual(DoGet(_REMOTE, '/series'), DoGet(_REMOTE, '/series?expand=false'))
+
+            self.assertEqual(DoGet(_REMOTE, '/studies?expand'), DoGet(_REMOTE, '/studies?expand=true'))
+            self.assertEqual(DoGet(_REMOTE, '/studies'), DoGet(_REMOTE, '/studies?expand=false'))
+
+            r = DoGet(_REMOTE, '/studies/%s/instances?expand=true' % studyId)
+            self.assertEqual(1, len(r))
+            self.assertIn('MainDicomTags', r[0])
+
+            r = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % studyId)
+            self.assertEqual(1, len(r))
+            self.assertIn('66a662ce-7430e543-bad44d47-0dc5a943-ec7a538d', r[0])
+
+            self.assertEqual(DoGet(_REMOTE, '/studies/%s/instances?expand' % studyId), DoGet(_REMOTE, '/studies/%s/instances?expand=true' % studyId))
+            self.assertEqual(DoGet(_REMOTE, '/studies/%s/instances' % studyId), DoGet(_REMOTE, '/studies/%s/instances?expand=true' % studyId))
+
+            r = DoGet(_REMOTE, '/studies/%s/series?expand=true' % studyId)
+            self.assertEqual(1, len(r))
+            self.assertIn('MainDicomTags', r[0])
+
+            r = DoGet(_REMOTE, '/studies/%s/series?expand=false' % studyId)
+            self.assertEqual(1, len(r))
+            self.assertIn('f2635388-f01d497a-15f7c06b-ad7dba06-c4c599fe', r[0])
+
+            self.assertEqual(DoGet(_REMOTE, '/studies/%s/series?expand' % studyId), DoGet(_REMOTE, '/studies/%s/series?expand=true' % studyId))
+            self.assertEqual(DoGet(_REMOTE, '/studies/%s/series' % studyId), DoGet(_REMOTE, '/studies/%s/series?expand=true' % studyId))
+
+
 
     def test_add_attachment_to_non_existing_resource(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 1): # till 1.12.0, it returned a 200
