@@ -515,7 +515,7 @@ class Orthanc(unittest.TestCase):
 
         # WARNING: This test will fail on Orthanc <= 1.5.5, because
         # the following fix was not included yet:
-        # https://hg.orthanc-server.com/orthanc/rev/b88937ef597b
+        # https://orthanc.uclouvain.be/hg/orthanc/rev/b88937ef597b
         
         a = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % study)
         self.assertEqual(1, len(a))

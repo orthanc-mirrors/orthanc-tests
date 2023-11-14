@@ -4,7 +4,7 @@
 #
 # (1) Compile Orthanc 0.8.6:
 #   $ cd $HOME/Releases/
-#   $ hg clone -u Orthanc-0.8.6 https://hg.orthanc-server.com/orthanc Orthanc-0.8.6
+#   $ hg clone -u Orthanc-0.8.6 https://orthanc.uclouvain.be/hg/orthanc/ Orthanc-0.8.6
 #   $ mkdir $HOME/Releases/Orthanc-0.8.6/Build
 #   $ cd $HOME/Releases/Orthanc-0.8.6/Build
 #   $ cmake .. -DCMAKE_BUILD_TYPE=Release -DSTATIC_BUILD=ON
