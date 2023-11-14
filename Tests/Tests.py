@@ -6918,7 +6918,7 @@ class Orthanc(unittest.TestCase):
 
     def test_findscu_truncation(self):
         # https://groups.google.com/forum/#!msg/orthanc-users/FkckWAHvso8/UbRBAhQ5CwAJ
-        # Fixed by: https://hg.orthanc-server.com/orthanc/rev/2724977419fb
+        # Fixed by: https://orthanc.uclouvain.be/hg/orthanc/rev/2724977419fb
         UploadInstance(_REMOTE, 'Multiframe.dcm')
         UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
 
