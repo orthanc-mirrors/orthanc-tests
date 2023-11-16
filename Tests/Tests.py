@@ -6431,6 +6431,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
 
+    def test_download_file_transcode(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+
+            info = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.dcm')
+            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+                DoGet(_REMOTE, '/instances/%s/file' % info['ID'])))
+
+            self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(
+                DoGet(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50' % info['ID'])))
+
+
     def test_modify_keep_source(self):
         # https://groups.google.com/d/msg/orthanc-users/CgU-Wg8vDio/BY5ZWcDEAgAJ
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')
