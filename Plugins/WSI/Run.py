@@ -296,7 +296,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_concatenation(self):
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=145
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=145
         CallDicomizer([ GetDatabasePath('LenaGrayscale.png'), '--levels=1', ])
         i = DoGet(ORTHANC, '/instances')
         self.assertEqual(1, len(i))
@@ -347,7 +347,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_pixel_spacing(self):
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=139
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=139
         CallDicomizer([ GetDatabasePath('LenaGrayscale.png'),  # Image is 512x512
                         '--levels=4', '--tile-width=64', '--tile-height=64', '--max-size=0',
                         '--imaged-width=20', '--imaged-height=10' ])

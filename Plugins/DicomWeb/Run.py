@@ -390,7 +390,7 @@ class Orthanc(unittest.TestCase):
         
     def test_bitbucket_issue_53(self):
         # DICOMWeb plugin support for "limit" and "offset" parameters in QIDO-RS
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=53
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=53
         
         UploadInstance(ORTHANC, 'Brainix/Flair/IM-0001-0001.dcm')
         UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
@@ -419,7 +419,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_111(self):
         # Wrong serialization of empty values
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=111
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=111
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/3
 
         # According to the standard, section F.2.5
@@ -428,7 +428,7 @@ class Orthanc(unittest.TestCase):
         # DICOM but empty (i.e., Value Length is 0), it shall be
         # preserved in the DICOM JSON attribute object containing no
         # "Value", "BulkDataURI" or "InlineBinary".
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=111
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=111
 
         UploadInstance(ORTHANC, 'Issue111.dcm')
 
@@ -538,7 +538,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_112(self):
         # Wrong serialization of number values
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=112
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=112
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/4/
         
         UploadInstance(ORTHANC, 'DummyCT.dcm')
@@ -570,7 +570,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_113(self):
         # Wrong serialization of PN VR
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=113
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=113
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/2/
 
         # Make sure UTF-8 encoding is used
@@ -602,7 +602,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_96(self):
         # WADO-RS RetrieveFrames rejects valid accept headers
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=96
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=96
         # https://bitbucket.org/sjodogne/orthanc-dicomweb/issues/5/
         
         UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm')
@@ -807,7 +807,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_143(self):
         # WADO-RS metadata request returns "500 Internal Server Error"
         # instead of "404 Not Found" for missing instance
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=143
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=143
         UploadInstance(ORTHANC, 'Issue143.dcm')
 
         e = DoGetRaw(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.55.3.671756986.106.1316467036.460/series/1.2.840.113619.2.55.3.671756986.106.1316467036.465/instances/0.0.0.0.0/metadata')
@@ -1061,7 +1061,7 @@ class Orthanc(unittest.TestCase):
     #@unittest.skip("Skip this test on GDCM 2.8.4")
     def test_bitbucket_issue_164(self):
         # WARNING - This makes GDCM 2.8.4 crash
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=164
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=164
         UploadInstance(ORTHANC, 'Issue164.dcm')
 
         p = DoGetMultipart(ORTHANC, 'dicom-web/studies/1.2.276.0.26.1.1.1.2.2020.45.52293.1506048/series/1.2.276.0.26.1.1.1.2.2020.45.52293.6384450/instances/1.2.276.0.26.1.1.1.2.2020.45.52366.2551599.179568640/frames/5')
@@ -1091,7 +1091,7 @@ class Orthanc(unittest.TestCase):
         # "Plugins can't read private tags from the configuration
         # file" This test will fail if DCMTK <= 3.6.1 (e.g. on Ubuntu
         # 16.04), or if Orthanc <= 1.5.8
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=168
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=168
 
         UploadInstance(ORTHANC, 'Issue168.dcm')
 
@@ -1199,7 +1199,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_56(self):
         # "Case-insensitive matching over accents" => DICOMweb part
         # from AlexanderM on 2020-03-20
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=56
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=56
         UploadInstance(ORTHANC, 'Issue56-NoPixelData.dcm')
 
         self.assertEqual(1, len(DoPost(ORTHANC, '/tools/find', {
@@ -1498,7 +1498,7 @@ class Orthanc(unittest.TestCase):
 
     def test_issue_195(self):
         # This fails on Orthanc <= 1.9.2
-        # https://bugs.orthanc-server.com/show_bug.cgi?id=195
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=195
         a = UploadInstance(ORTHANC, 'Issue195.dcm') ['ID']
         b = DoGet(ORTHANC, 'dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.13188.1620309604.848733/series/1.2.276.0.7230010.3.1.3.8323329.13188.1620309604.848734/instances/1.2.276.0.7230010.3.1.4.8323329.13188.1620309604.848735/metadata',
                   headers = { 'Accept' : 'application/dicom+json' })
@@ -1724,7 +1724,7 @@ class Orthanc(unittest.TestCase):
         if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 13, 1) and IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
             # This fails on DICOMweb <= 1.13 because of the "; q=.2",
             # since multiple accepts were not supported
-            # https://bugs.orthanc-server.com/show_bug.cgi?id=216
+            # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=216
             m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyUid, headers = {
                 'accept': 'text/html, image/gif, image/jpeg, */*; q=.2, */*; q=.2'
             })

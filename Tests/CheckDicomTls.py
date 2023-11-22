@@ -207,7 +207,7 @@ class Orthanc(unittest.TestCase):
 
     def test_anonymous(self):
         # Fails on Orthanc <= 1.9.2
-        # https://book.orthanc-server.com/faq/dicom-tls.html#secure-tls-connections-without-certificate
+        # https://orthanc.uclouvain.be/book/faq/dicom-tls.html#secure-tls-connections-without-certificate
         subprocess.check_call([
             FindExecutable('echoscu'),
             ORTHANC['Server'], 
