@@ -3405,6 +3405,12 @@ class Orthanc(unittest.TestCase):
         z = zipfile.ZipFile(StringIO(s), "r")
         self.assertEqual(7, len(z.namelist()))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            s = DoGet(_REMOTE, '/tools/create-archive?resources=ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17,1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0,1d429ccb-bdcc78a1-7d129d6a-ba4966ed-fe4dbd87')
+            z = zipfile.ZipFile(StringIO(s), "r")
+            self.assertEqual(7, len(z.namelist()))
+
+
 
     def test_decode_brainix_as_jpeg(self):
         i = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')['ID']
@@ -4059,7 +4065,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_44(self):
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=44
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=44
         UploadInstance(_REMOTE, 'Issue44/Monochrome1.dcm')
         UploadInstance(_REMOTE, 'Issue44/Monochrome2.dcm')
 
@@ -4099,7 +4105,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_42(self):
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=42
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=42
         # This test fails on DCMTK 3.6.0, but succeeds in DCMTK 3.6.1 snapshots and DCMTK 3.6.2
         UploadInstance(_REMOTE, 'Issue42.dcm')['ID']
         modified = DoPost(_REMOTE,
@@ -4111,7 +4117,7 @@ class Orthanc(unittest.TestCase):
 
     def test_rest_find_limit(self):
         # Check the "Since" and "Limit" parameters in URI "/tools/find"
-        # Related to issue 53: https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=53
+        # Related to issue 53: https://bugs.orthanc-server.com/show_bug.cgi?id=53
         
         # Upload 6 instances
         brainix = []
@@ -4180,7 +4186,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_46(self):
         # "PHI remaining after anonymization"
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=46
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=46
 
         def GetAnonymizedTags(study, version):
             anonymized = DoPost(_REMOTE, '/studies/%s/anonymize' % study,
@@ -4269,7 +4275,7 @@ class Orthanc(unittest.TestCase):
         # Case-insensitive matching over accents. This test assumes
         # that the "CaseSensitivePN" configuration option of Orthanc
         # is set to "false" (default value).
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=56
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=56
 
         def Check(name, expected, expectedSensitive):
             a = CallFindScu([ '-k', '0008,0005=ISO_IR 192',  # Use UTF-8
@@ -4555,7 +4561,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_94(self):
         # "a simple instance modification should not modify FrameOfReferenceUID + ..."
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=94
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=94
         i = UploadInstance(_REMOTE, 'Issue94.dcm')['ID']
 
         source = DoGet(_REMOTE, '/instances/%s/attachments/dicom/data' % i)
@@ -5255,7 +5261,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_issue_95_encodings(self):
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=95
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=95
         # Check out image: "../Database/Encodings/DavidClunie/charsettests.screenshot.png"
 
         # Very useful tool: "file2" from package "file-kanji"
@@ -5334,7 +5340,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_131(self):
         # "Orthanc PACS silently fails to C-MOVE due to duplicate
         # StudyInstanceUID in it's database."
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=131
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=131
 
         # Insert 2 instances, with the same StudyInstanceUID, but with
         # different patient IDs. Orthanc will create 2 distincts
@@ -5547,7 +5553,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_140(self):
         # "Modifying private tags with REST API changes VR from LO to
         # UN." This test fails if DCMTK <= 3.6.1 (e.g. fails on Ubuntu 16.04).
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=140
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=140
         source = UploadInstance(_REMOTE, 'Issue140.dcm') ['ID']
         series = DoGet(_REMOTE, '/instances/%s' % source) ['ParentSeries']
 
@@ -5628,7 +5634,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_bitbucket_issue_141(self):
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=141
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=141
         a = UploadInstance(_REMOTE, 'Issue141.dcm') ['ID']
         study = '494c8037-b237f263-d8f15075-c8cb2280-daf39bd1'
 
@@ -5654,7 +5660,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_log_level(self):
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=65
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=65
         original = DoGet(_REMOTE, '/tools/log-level')
         
         DoPut(_REMOTE, '/tools/log-level', 'default')
@@ -6024,7 +6030,7 @@ class Orthanc(unittest.TestCase):
 
     def test_bitbucket_issue_154(self):
         # "Matching against list of UID-s by C-MOVE"
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=154
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=154
         a = UploadInstance(_REMOTE, 'Issue154-d1.dcm') ['ID']
         b = UploadInstance(_REMOTE, 'Issue154-d2.dcm') ['ID']
 
@@ -6429,6 +6435,21 @@ class Orthanc(unittest.TestCase):
             })
         self.assertEqual(2, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            z = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50' % info['ParentStudy'])
+            self.assertEqual(1, len(z.namelist()))
+            self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
+
+            z = GetArchive(_REMOTE, '/tools/create-media?resources=%s&transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
+            self.assertEqual(2, len(z.namelist()))
+            self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+            z = GetArchive(_REMOTE, '/tools/create-media-extended?resources=%s&transcode=1.2.840.10008.1.2.4.57' % info['ParentStudy'])
+            self.assertEqual(2, len(z.namelist()))
+            self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+
 
 
     def test_download_file_transcode(self):
@@ -7705,7 +7726,7 @@ class Orthanc(unittest.TestCase):
 
     def test_issue_195(self):
         # This fails on Orthanc <= 1.9.2
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=195
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=195
         a = UploadInstance(_REMOTE, 'Issue195.dcm')['ID']
         b = DoGet(_REMOTE, '/instances/%s/file' % a,
                   headers = { 'Accept' : 'application/dicom+json' })
@@ -7790,7 +7811,7 @@ class Orthanc(unittest.TestCase):
 
     def test_issue_146(self):
         # "Update Anonyization to 2019c"
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=146
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=146
 
         def GetTags(study, params):
             a = DoPost(_REMOTE, '/studies/%s/anonymize' % study, params) ['ID']
@@ -8788,7 +8809,7 @@ class Orthanc(unittest.TestCase):
 
     def test_issue_200(self):
         # https://groups.google.com/g/orthanc-users/c/9CTLsL-JqDw/m/2I0xgyYHBAAJ
-        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=200
+        # https://bugs.orthanc-server.com/show_bug.cgi?id=200
         self.assertEqual(0, len(DoGet(_REMOTE, '/changes') ['Changes']))
         self.assertEqual(0, len(DoGet(_REMOTE, '/changes?last') ['Changes']))
         u = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
