@@ -57,8 +57,12 @@ def validate_authorization(request: TokenValidationRequest):
     logging.info("validating token: " + request.json())
 
     granted = False
-    if request.token_value == "token-knix-study":
+    if request.token_value == "token-a-study":
         granted = request.orthanc_id == "b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0"
+    if request.token_value == "token-b-study":
+        granted = request.orthanc_id == "27f7126f-4f66fb14-03f4081b-f9341db2-53925988"
+    if request.token_value == "token-both-studies":
+        granted = request.orthanc_id in ["b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0", "27f7126f-4f66fb14-03f4081b-f9341db2-53925988"]
 
     response = TokenValidationResponse(
         granted=granted,
