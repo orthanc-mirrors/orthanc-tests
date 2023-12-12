@@ -5,6 +5,7 @@ import json
 import os
 import typing
 import shutil
+import glob
 from threading import Thread
 
 
@@ -71,6 +72,7 @@ class OrthancTestCase(unittest.TestCase):
     _orthanc_container_name = None
     _orthanc_is_running = False
     _orthanc_logger_thread = None
+    _show_orthanc_output = False
 
     @classmethod
     def setUpClass(cls):
@@ -134,11 +136,13 @@ class OrthancTestCase(unittest.TestCase):
 
     @classmethod
     def clear_storage(cls, storage_name: str):
-        if Helpers.is_exe():
-            storage_path = cls.get_storage_path(storage_name=storage_name)
-            shutil.rmtree(storage_path, ignore_errors=True)
-        elif Helpers.is_docker():
-            subprocess.run(["docker", "volume", "rm", "-f", storage_name])
+        storage_path = cls.get_storage_path(storage_name=storage_name)
+        shutil.rmtree(storage_path, ignore_errors=True)
+
+    @classmethod
+    def is_storage_empty(cls, storage_name: str):
+        storage_path = cls.get_storage_path(storage_name=storage_name)
+        return len(glob.glob(os.path.join(storage_path, '*'))) == 0
 
     @classmethod
     def create_docker_network(cls, network: str):
@@ -176,7 +180,9 @@ class OrthancTestCase(unittest.TestCase):
             raise RuntimeError("Invalid configuration, can not launch Orthanc")
 
     @classmethod
-    def launch_orthanc_under_tests(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None):
+    def launch_orthanc_under_tests(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None, enable_verbose: bool = False, show_orthanc_output: bool = False):
+        cls._show_orthanc_output = show_orthanc_output
+        
         if config_name and storage_name and config:
             # generate the configuration file
             config_path = cls.generate_configuration(
@@ -192,7 +198,8 @@ class OrthancTestCase(unittest.TestCase):
         if Helpers.orthanc_under_tests_exe:
             cls.launch_orthanc_exe(
                 exe_path=Helpers.orthanc_under_tests_exe,
-                config_path=config_path
+                config_path=config_path,
+                enable_verbose=enable_verbose
             )
         elif Helpers.orthanc_under_tests_docker_image:
             cls.launch_orthanc_docker(
@@ -200,15 +207,21 @@ class OrthancTestCase(unittest.TestCase):
                 storage_name=storage_name,
                 config_name=config_name,
                 config_path=config_path,
-                network=docker_network
+                network=docker_network,
+                enable_verbose=enable_verbose
             )
         else:
             raise RuntimeError("Invalid configuration, can not launch Orthanc")
 
     @classmethod
-    def launch_orthanc_exe(cls, exe_path: str, config_path: str):
+    def launch_orthanc_exe(cls, exe_path: str, config_path: str, enable_verbose: bool = False, show_orthanc_output: bool = False):
+            if enable_verbose:
+                cmd = [exe_path, "--verbose", config_path]
+            else:
+                cmd = [exe_path, config_path]
+
             cls._orthanc_process = subprocess.Popen(
-                [exe_path, "--verbose", config_path],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
@@ -221,13 +234,13 @@ class OrthancTestCase(unittest.TestCase):
                 raise RuntimeError(f"Orthanc failed to start '{exe_path}', conf = '{config_path}'.  Check output above")
 
     @classmethod
-    def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str, network: str = None):
+    def launch_orthanc_docker(cls, docker_image: str, storage_name: str, config_path: str, config_name: str, network: str = None, enable_verbose: bool = False):
             storage_path = cls.get_storage_path(storage_name=storage_name)
 
             cmd = [
                     "docker", "run", "--rm", 
-                    "-e", "VERBOSE_ENABLED=true",
-                    "-e", "VERBOSE_STARTUP=true", 
+                    "-e", "VERBOSE_ENABLED=true" if enable_verbose else "VERBOSE_ENABLED=false",
+                    "-e", "VERBOSE_STARTUP=true" if enable_verbose else "VERBOSE_STARTUP=false", 
                     "-v", f"{config_path}:/etc/orthanc/orthanc.json",
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
@@ -264,8 +277,11 @@ class OrthancTestCase(unittest.TestCase):
                 return
         else:
             subprocess.run(["docker", "stop", cls._orthanc_container_name])
-        output = cls.get_orthanc_process_output()
-        print("Orthanc output\n" + output)
+        
+        if cls._show_orthanc_output:
+            output = cls.get_orthanc_process_output()
+            print("Orthanc output\n" + output)
+
         cls._orthanc_process = None
 
     @classmethod

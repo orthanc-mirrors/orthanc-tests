@@ -151,3 +151,22 @@ python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthoriz
                          --orthanc_under_tests_docker_image=osimis/orthanc:current \
                          --orthanc_previous_version_docker_image=osimis/orthanc:22.4.0 \
                          --orthanc_under_tests_http_port=8043
+
+
+Concurrency:
+-----------
+
+Run the Concurrency tests with your locally build version and break before execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
+                         --plugin=/home/alain/o/build/pg/libOrthancPostgreSQLIndex.so \
+                         --break_before_preparation
+
+with Docker:
+
+python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.* \
+                         --orthanc_under_tests_docker_image=osimis/orthanc:current \
+                         --orthanc_under_tests_http_port=8043
