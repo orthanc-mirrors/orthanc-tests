@@ -10023,3 +10023,23 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('M3D', tags['Modality'])
             self.assertEqual('model/obj', tags['MIMETypeOfEncapsulatedDocument'])
             self.assertEqual('1.2.840.10008.5.1.4.1.1.104.4', tags['SOPClassUID'])
+
+
+    def test_error_codes_content_type(self):
+
+        # from 1.12.2, check that a ContentType header is included in errors with an error description (ex: 404)
+        (headers, body) = DoGetRaw(_REMOTE, '/rnm94%3Cscript%3Ealert(1)%3C/script%3Ejdtkc/explorer.html')
+        self.assertEqual('404', headers['status'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            self.assertEqual('application/json', headers['content-type'])
+
+        (headers, body) = DoPutRaw(_REMOTE, '/system', 'hello')
+        self.assertEqual('405', headers['status'])
+        # when there is no body, there is no content-type
+        self.assertNotIn('content-type', headers)
+
+        # responses with bodies contain x-content-type-options
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
+            (headers, body) = DoGetRaw(_REMOTE, '/system')
+            self.assertIn('nosniff', headers['x-content-type-options'])
