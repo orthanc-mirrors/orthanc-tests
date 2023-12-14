@@ -150,7 +150,7 @@ class TestConcurrency(OrthancTestCase):
             workers_count=workers_count)
 
         elapsed = time.time() - start_time
-        print(f"test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+        print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
         self.assertTrue(self.o.is_alive())
 
@@ -177,8 +177,8 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(0, stats.get("CountSeries"))
         self.assertEqual(0, stats.get("CountInstances"))
         self.assertEqual(0, int(stats.get("TotalDiskSize")))
+        # time.sleep(10000)
         self.assertTrue(self.is_storage_empty(self._storage_name))
-
 
     def test_concurrent_anonymize_same_study(self):
         self.o.delete_all_content()
@@ -199,7 +199,7 @@ class TestConcurrency(OrthancTestCase):
             workers_count=workers_count)
 
         elapsed = time.time() - start_time
-        print(f"test_concurrent_anonymize_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+        print(f"TIMING test_concurrent_anonymize_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
         self.assertTrue(self.o.is_alive())
 
@@ -213,7 +213,12 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(2 * (1 + workers_count * repeat_count), stats.get("CountSeries"))
         self.assertEqual(50 * (1 + workers_count * repeat_count), stats.get("CountInstances"))
 
+        start_time = time.time()
+
         self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+
+        elapsed = time.time() - start_time
+        print(f"TIMING test_concurrent_anonymize_same_study deletion took: {elapsed:.3f} s")
 
         self.assertEqual(0, len(self.o.studies.get_all_ids()))
         self.assertEqual(0, len(self.o.series.get_all_ids()))
@@ -244,7 +249,7 @@ class TestConcurrency(OrthancTestCase):
             workers_count=workers_count)
 
         elapsed = time.time() - start_time
-        print(f"test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+        print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
         self.assertTrue(self.o.is_alive())
 

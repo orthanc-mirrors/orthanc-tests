@@ -137,7 +137,14 @@ class OrthancTestCase(unittest.TestCase):
     @classmethod
     def clear_storage(cls, storage_name: str):
         storage_path = cls.get_storage_path(storage_name=storage_name)
-        shutil.rmtree(storage_path, ignore_errors=True)
+
+        # clear the directory but keep it !
+        for root, dirs, files in os.walk(storage_path):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
+                shutil.rmtree(storage_path, ignore_errors=True)
 
     @classmethod
     def is_storage_empty(cls, storage_name: str):
