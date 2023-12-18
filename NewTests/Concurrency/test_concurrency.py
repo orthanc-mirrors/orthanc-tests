@@ -37,7 +37,7 @@ def worker_upload_delete_study_part(orthanc_root_url: str, folder: str, repeat: 
                 instances_ids.extend(o.upload_file(all_files[i]))
 
         for instance_id in instances_ids:
-            o.instances.delete(orthanc_id=instance_id)
+            o.instances.delete(orthanc_id=instance_id, ignore_errors=True)
 
 
 class TestConcurrency(OrthancTestCase):
@@ -238,31 +238,32 @@ class TestConcurrency(OrthancTestCase):
         self.clear_storage(storage_name=self._storage_name)
 
         start_time = time.time()
-        workers_count = 5
-        repeat_count = 30
 
-        # massively upload and delete the same study.  Each worker is writing a part of the instances and deleting them.
-        # We are trying to have multiple workers deleting the last instance of a study at the same time.
-        self.execute_workers(
-            worker_func=worker_upload_delete_study_part,
-            worker_args=(self.o._root_url, here / "../../Database/Knee/T1", repeat_count, workers_count, ),
-            workers_count=workers_count)
+        for i in range(0, 10):
+            workers_count = 5
+            repeat_count = 30
+
+            # massively upload and delete the same study.  Each worker is writing a part of the instances and deleting them.
+            # We are trying to have multiple workers deleting the last instance of a study at the same time.
+            self.execute_workers(
+                worker_func=worker_upload_delete_study_part,
+                worker_args=(self.o._root_url, here / "../../Database/Knee/T1", repeat_count, workers_count, ),
+                workers_count=workers_count)
+
+            self.assertEqual(0, len(self.o.studies.get_all_ids()))
+            self.assertEqual(0, len(self.o.series.get_all_ids()))
+            self.assertEqual(0, len(self.o.instances.get_all_ids()))
+
+            stats = self.o.get_json("/statistics")
+            self.assertEqual(0, stats.get("CountPatients"))
+            self.assertEqual(0, stats.get("CountStudies"))
+            self.assertEqual(0, stats.get("CountSeries"))
+            self.assertEqual(0, stats.get("CountInstances"))
+            self.assertEqual(0, int(stats.get("TotalDiskSize")))
+            self.assertTrue(self.is_storage_empty(self._storage_name))
 
         elapsed = time.time() - start_time
         print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
-        self.assertTrue(self.o.is_alive())
-
-        self.assertEqual(0, len(self.o.studies.get_all_ids()))
-        self.assertEqual(0, len(self.o.series.get_all_ids()))
-        self.assertEqual(0, len(self.o.instances.get_all_ids()))
-
-        stats = self.o.get_json("/statistics")
-        self.assertEqual(0, stats.get("CountPatients"))
-        self.assertEqual(0, stats.get("CountStudies"))
-        self.assertEqual(0, stats.get("CountSeries"))
-        self.assertEqual(0, stats.get("CountInstances"))
-        self.assertEqual(0, int(stats.get("TotalDiskSize")))
-        self.assertTrue(self.is_storage_empty(self._storage_name))
 
     # transfers + dicomweb
