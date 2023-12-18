@@ -10032,7 +10032,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('404', headers['status'])
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
-            self.assertEqual('application/json', headers['content-type'])
+            self.assertEqual('text/plain', headers['content-type'])
 
         (headers, body) = DoPutRaw(_REMOTE, '/system', 'hello')
         self.assertEqual('405', headers['status'])
