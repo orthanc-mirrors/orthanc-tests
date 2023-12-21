@@ -170,3 +170,11 @@ with Docker:
 python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.* \
                          --orthanc_under_tests_docker_image=osimis/orthanc:current \
                          --orthanc_under_tests_http_port=8043
+
+PG upgrades:
+-----------
+
+with Docker:
+
+python3 NewTests/main.py --pattern=PostgresUpgrades.test_pg_upgrades.TestPgUpgrades.* \
+                         --orthanc_under_tests_docker_image=osimis/orthanc:current

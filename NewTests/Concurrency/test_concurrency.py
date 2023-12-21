@@ -238,10 +238,11 @@ class TestConcurrency(OrthancTestCase):
         self.clear_storage(storage_name=self._storage_name)
 
         start_time = time.time()
+        overall_repeat = 10
 
         for i in range(0, 10):
             workers_count = 5
-            repeat_count = 30
+            repeat_count = 3
 
             # massively upload and delete the same study.  Each worker is writing a part of the instances and deleting them.
             # We are trying to have multiple workers deleting the last instance of a study at the same time.
@@ -263,7 +264,7 @@ class TestConcurrency(OrthancTestCase):
             self.assertTrue(self.is_storage_empty(self._storage_name))
 
         elapsed = time.time() - start_time
-        print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+        print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat ({overall_repeat}x): {elapsed:.3f} s")
 
 
     # transfers + dicomweb

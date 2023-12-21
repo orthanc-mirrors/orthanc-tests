@@ -1,0 +1,88 @@
+version: "3"
+services:
+
+  # Orthanc with PG plugin v2
+  orthanc-pg-15-2:
+    image: osimis/orthanc:18.4.3
+    container_name: orthanc-pg-15-2
+    depends_on: [pg-15]
+    restart: unless-stopped
+    ports: ["8049:8042"]
+    volumes: ["storage-orthanc-pg-15:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      PG_HOST: "pg-15"
+      PG_LOCK: "false"
+      PG_INDEX_ENABLED: "true"
+      AC_AUTHENTICATION_ENABLED: "false"
+      
+  # Orthanc latest version
+  orthanc-pg-15-under-tests:
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    container_name: orthanc-pg-15-under-tests
+    depends_on: [pg-15]
+    restart: unless-stopped
+    ports: ["8050:8042"]
+    volumes: ["storage-orthanc-pg-15:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
+      ORTHANC__POSTGRESQL: |
+        {
+          "Host": "pg-15",
+          "TransactionMode": "READ COMMITTED"
+        }
+
+
+  pg-15:
+    image: postgres:15
+    container_name: pg-15
+    restart: unless-stopped
+    ports: ["5439:5432"]
+    volumes: ["storage-pg-15:/var/lib/postgresql/data"]
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+
+  # Orthanc latest version
+  orthanc-pg-9-under-tests:
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    container_name: orthanc-pg-9-under-tests
+    depends_on: [pg-9]
+    restart: unless-stopped
+    ports: ["8051:8042"]
+    volumes: ["storage-orthanc-pg-9:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
+      ORTHANC__POSTGRESQL: |
+        {
+          "Host": "pg-9",
+          "TransactionMode": "READ COMMITTED"
+        }
+
+
+  pg-9:
+    image: postgres:9.5
+    container_name: pg-9
+    restart: unless-stopped
+    ports: ["5440:5432"]
+    volumes: ["storage-pg-9:/var/lib/postgresql/data"]
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    healthcheck:
+      test: pg_isready -U postgres -d postgres
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+volumes:
+  storage-orthanc-pg-15:
+  storage-pg-15:
+  storage-orthanc-pg-9:
+  storage-pg-9:
