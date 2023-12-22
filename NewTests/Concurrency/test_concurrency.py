@@ -4,7 +4,7 @@ import os
 import threading
 from helpers import OrthancTestCase, Helpers
 
-from orthanc_api_client import OrthancApiClient, generate_test_dicom_file
+from orthanc_api_client import OrthancApiClient, generate_test_dicom_file, ChangeType
 from orthanc_tools import OrthancTestDbPopulator
 
 import pathlib
@@ -23,6 +23,9 @@ def worker_anonymize_study(orthanc_root_url: str, study_id: str, repeat: int, wo
     
     for i in range(0, repeat):
         o.studies.anonymize(orthanc_id=study_id, delete_original=False)
+
+def count_changes(changes, type: ChangeType):
+    return len([c.change_type for c in changes if c.change_type==type])
 
 def worker_upload_delete_study_part(orthanc_root_url: str, folder: str, repeat: int, workers_count: int, worker_id: int):
     o = OrthancApiClient(orthanc_root_url)
@@ -122,7 +125,26 @@ class TestConcurrency(OrthancTestCase):
         cls.o = OrthancApiClient(cls.o._root_url)
         cls.o.wait_started()
         cls.o.delete_all_content()
-        
+
+    def check_is_empty(self):
+        self.assertEqual(0, len(self.o.studies.get_all_ids()))
+        self.assertEqual(0, len(self.o.series.get_all_ids()))
+        self.assertEqual(0, len(self.o.instances.get_all_ids()))
+
+        stats = self.o.get_json("/statistics")
+        self.assertEqual(0, stats.get("CountPatients"))
+        self.assertEqual(0, stats.get("CountStudies"))
+        self.assertEqual(0, stats.get("CountSeries"))
+        self.assertEqual(0, stats.get("CountInstances"))
+        self.assertEqual(0, int(stats.get("TotalDiskSize")))
+        # time.sleep(10000)
+        self.assertTrue(self.is_storage_empty(self._storage_name))
+
+        # all changes shall have been deleted as well
+        changes, last_change, done = self.o.get_changes(since=0, limit=100000)
+        self.assertTrue(done)
+        self.assertEqual(0, len(changes))
+
 
     def execute_workers(self, worker_func, worker_args, workers_count):
         workers = []
@@ -167,18 +189,7 @@ class TestConcurrency(OrthancTestCase):
 
         self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
 
-        self.assertEqual(0, len(self.o.studies.get_all_ids()))
-        self.assertEqual(0, len(self.o.series.get_all_ids()))
-        self.assertEqual(0, len(self.o.instances.get_all_ids()))
-
-        stats = self.o.get_json("/statistics")
-        self.assertEqual(0, stats.get("CountPatients"))
-        self.assertEqual(0, stats.get("CountStudies"))
-        self.assertEqual(0, stats.get("CountSeries"))
-        self.assertEqual(0, stats.get("CountInstances"))
-        self.assertEqual(0, int(stats.get("TotalDiskSize")))
-        # time.sleep(10000)
-        self.assertTrue(self.is_storage_empty(self._storage_name))
+        self.check_is_empty()
 
     def test_concurrent_anonymize_same_study(self):
         self.o.delete_all_content()
@@ -212,6 +223,13 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(1 + workers_count * repeat_count, stats.get("CountStudies"))
         self.assertEqual(2 * (1 + workers_count * repeat_count), stats.get("CountSeries"))
         self.assertEqual(50 * (1 + workers_count * repeat_count), stats.get("CountInstances"))
+        changes, last_change, done = self.o.get_changes(since=0, limit=100000)
+        self.assertTrue(done)
+
+        self.assertEqual(1 + workers_count * repeat_count, count_changes(changes, ChangeType.NEW_PATIENT))
+        self.assertEqual(1 + workers_count * repeat_count, count_changes(changes, ChangeType.NEW_STUDY))
+        self.assertEqual(2 * (1 + workers_count * repeat_count), count_changes(changes, ChangeType.NEW_SERIES))
+        self.assertEqual(50 * (1 + workers_count * repeat_count), count_changes(changes, ChangeType.NEW_INSTANCE))
 
         start_time = time.time()
 
@@ -220,17 +238,7 @@ class TestConcurrency(OrthancTestCase):
         elapsed = time.time() - start_time
         print(f"TIMING test_concurrent_anonymize_same_study deletion took: {elapsed:.3f} s")
 
-        self.assertEqual(0, len(self.o.studies.get_all_ids()))
-        self.assertEqual(0, len(self.o.series.get_all_ids()))
-        self.assertEqual(0, len(self.o.instances.get_all_ids()))
-
-        stats = self.o.get_json("/statistics")
-        self.assertEqual(0, stats.get("CountPatients"))
-        self.assertEqual(0, stats.get("CountStudies"))
-        self.assertEqual(0, stats.get("CountSeries"))
-        self.assertEqual(0, stats.get("CountInstances"))
-        self.assertEqual(0, int(stats.get("TotalDiskSize")))
-        self.assertTrue(self.is_storage_empty(self._storage_name))
+        self.check_is_empty()
 
 
     def test_upload_delete_same_study_from_multiple_threads(self):
@@ -251,17 +259,7 @@ class TestConcurrency(OrthancTestCase):
                 worker_args=(self.o._root_url, here / "../../Database/Knee/T1", repeat_count, workers_count, ),
                 workers_count=workers_count)
 
-            self.assertEqual(0, len(self.o.studies.get_all_ids()))
-            self.assertEqual(0, len(self.o.series.get_all_ids()))
-            self.assertEqual(0, len(self.o.instances.get_all_ids()))
-
-            stats = self.o.get_json("/statistics")
-            self.assertEqual(0, stats.get("CountPatients"))
-            self.assertEqual(0, stats.get("CountStudies"))
-            self.assertEqual(0, stats.get("CountSeries"))
-            self.assertEqual(0, stats.get("CountInstances"))
-            self.assertEqual(0, int(stats.get("TotalDiskSize")))
-            self.assertTrue(self.is_storage_empty(self._storage_name))
+            self.check_is_empty()
 
         elapsed = time.time() - start_time
         print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat ({overall_repeat}x): {elapsed:.3f} s")
