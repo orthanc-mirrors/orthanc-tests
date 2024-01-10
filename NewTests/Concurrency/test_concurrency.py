@@ -4,7 +4,9 @@ import os
 import threading
 from helpers import OrthancTestCase, Helpers
 
-from orthanc_api_client import OrthancApiClient, generate_test_dicom_file, ChangeType
+from orthanc_api_client import OrthancApiClient, ChangeType
+from orthanc_api_client import helpers as OrthancHelpers
+
 from orthanc_tools import OrthancTestDbPopulator
 
 import pathlib
@@ -36,11 +38,31 @@ def worker_upload_delete_study_part(orthanc_root_url: str, folder: str, repeat: 
         instances_ids = []
 
         for i in range(0, len(all_files)):
-            if i % workers_count == worker_id:
+            if i % workers_count == worker_id:  # each thread takes a part
                 instances_ids.extend(o.upload_file(all_files[i]))
 
         for instance_id in instances_ids:
             o.instances.delete(orthanc_id=instance_id, ignore_errors=True)
+
+
+def worker_upload_delete_test_dicoms(orthanc_root_url: str, files_count: int, worker_id: int):
+    o = OrthancApiClient(orthanc_root_url)
+
+    instances_ids = []
+    counter = 0
+
+    for i in range(0, files_count):
+        counter += 1
+        dicom_file = OrthancHelpers.generate_test_dicom_file(width=4, height=4,
+                                                             tags = {
+                                                                 "PatientID" : f"{worker_id}",
+                                                                 "StudyInstanceUID" : f"{worker_id}",
+                                                                 "SeriesInstanceUID" : f"{worker_id}.{counter%10}"
+                                                             })
+        instances_ids.extend(o.upload(dicom_file))
+
+    study_id = o.instances.get_parent_study_id(instances_ids[0])
+    o.studies.delete(orthanc_id=study_id)
 
 
 class TestConcurrency(OrthancTestCase):
@@ -248,7 +270,7 @@ class TestConcurrency(OrthancTestCase):
         start_time = time.time()
         overall_repeat = 10
 
-        for i in range(0, 10):
+        for i in range(0, overall_repeat):
             workers_count = 5
             repeat_count = 3
 
@@ -264,5 +286,28 @@ class TestConcurrency(OrthancTestCase):
         elapsed = time.time() - start_time
         print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat ({overall_repeat}x): {elapsed:.3f} s")
 
+
+    def test_upload_multiple_studies_from_multiple_threads(self):
+        self.o.delete_all_content()
+        self.clear_storage(storage_name=self._storage_name)
+
+        start_time = time.time()
+        overall_repeat = 3
+
+        for i in range(0, overall_repeat):
+            files_count = 25
+            workers_count = 10
+
+            # massively upload and delete all studies from the test detabase.  Each worker is writing all instances from a folder and then deletes them.
+            # This test is only measuring performances.
+            self.execute_workers(
+                worker_func=worker_upload_delete_test_dicoms,
+                worker_args=(self.o._root_url, files_count, ),
+                workers_count=workers_count)
+
+            self.check_is_empty()
+
+        elapsed = time.time() - start_time
+        print(f"TIMING test_upload_multiple_studies_from_multiple_threads with {workers_count} workers and {files_count} files and repeat {overall_repeat}x: {elapsed:.3f} s")
 
     # transfers + dicomweb
