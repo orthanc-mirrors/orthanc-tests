@@ -36,10 +36,21 @@ def wait_container_healthy(container_name):
 class TestPgUpgrades(unittest.TestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def cleanup(cls):
         os.chdir(here)
         print("Cleaning old compose")
         subprocess.run(["docker", "compose", "down", "-v", "--remove-orphans"], check=True)
+
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cleanup()
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+        # cls.cleanup()
+
 
     def test_upgrades_downgrades_with_pg_15(self):
 
@@ -60,7 +71,11 @@ class TestPgUpgrades(unittest.TestCase):
         time.sleep(2)
 
         print("Launching newest Orthanc")
-        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-under-tests", "-d"], check=True)
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-under-tests", "-d"], 
+            env= {
+                "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
+            },
+            check=True)
 
         o = OrthancApiClient("http://localhost:8050")
         o.wait_started()
@@ -68,14 +83,47 @@ class TestPgUpgrades(unittest.TestCase):
         # make sure we can 'play' with Orthanc
         o.instances.get_tags(orthanc_id=instances[0])
         o.instances.delete_all()
+        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
         instances = o.upload_folder(here / "../../Database/Knee")
+        size_before_downgrade = int(o.get_json('/statistics')['TotalDiskSize'])
 
-        print("Stopping new Orthanc ")
+        print("Stopping newest Orthanc ")
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
         time.sleep(2)
 
-        print("TODO Downgrading Orthanc DB and restart an Orthanc 23.12.1")
-        # ...
+        print("Downgrading Orthanc DB to v6.1")
+        subprocess.run(["docker", "exec", "pg-15", "./scripts/downgrade.sh"], check=True)
+        time.sleep(2)
+
+        print("Downgrading Orthanc DB to v6.1")
+        print("Launching previous Orthanc (DB v6.1)")
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61", "-d"], check=True)
+
+        o = OrthancApiClient("http://localhost:8052")
+        o.wait_started()
+
+        # make sure we can 'play' with Orthanc
+        o.instances.get_tags(orthanc_id=instances[0])
+        self.assertEqual(size_before_downgrade, int(o.get_json('/statistics')['TotalDiskSize']))
+        o.instances.delete_all()
+        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        instances = o.upload_folder(here / "../../Database/Knee")
+        o.instances.delete_all()
+        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+
+        print("run the integration tests after a downgrade")
+        # first create the containers (orthanc-tests + orthanc-pg-15-61-for-integ-tests) so they know each other
+        # subprocess.run(["docker", "compose", "create", "orthanc-tests"], check=True)
+
+        # subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61-for-integ-tests", "-d"], check=True)
+
+        # o = OrthancApiClient("http://localhost:8053", user="alice", pwd="orthanctest")
+        # o.wait_started()
+
+        # time.sleep(10000)
+        subprocess.run(["docker", "compose", "up", "orthanc-tests"], check=True)
+
+
 
     def test_latest_orthanc_with_pg_9(self):
         print("Launching PG-9 server")
