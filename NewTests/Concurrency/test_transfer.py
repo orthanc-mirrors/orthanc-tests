@@ -39,8 +39,8 @@ class TestConcurrencyTransfers(unittest.TestCase):
         pass
 
     def clean_start(self):
-        oa = OrthancApiClient("http://localhost:8052")
-        ob = OrthancApiClient("http://localhost:8053")
+        oa = OrthancApiClient("http://localhost:8062")
+        ob = OrthancApiClient("http://localhost:8063")
 
         oa.wait_started()
         ob.wait_started()

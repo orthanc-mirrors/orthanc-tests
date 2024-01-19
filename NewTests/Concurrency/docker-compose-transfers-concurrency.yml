@@ -6,7 +6,7 @@ services:
     container_name: orthanc-pg-a
     depends_on: [pg-a]
     restart: unless-stopped
-    ports: ["8052:8042"]
+    ports: ["8062:8042"]
     volumes: ["storage-orthanc-a:/var/lib/orthanc/db"]
     environment:
       # VERBOSE_ENABLED: "true"
@@ -34,7 +34,7 @@ services:
     container_name: orthanc-pg-b
     depends_on: [pg-b]
     restart: unless-stopped
-    ports: ["8053:8042"]
+    ports: ["8063:8042"]
     volumes: ["storage-orthanc-b:/var/lib/orthanc/db"]
     environment:
       # VERBOSE_ENABLED: "true"
