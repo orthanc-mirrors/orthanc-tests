@@ -6,6 +6,7 @@ import os
 import typing
 import shutil
 import glob
+import time
 from threading import Thread
 
 
@@ -17,6 +18,32 @@ default_base_config = {
     "AuthenticationEnabled": False,
     "RemoteAccessAllowed": True
 }
+
+
+def get_container_health(container_name):
+    try:
+        # Run the docker inspect command
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{.State.Health.Status}}", container_name],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        
+        # Extract the health status from the command output
+        return result.stdout.strip()
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking container health: {e}")
+        return None
+
+def wait_container_healthy(container_name):
+    retry = 0
+
+    while (get_container_health(container_name) != "healthy" and retry < 200):
+        print(f"Waiting for {container_name} to be healty")
+        time.sleep(1)
+
 
 
 class Helpers:

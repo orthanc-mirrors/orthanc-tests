@@ -26,10 +26,8 @@ services:
     volumes: ["storage-orthanc-pg-15:/var/lib/orthanc/db"]
     environment:
       VERBOSE_ENABLED: "true"
-      PG_HOST: "pg-15"
-      PG_LOCK: "false"
-      PG_INDEX_ENABLED: "true"
-      AC_AUTHENTICATION_ENABLED: "false"
+      ORTHANC__POSTGRESQL__HOST: "pg-15"
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
 
   # Orthanc previous version to run the integration tests
   orthanc-pg-15-61-for-integ-tests:
@@ -46,10 +44,8 @@ services:
 
     environment:
       VERBOSE_ENABLED: "true"
-      PG_HOST: "pg-15"
-      PG_LOCK: "false"
-      PG_INDEX_ENABLED: "true"
-      AC_AUTHENTICATION_ENABLED: "false"
+      ORTHANC__POSTGRESQL__HOST: "pg-15"
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
 
   orthanc-tests:
     image: jodogne/orthanc-tests
@@ -72,19 +68,18 @@ services:
     volumes: ["storage-orthanc-pg-15:/var/lib/orthanc/db"]
     environment:
       VERBOSE_ENABLED: "true"
-      ORTHANC__AUTHENTICATION_ENABLED: "false"
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-15",
           "TransactionMode": "READ COMMITTED"
         }
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
 
 
   pg-15:
     image: postgres:15
     container_name: pg-15
     restart: unless-stopped
-    ports: ["5439:5432"]
     volumes: 
       - "storage-pg-15:/var/lib/postgresql/data"
       - "./downgrade.sh:/scripts/downgrade.sh"
@@ -108,19 +103,18 @@ services:
     volumes: ["storage-orthanc-pg-9:/var/lib/orthanc/db"]
     environment:
       VERBOSE_ENABLED: "true"
-      ORTHANC__AUTHENTICATION_ENABLED: "false"
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-9",
           "TransactionMode": "READ COMMITTED"
         }
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
 
 
   pg-9:
     image: postgres:9.5
     container_name: pg-9
     restart: unless-stopped
-    ports: ["5440:5432"]
     volumes: ["storage-pg-9:/var/lib/postgresql/data"]
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"

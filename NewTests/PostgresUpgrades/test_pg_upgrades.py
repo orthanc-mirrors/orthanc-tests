@@ -2,36 +2,12 @@ import subprocess
 import time
 import unittest
 from orthanc_api_client import OrthancApiClient
-from helpers import Helpers
+from helpers import Helpers, wait_container_healthy
 
 import pathlib
 import os
 here = pathlib.Path(__file__).parent.resolve()
 
-
-def get_container_health(container_name):
-    try:
-        # Run the docker inspect command
-        result = subprocess.run(
-            ["docker", "inspect", "--format", "{{.State.Health.Status}}", container_name],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        
-        # Extract the health status from the command output
-        return result.stdout.strip()
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error checking container health: {e}")
-        return None
-
-def wait_container_healthy(container_name):
-    retry = 0
-
-    while (get_container_health(container_name) != "healthy" and retry < 200):
-        print(f"Waiting for {container_name} to be healty")
-        time.sleep(1)
 
 class TestPgUpgrades(unittest.TestCase):
 
@@ -48,8 +24,7 @@ class TestPgUpgrades(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
-        # cls.cleanup()
+        cls.cleanup()
 
 
     def test_upgrades_downgrades_with_pg_15(self):
