@@ -54,6 +54,9 @@ class TestPgUpgrades(unittest.TestCase):
 
     def test_upgrades_downgrades_with_pg_15(self):
 
+        print("Pullling container")
+        subprocess.run(["docker", "compose", "pull"], check=True)
+
         print("Launching PG-15 server")
         subprocess.run(["docker", "compose", "up", "pg-15", "-d"], check=True)
         wait_container_healthy("pg-15")
