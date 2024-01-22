@@ -10043,3 +10043,98 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
             (headers, body) = DoGetRaw(_REMOTE, '/system')
             self.assertIn('nosniff', headers['x-content-type-options'])
+
+    def test_modify_with_labels(self):
+
+        def UploadAndLabel(testId):
+            DropOrthanc(_REMOTE)
+            
+            u = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')
+            studyId = u["ParentStudy"]
+            seriesId = u["ParentSeries"]
+            patientId = u["ParentPatient"]
+            instanceId = u["ID"]
+
+            if testId == 2: # multi instance study
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0002.dcm')
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0002.dcm')
+
+            # add a label to the study before modification
+            DoPut(_REMOTE, '/patients/%s/labels/label-patient' % patientId)
+            DoPut(_REMOTE, '/studies/%s/labels/label-study' % studyId)
+            DoPut(_REMOTE, '/series/%s/labels/label-series' % seriesId)
+            DoPut(_REMOTE, '/instances/%s/labels/label-instance' % instanceId)
+
+            originalPatient = DoGet(_REMOTE, '/patients/%s' % patientId)
+            self.assertEqual(1, len(originalPatient["Labels"]))
+            self.assertIn('label-patient', originalPatient["Labels"])
+
+            originalStudy = DoGet(_REMOTE, '/studies/%s' % studyId)
+            self.assertEqual(1, len(originalStudy["Labels"]))
+            self.assertIn('label-study', originalStudy["Labels"])
+
+            originalSeries = DoGet(_REMOTE, '/series/%s' % seriesId)
+            self.assertEqual(1, len(originalSeries["Labels"]))
+            self.assertIn('label-series', originalSeries["Labels"])
+
+            originalInstance = DoGet(_REMOTE, '/instances/%s' % instanceId)
+            self.assertEqual(1, len(originalInstance["Labels"]))
+            self.assertIn('label-instance', originalInstance["Labels"])
+
+            return originalPatient, originalStudy, originalSeries, originalInstance
+
+
+        for testId in range(1, 2): #test with a single instance study and a multi instance study
+
+            originalPatient, originalStudy, originalSeries, originalInstance = UploadAndLabel(testId)
+
+            # modify a study in place with no label field in the payload (default behavior before 1.12.3)
+            DoPost(_REMOTE, '/studies/%s/modify' % originalStudy['ID'], {
+                    'Keep' : ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                    'Replace' : {
+                        'PatientName': 'modified'
+                    },
+                    'Force': True
+                })
+
+            # with no options, all resources lose their labels during the modification
+            modifiedStudy = DoGet(_REMOTE, '/studies/%s' % originalStudy['ID'])
+            self.assertEqual(0, len(modifiedStudy["Labels"]))
+            self.assertEqual('modified', modifiedStudy["PatientMainDicomTags"]["PatientName"])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 3):
+
+            for testId in range(1, 2): #test with a single instance study and a multi instance study
+
+                originalPatient, originalStudy, originalSeries, originalInstance = UploadAndLabel(testId)
+
+                # modify a study in place with no label field in the payload (default behavior before 1.12.3)
+                DoPost(_REMOTE, '/studies/%s/modify' % originalStudy['ID'], {
+                        'Keep' : ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                        'Replace' : {
+                            'PatientName': 'modified2'
+                        },
+                        'Force': True,
+                        'KeepLabels': True
+                    })
+
+                # now, each resource level shall have kept its labels
+
+                modifiedInstance = DoGet(_REMOTE, '/instances/%s' % originalInstance['ID'])
+                self.assertEqual(1, len(modifiedInstance["Labels"]))
+                self.assertIn('label-instance', modifiedInstance["Labels"])
+
+                modifiedSeries = DoGet(_REMOTE, '/series/%s' % originalSeries['ID'])
+                self.assertEqual(1, len(modifiedSeries["Labels"]))
+                self.assertIn('label-series', modifiedSeries["Labels"])
+
+                modifiedStudy = DoGet(_REMOTE, '/studies/%s' % originalStudy['ID'])
+                self.assertEqual(1, len(modifiedStudy["Labels"]))
+                self.assertIn('label-study', modifiedStudy["Labels"])
+                self.assertEqual('modified2', modifiedStudy["PatientMainDicomTags"]["PatientName"])
+
+                modifiedPatient = DoGet(_REMOTE, '/patients/%s' % originalPatient['ID'])
+                self.assertEqual(1, len(modifiedPatient["Labels"]))
+                self.assertIn('label-patient', modifiedPatient["Labels"])
+
