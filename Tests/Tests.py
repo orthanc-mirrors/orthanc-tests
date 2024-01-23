@@ -10046,6 +10046,9 @@ class Orthanc(unittest.TestCase):
 
     def test_modify_with_labels(self):
 
+        if DoGet(_REMOTE, '/system')['ApiVersion'] < 23 or not DoGet(_REMOTE, '/system')['HasLabels']:
+            return
+
         def UploadAndLabel(testId):
             DropOrthanc(_REMOTE)
             
