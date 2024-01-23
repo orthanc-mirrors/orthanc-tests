@@ -10103,7 +10103,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(0, len(modifiedStudy["Labels"]))
             self.assertEqual('modified', modifiedStudy["PatientMainDicomTags"]["PatientName"])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 3) and DoGet(_REMOTE, '/system')['ApiVersion'] >= 23:
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 3) and DoGet(_REMOTE, '/system')['ApiVersion'] >= 23 and DoGet(_REMOTE, '/system')['HasLabels']:
             for testId in range(1, 2): #test with a single instance study and a multi instance study
 
                 originalPatient, originalStudy, originalSeries, originalInstance = UploadAndLabel(testId)
