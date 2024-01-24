@@ -27,7 +27,54 @@ class TestPgUpgrades(unittest.TestCase):
         cls.cleanup()
 
 
+    def test_upgrade_61_to_62(self):
+        # remove everything including the DB from previous tests
+        TestPgUpgrades.cleanup()
+
+        print("Pullling container")
+        subprocess.run(["docker", "compose", "pull"], check=True)
+
+        print("Launching PG-15 server")
+        subprocess.run(["docker", "compose", "up", "pg-15", "-d"], check=True)
+        wait_container_healthy("pg-15")
+
+        print("Launching Orthanc with 6.1 DB")
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61", "-d"], check=True)
+
+        o = OrthancApiClient("http://localhost:8052")
+        o.wait_started()
+
+        instances = o.upload_folder(here / "../../Database/Knee")
+
+        print("Stopping Orthanc with 6.1 DB")
+        subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-61"], check=True)
+        time.sleep(2)
+
+        print("Launching newest Orthanc")
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-under-tests", "-d"], 
+            env= {
+                "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
+            },
+            check=True)
+
+        o = OrthancApiClient("http://localhost:8050")
+        o.wait_started()
+
+        # make sure we can 'play' with this Orthanc
+        o.instances.get_tags(orthanc_id=instances[0])
+        o.instances.delete_all()
+        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        instances = o.upload_folder(here / "../../Database/Knee")
+        size_before_downgrade = int(o.get_json('/statistics')['TotalDiskSize'])
+
+        print("Stopping newest Orthanc ")
+        subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
+        time.sleep(2)
+
     def test_upgrades_downgrades_with_pg_15(self):
+
+        # remove everything including the DB from previous tests
+        TestPgUpgrades.cleanup()
 
         print("Pullling container")
         subprocess.run(["docker", "compose", "pull"], check=True)
@@ -104,6 +151,10 @@ class TestPgUpgrades(unittest.TestCase):
 
 
     def test_latest_orthanc_with_pg_9(self):
+
+        # remove everything including the DB from previous tests
+        TestPgUpgrades.cleanup()
+
         print("Launching PG-9 server")
         subprocess.run(["docker", "compose", "up", "pg-9", "-d"], check=True)
         wait_container_healthy("pg-9")
