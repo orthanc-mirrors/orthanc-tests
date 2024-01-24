@@ -649,6 +649,18 @@ class Orthanc(unittest.TestCase):
                                                             headers = { 'Accept' : 'nope' }))
 
 
+    def test_bugzilla_219(self):
+        # WADO-RS RetrieveFrames shall transcode ExplicitBigEndian to ExplicitLittleEndian
+        # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=219
+        
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 17, 0):
+
+            UploadInstance(ORTHANC, 'TransferSyntaxes/1.2.840.10008.1.2.2.dcm')
+
+            r = DoGetMultipart(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.21.848.246800003.0.1952805748.3/series/1.2.840.113619.2.21.24680000.700.0.1952805748.3.0/instances/1.2.840.1136190195280574824680000700.3.0.1.19970424140438/frames/1', {}, True )
+            self.assertIn('transfer-syntax=1.2.840.10008.1.2.1', r[0][1]['Content-Type'])
+
+
     def test_qido_fields(self):
         UploadInstance(ORTHANC, 'DummyCT.dcm')
 
