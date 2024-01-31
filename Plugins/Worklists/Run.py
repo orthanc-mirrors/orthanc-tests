@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 
@@ -114,7 +114,9 @@ def RunQuery(source, ignoreTags):
                                       args.server, str(args.dicom), f.name ],
                                     stderr = subprocess.STDOUT).splitlines()
 
-        if len(filter(lambda x: x.startswith('E:'), a)) > 0:
+        a = list(map(lambda x: x.decode('utf-8', errors="ignore"), a))
+
+        if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
             raise Exception('Error while running findscu')
 
         b = map(lambda x: x[3:], filter(lambda x: (x.startswith('I: ---') or
@@ -294,7 +296,7 @@ class Orthanc(unittest.TestCase):
 
         AddToDatabase('Encodings/database.dump')
 
-        for name, encoding in ENCODINGS.iteritems():
+        for (name, encoding) in ENCODINGS.items():
             self.assertEqual(name, DoPut(ORTHANC, '/tools/default-encoding', name))
             result = RunQuery('Encodings/query.dump', [])
 
