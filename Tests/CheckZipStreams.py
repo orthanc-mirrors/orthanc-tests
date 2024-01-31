@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
@@ -136,7 +136,7 @@ for streaming in [ False, True, None ]:
 
             except Exception as e:
                 Assert(streaming == False)
-                Assert(e[0] == 500)  # HTTP status code 500
+                Assert(e.args[0] == 500)  # HTTP status code 500
                 print('ok, got none archive')
                 queue.put(True)
 

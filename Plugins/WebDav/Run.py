@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
@@ -415,7 +415,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_upload_zip(self):
-        f = StringIO()
+        f = BytesIO()
         with zipfile.ZipFile(f, 'w') as z:
             z.writestr('hello/world/invalid.txt', 'Hello world')
             with open(GetDatabasePath('DummyCT.dcm'), 'rb') as g:
