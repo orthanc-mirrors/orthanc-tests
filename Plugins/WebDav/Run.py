@@ -22,7 +22,7 @@
 
 
 import argparse
-import easywebdav
+import easywebdav   # easywebdav==1.2.0 is known to work with this test
 import io
 import os
 import pprint
