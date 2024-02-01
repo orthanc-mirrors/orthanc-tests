@@ -114,10 +114,16 @@ def RunQuery(source, ignoreTags):
                                       args.server, str(args.dicom), f.name ],
                                     stderr = subprocess.STDOUT).splitlines()
 
-        a = list(map(lambda x: x.decode('utf-8', errors="ignore"), a))
+        if sys.version_info.major == 2:
+            if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
+                raise Exception('Error while running findscu')
+        else:
+            # pprint.pprint(a)
+            a = list(map(lambda x: x.decode('utf-8', errors="ignore"), a))
+            # pprint.pprint(a)
 
-        if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
-            raise Exception('Error while running findscu')
+            if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
+                raise Exception('Error while running findscu')
 
         b = map(lambda x: x[3:], filter(lambda x: (x.startswith('I: ---') or
                                                    x.startswith('W: ---') or
