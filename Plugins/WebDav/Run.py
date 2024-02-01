@@ -20,9 +20,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
+# Note about easywebdav: This test is compatible with version 1.2.0 of
+# the "python3-easywebdav" package in Ubuntu/Debian. Beware that this
+# package includes a patch that is not available in the upstream
+# version of easywebdav:
+# https://salsa.debian.org/python-team/packages/python-easywebdav/-/blob/master/debian/patches/python3.patch
 
 import argparse
-import easywebdav   # easywebdav==1.2.0 is known to work with this test
+import easywebdav
 import io
 import os
 import pprint
