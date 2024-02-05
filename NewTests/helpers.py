@@ -279,7 +279,8 @@ class OrthancTestCase(unittest.TestCase):
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
                     "-p", f"{Helpers.orthanc_under_tests_http_port}:{Helpers.orthanc_under_tests_http_port}",
-                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}"
+                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}",
+                    "-u", f"999:999"
                 ]
             if network:
                 cmd.extend(["--network", network])
