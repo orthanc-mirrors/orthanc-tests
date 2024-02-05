@@ -164,14 +164,25 @@ class OrthancTestCase(unittest.TestCase):
     @classmethod
     def clear_storage(cls, storage_name: str):
         storage_path = cls.get_storage_path(storage_name=storage_name)
+        if Helpers.is_exe():
 
-        # clear the directory but keep it !
-        for root, dirs, files in os.walk(storage_path):
-            for f in files:
-                os.unlink(os.path.join(root, f))
-            for d in dirs:
-                shutil.rmtree(os.path.join(root, d))
-                shutil.rmtree(storage_path, ignore_errors=True)
+            # clear the directory but keep it !
+            for root, dirs, files in os.walk(storage_path):
+                for f in files:
+                    os.unlink(os.path.join(root, f))
+                for d in dirs:
+                    shutil.rmtree(os.path.join(root, d))
+                    shutil.rmtree(storage_path, ignore_errors=True)
+        else:
+            cmd = [
+                    "docker", "run", "--rm", 
+                    "-v", f"{storage_path}:/var/lib/orthanc/db/",
+                    "--name", "storage-cleanup",
+                    "debian:12-slim",
+                    "rm", "-rf", "/var/lib/orthanc/db/*"
+                ]
+
+            subprocess.run(cmd, check=True)
 
     @classmethod
     def is_storage_empty(cls, storage_name: str):
@@ -279,8 +290,7 @@ class OrthancTestCase(unittest.TestCase):
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
                     "-p", f"{Helpers.orthanc_under_tests_http_port}:{Helpers.orthanc_under_tests_http_port}",
-                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}",
-                    "-u", f"999:999"
+                    "-p", f"{Helpers.orthanc_under_tests_dicom_port}:{Helpers.orthanc_under_tests_dicom_port}"
                 ]
             if network:
                 cmd.extend(["--network", network])
