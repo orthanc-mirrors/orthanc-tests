@@ -71,7 +71,7 @@ services:
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-15",
-          "TransactionMode": "READ COMMITTED"
+          "TransactionMode": "ReadCommitted"
         }
       ORTHANC__AUTHENTICATION_ENABLED: "false"
 
@@ -106,7 +106,7 @@ services:
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-9",
-          "TransactionMode": "READ COMMITTED"
+          "TransactionMode": "ReadCommitted"
         }
       ORTHANC__AUTHENTICATION_ENABLED: "false"
 

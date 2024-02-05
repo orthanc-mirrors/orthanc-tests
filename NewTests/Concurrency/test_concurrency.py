@@ -102,8 +102,8 @@ class TestConcurrency(OrthancTestCase):
                 "IndexConnectionsCount": 10,
                 "MaximumConnectionRetries" : 2000,
                 "ConnectionRetryInterval" : 5,
-                "TransactionMode": "READ COMMITTED",
-                #"TransactionMode": "SERIALIZABLE",
+                "TransactionMode": "ReadCommitted",
+                #"TransactionMode": "Serializable",
                 "EnableVerboseLogs": True
             },
             "AuthenticationEnabled": False,

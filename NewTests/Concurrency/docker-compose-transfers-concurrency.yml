@@ -14,7 +14,7 @@ services:
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-a",
-          "TransactionMode": "READ COMMITTED"
+          "TransactionMode": "ReadCommitted"
         }
       ORTHANC__AUTHENTICATION_ENABLED: "false"
       ORTHANC__ORTHANC_PEERS: |
@@ -42,7 +42,7 @@ services:
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-b",
-          "TransactionMode": "READ COMMITTED"
+          "TransactionMode": "ReadCommitted"
         }
       ORTHANC__AUTHENTICATION_ENABLED: "false"
       ORTHANC__ORTHANC_PEERS: |
