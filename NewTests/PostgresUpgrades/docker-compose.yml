@@ -3,7 +3,7 @@ services:
 
   # Orthanc with PG plugin v2
   orthanc-pg-15-2:
-    image: osimis/orthanc:18.4.3
+    image: orthancteam/orthanc:18.4.3
     container_name: orthanc-pg-15-2
     depends_on: [pg-15]
     restart: unless-stopped
@@ -18,7 +18,7 @@ services:
 
   # Orthanc previous version
   orthanc-pg-15-61:
-    image: osimis/orthanc:24.1.2
+    image: orthancteam/orthanc:24.1.2
     container_name: orthanc-pg-15-61
     depends_on: [pg-15]
     restart: unless-stopped
@@ -31,7 +31,7 @@ services:
 
   # Orthanc previous version to run the integration tests
   orthanc-pg-15-61-for-integ-tests:
-    image: osimis/orthanc:24.1.2
+    image: orthancteam/orthanc:24.1.2
     container_name: orthanc-pg-15-61-for-integ-tests
     depends_on: [pg-15]
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
 
   # Orthanc latest version
   orthanc-pg-15-under-tests:
-    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
     container_name: orthanc-pg-15-under-tests
     depends_on: [pg-15]
     restart: unless-stopped
@@ -95,7 +95,7 @@ services:
 
   # Orthanc latest version
   orthanc-pg-9-under-tests:
-    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
     container_name: orthanc-pg-9-under-tests
     depends_on: [pg-9]
     restart: unless-stopped

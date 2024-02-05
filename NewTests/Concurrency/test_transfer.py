@@ -18,15 +18,28 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def cleanup(cls):
         os.chdir(here)
         print("Cleaning old compose")
-        subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "down", "-v", "--remove-orphans"], check=True)
+        subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "down", "-v", "--remove-orphans"], 
+                       env= {
+                           "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
+                       },
+                       check=True)
 
     @classmethod
     def compose_up(cls):
-        print("Pullling containers")
-        subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "pull"], check=True)        
+        # print("Pullling containers")
+        # subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "pull"],
+        #                env= {
+        #                    "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image,
+        #                    "PATH": os.environ.get('PATH')
+        #                },
+        #                check=True)
 
         print("Compose up")
-        subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "up", "-d"], check=True)        
+        subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "up", "-d"], 
+                       env= {
+                           "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
+                       },                       
+                       check=True)        
 
     @classmethod
     def setUpClass(cls):

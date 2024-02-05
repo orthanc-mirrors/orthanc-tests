@@ -2,7 +2,7 @@ version: "3"
 services:
 
   orthanc-pg-a:
-    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
     container_name: orthanc-pg-a
     depends_on: [pg-a]
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
       ORTHANC__OVERWRITE_INSTANCES: "true"
 
   orthanc-pg-b:
-    image: ${ORTHANC_IMAGE_UNDER_TESTS:-osimis/orthanc:latest}
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
     container_name: orthanc-pg-b
     depends_on: [pg-b]
     restart: unless-stopped

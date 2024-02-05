@@ -40,8 +40,8 @@ python3 NewTests/main.py --pattern=* \
 with Docker:
 
 python3 NewTests/main.py --pattern=* \
-                         --orthanc_under_tests_docker_image=osimis/orthanc:current \
-                         --orthanc_previous_version_docker_image=osimis/orthanc:22.4.0 \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
+                         --orthanc_previous_version_docker_image=orthancteam/orthanc:22.4.0 \
                          --orthanc_under_tests_http_port=8043
 
 Housekeeper:
@@ -148,8 +148,8 @@ python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthoriz
 with Docker:
 
 python3 NewTests/main.py --pattern=Authorization.test_authorization.TestAuthorization.* \
-                         --orthanc_under_tests_docker_image=osimis/orthanc:current \
-                         --orthanc_previous_version_docker_image=osimis/orthanc:22.4.0 \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
+                         --orthanc_previous_version_docker_image=orthancteam/orthanc:22.4.0 \
                          --orthanc_under_tests_http_port=8043
 
 
@@ -168,7 +168,7 @@ python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.
 with Docker:
 
 python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.* \
-                         --orthanc_under_tests_docker_image=osimis/orthanc:current \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
                          --orthanc_under_tests_http_port=8043
 
 PG upgrades:
@@ -177,4 +177,4 @@ PG upgrades:
 with Docker:
 
 python3 NewTests/main.py --pattern=PostgresUpgrades.test_pg_upgrades.TestPgUpgrades.* \
-                         --orthanc_under_tests_docker_image=osimis/orthanc:current
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current
