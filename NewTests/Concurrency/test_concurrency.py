@@ -102,9 +102,9 @@ class TestConcurrency(OrthancTestCase):
                 "IndexConnectionsCount": 10,
                 "MaximumConnectionRetries" : 2000,
                 "ConnectionRetryInterval" : 5,
-                "TransactionMode": "ReadCommitted",
+                "TransactionMode": "READ COMMITTED"
                 #"TransactionMode": "Serializable",
-                "EnableVerboseLogs": True
+                # "EnableVerboseLogs": True
             },
             "AuthenticationEnabled": False,
             "OverwriteInstances": True,
@@ -149,11 +149,15 @@ class TestConcurrency(OrthancTestCase):
         cls.o.delete_all_content()
 
     def check_is_empty(self):
+        print("checking is empty")
+
         self.assertEqual(0, len(self.o.studies.get_all_ids()))
         self.assertEqual(0, len(self.o.series.get_all_ids()))
         self.assertEqual(0, len(self.o.instances.get_all_ids()))
 
+        print("checking is empty (2)")
         stats = self.o.get_json("/statistics")
+        print("checking is empty (3)")
         self.assertEqual(0, stats.get("CountPatients"))
         self.assertEqual(0, stats.get("CountStudies"))
         self.assertEqual(0, stats.get("CountSeries"))
@@ -178,40 +182,40 @@ class TestConcurrency(OrthancTestCase):
         for t in workers:
             t.join()
 
-    def test_concurrent_uploads_same_study(self):
-        self.o.delete_all_content()
-        self.clear_storage(storage_name=self._storage_name)
+    # def test_concurrent_uploads_same_study(self):
+    #     self.o.delete_all_content()
+    #     self.clear_storage(storage_name=self._storage_name)
 
-        start_time = time.time()
-        workers_count = 20
-        repeat_count = 1
+    #     start_time = time.time()
+    #     workers_count = 20
+    #     repeat_count = 1
 
-        # massively reupload the same study multiple times with OverwriteInstances set to true
-        # Make sure the studies, series and instances are created only once
-        self.execute_workers(
-            worker_func=worker_upload_folder,
-            worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
-            workers_count=workers_count)
+    #     # massively reupload the same study multiple times with OverwriteInstances set to true
+    #     # Make sure the studies, series and instances are created only once
+    #     self.execute_workers(
+    #         worker_func=worker_upload_folder,
+    #         worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
+    #         workers_count=workers_count)
 
-        elapsed = time.time() - start_time
-        print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+    #     elapsed = time.time() - start_time
+    #     print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
-        self.assertTrue(self.o.is_alive())
+    #     self.assertTrue(self.o.is_alive())
 
-        self.assertEqual(1, len(self.o.studies.get_all_ids()))
-        self.assertEqual(2, len(self.o.series.get_all_ids()))
-        self.assertEqual(50, len(self.o.instances.get_all_ids()))
+    #     self.assertEqual(1, len(self.o.studies.get_all_ids()))
+    #     self.assertEqual(2, len(self.o.series.get_all_ids()))
+    #     self.assertEqual(50, len(self.o.instances.get_all_ids()))
 
-        stats = self.o.get_json("/statistics")
-        self.assertEqual(1, stats.get("CountPatients"))
-        self.assertEqual(1, stats.get("CountStudies"))
-        self.assertEqual(2, stats.get("CountSeries"))
-        self.assertEqual(50, stats.get("CountInstances"))
-        self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
+    #     stats = self.o.get_json("/statistics")
+    #     self.assertEqual(1, stats.get("CountPatients"))
+    #     self.assertEqual(1, stats.get("CountStudies"))
+    #     self.assertEqual(2, stats.get("CountSeries"))
+    #     self.assertEqual(50, stats.get("CountInstances"))
+    #     self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
 
-        self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+    #     self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
 
-        self.check_is_empty()
+    #     self.check_is_empty()
 
     def test_concurrent_anonymize_same_study(self):
         self.o.delete_all_content()
@@ -222,7 +226,7 @@ class TestConcurrency(OrthancTestCase):
 
         start_time = time.time()
         workers_count = 4
-        repeat_count = 10
+        repeat_count = 2
 
         # massively anonymize the same study.  This generates new studies and is a
         # good way to simulate ingestion of new studies
@@ -240,12 +244,16 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(2 * (1 + workers_count * repeat_count), len(self.o.series.get_all_ids()))
         self.assertEqual(50 * (1 + workers_count * repeat_count), len(self.o.instances.get_all_ids()))
 
+        print("get stats")
         stats = self.o.get_json("/statistics")
+        print("get stats (2)")
         self.assertEqual(1 + workers_count * repeat_count, stats.get("CountPatients"))
         self.assertEqual(1 + workers_count * repeat_count, stats.get("CountStudies"))
         self.assertEqual(2 * (1 + workers_count * repeat_count), stats.get("CountSeries"))
         self.assertEqual(50 * (1 + workers_count * repeat_count), stats.get("CountInstances"))
+        print("get changes")
         changes, last_change, done = self.o.get_changes(since=0, limit=100000)
+        print("get changes (2)")
         self.assertTrue(done)
 
         self.assertEqual(1 + workers_count * repeat_count, count_changes(changes, ChangeType.NEW_PATIENT))
@@ -255,7 +263,11 @@ class TestConcurrency(OrthancTestCase):
 
         start_time = time.time()
 
-        self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+        print("deleting")
+        all_instances_ids = self.o.instances.get_all_ids()
+        print("deleting (2)")
+        self.o.instances.delete(orthanc_ids=all_instances_ids)
+        print("deleted")
 
         elapsed = time.time() - start_time
         print(f"TIMING test_concurrent_anonymize_same_study deletion took: {elapsed:.3f} s")

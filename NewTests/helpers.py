@@ -164,6 +164,8 @@ class OrthancTestCase(unittest.TestCase):
     @classmethod
     def clear_storage(cls, storage_name: str):
         storage_path = cls.get_storage_path(storage_name=storage_name)
+        print("clearing storage")
+
         if Helpers.is_exe():
 
             # clear the directory but keep it !
@@ -174,6 +176,8 @@ class OrthancTestCase(unittest.TestCase):
                     shutil.rmtree(os.path.join(root, d))
                     shutil.rmtree(storage_path, ignore_errors=True)
         else:
+            # subprocess.run(["sudo", "rm", "-rf", storage_path], check=True)
+            # docker run --rm -v /home/alain/o/orthanc-tests/NewTests/storages/concurrency/:/var/lib/orthanc/db/ debian:12-slim rm -rf /var/lib/orthanc/db/*
             cmd = [
                     "docker", "run", "--rm", 
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
@@ -183,11 +187,21 @@ class OrthancTestCase(unittest.TestCase):
                 ]
 
             subprocess.run(cmd, check=True)
+        
+        if not cls.is_storage_empty(storage_name):
+            print("Could not clear storage")
+            exit(-12)
+        print("cleared storage")
+
 
     @classmethod
     def is_storage_empty(cls, storage_name: str):
+        print("checking storage empty")
         storage_path = cls.get_storage_path(storage_name=storage_name)
-        return len(glob.glob(os.path.join(storage_path, '*'))) == 0
+        res =  len(glob.glob(os.path.join(storage_path, '*'))) == 0
+        print("checked storage empty")
+
+        return res
 
     @classmethod
     def create_docker_network(cls, network: str):
@@ -284,8 +298,8 @@ class OrthancTestCase(unittest.TestCase):
 
             cmd = [
                     "docker", "run", "--rm", 
-                    "-e", "VERBOSE_ENABLED=true" if enable_verbose else "VERBOSE_ENABLED=false",
-                    "-e", "VERBOSE_STARTUP=true" if enable_verbose else "VERBOSE_STARTUP=false", 
+                    "-e", "VERBOSE_ENABLED=true", # if enable_verbose else "VERBOSE_ENABLED=false",
+                    "-e", "VERBOSE_STARTUP=true", # always set it !!!! if enable_verbose else "VERBOSE_STARTUP=false", 
                     "-v", f"{config_path}:/etc/orthanc/orthanc.json",
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", config_name,
