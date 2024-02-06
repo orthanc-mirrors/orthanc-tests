@@ -178,40 +178,43 @@ class TestConcurrency(OrthancTestCase):
         for t in workers:
             t.join()
 
-    def test_concurrent_uploads_same_study(self):
-        self.o.delete_all_content()
-        self.clear_storage(storage_name=self._storage_name)
+    # TODO: reactivate once 1.12.4 is released.  It needs this fix: https://orthanc.uclouvain.be/hg/orthanc/rev/acdb8d78bf99
+    # def test_concurrent_uploads_same_study(self):
+    #     if self.o.is_orthanc_version_at_least(1, 12, 4):
 
-        start_time = time.time()
-        workers_count = 20
-        repeat_count = 1
+    #         self.o.delete_all_content()
+    #         self.clear_storage(storage_name=self._storage_name)
 
-        # massively reupload the same study multiple times with OverwriteInstances set to true
-        # Make sure the studies, series and instances are created only once
-        self.execute_workers(
-            worker_func=worker_upload_folder,
-            worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
-            workers_count=workers_count)
+    #         start_time = time.time()
+    #         workers_count = 20
+    #         repeat_count = 10
 
-        elapsed = time.time() - start_time
-        print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+    #         # massively reupload the same study multiple times with OverwriteInstances set to true
+    #         # Make sure the studies, series and instances are created only once
+    #         self.execute_workers(
+    #             worker_func=worker_upload_folder,
+    #             worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
+    #             workers_count=workers_count)
 
-        self.assertTrue(self.o.is_alive())
+    #         elapsed = time.time() - start_time
+    #         print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
-        self.assertEqual(1, len(self.o.studies.get_all_ids()))
-        self.assertEqual(2, len(self.o.series.get_all_ids()))
-        self.assertEqual(50, len(self.o.instances.get_all_ids()))
+    #         self.assertTrue(self.o.is_alive())
 
-        stats = self.o.get_json("/statistics")
-        self.assertEqual(1, stats.get("CountPatients"))
-        self.assertEqual(1, stats.get("CountStudies"))
-        self.assertEqual(2, stats.get("CountSeries"))
-        self.assertEqual(50, stats.get("CountInstances"))
-        self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
+    #         self.assertEqual(1, len(self.o.studies.get_all_ids()))
+    #         self.assertEqual(2, len(self.o.series.get_all_ids()))
+    #         self.assertEqual(50, len(self.o.instances.get_all_ids()))
 
-        self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+    #         stats = self.o.get_json("/statistics")
+    #         self.assertEqual(1, stats.get("CountPatients"))
+    #         self.assertEqual(1, stats.get("CountStudies"))
+    #         self.assertEqual(2, stats.get("CountSeries"))
+    #         self.assertEqual(50, stats.get("CountInstances"))
+    #         self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
 
-        self.check_is_empty()
+    #         self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+
+    #         self.check_is_empty()
 
     def test_concurrent_anonymize_same_study(self):
         self.o.delete_all_content()

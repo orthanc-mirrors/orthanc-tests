@@ -121,9 +121,6 @@ class TestAuthorization(OrthancTestCase):
         cls.no_label_instance_dicom_id = o.instances.get_tags(cls.no_label_instance_id)["SOPInstanceUID"]
 
 
-    def is_orthanc_version_at_least_1_12_2(self, orthanc_client: OrthancApiClient):
-        return orthanc_client.get_system()["ApiVersion"] >= 22
-
     def assert_is_forbidden(self, api_call):
         with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
             api_call()
@@ -278,7 +275,7 @@ class TestAuthorization(OrthancTestCase):
 
         # other studies are forbidden
         self.assert_is_forbidden(lambda: o.studies.get_series_ids(self.label_b_study_id))
-        if self.is_orthanc_version_at_least_1_12_2(o):
+        if self.o.is_orthanc_version_at_least(1, 12, 2):
             self.assert_is_forbidden(lambda: o.get_binary(f"tools/create-archive?resources={self.label_b_study_id}"))
             self.assert_is_forbidden(lambda: o.get_binary(f"tools/create-archive?resources={self.label_b_series_id}"))
             # if one of the studies is forbidden, the resource is forbidden
@@ -300,7 +297,7 @@ class TestAuthorization(OrthancTestCase):
         o.get_json(f"dicom-web/series?0020000D={self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/instances?0020000D={self.label_a_study_dicom_id}")
 
-        if self.is_orthanc_version_at_least_1_12_2(o):
+        if self.o.is_orthanc_version_at_least(1, 12, 2):
             o.get_binary(f"tools/create-archive?resources={self.label_a_study_id}")
             o.get_binary(f"tools/create-archive?resources={self.label_a_series_id}")
 
