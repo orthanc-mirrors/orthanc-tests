@@ -109,7 +109,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
                 remote_job = ob.transfers.send_async(target_peer='a',
                                                     resources_ids=all_studies_ids,
                                                     resource_type=ResourceType.STUDY,
-                                                    compress=True)
+                                                    compress=compression)
                 job = oa.jobs.get(orthanc_id=remote_job.remote_job_id)
                 job.wait_completed(polling_interval=0.1)
 

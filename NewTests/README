@@ -167,7 +167,7 @@ python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.
 
 with Docker:
 
-python3 NewTests/main.py --pattern=Concurrency.test_concurrency.TestConcurrency.* \
+python3 NewTests/main.py --pattern=Concurrency.* \
                          --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
                          --orthanc_under_tests_http_port=8043
 
