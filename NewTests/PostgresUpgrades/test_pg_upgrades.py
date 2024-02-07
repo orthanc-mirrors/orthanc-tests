@@ -116,12 +116,11 @@ class TestPgUpgrades(unittest.TestCase):
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
         time.sleep(2)
 
-        print("Downgrading Orthanc DB to v6.1")
+        print("Downgrading Orthanc DB to Rev1")
         subprocess.run(["docker", "exec", "pg-15", "./scripts/downgrade.sh"], check=True)
         time.sleep(2)
 
-        print("Downgrading Orthanc DB to v6.1")
-        print("Launching previous Orthanc (DB v6.1)")
+        print("Launching previous Orthanc (DB Rev1)")
         subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61", "-d"], check=True)
 
         o = OrthancApiClient("http://localhost:8052")
