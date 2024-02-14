@@ -7,8 +7,6 @@ from helpers import OrthancTestCase, Helpers
 from orthanc_api_client import OrthancApiClient, ChangeType
 from orthanc_api_client import helpers as OrthancHelpers
 
-from orthanc_tools import OrthancTestDbPopulator
-
 import pathlib
 import subprocess
 import glob

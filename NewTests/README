@@ -120,17 +120,25 @@ The test script will:
 - execute tests
 
 
-MaxStorageReject:
-------------------
+MaxStorage:
+----------
 
-Run the MaxStorageReject tests with your locally build version and break before and after preparation
+Run the MaxStorage tests with your locally build version and break before and after preparation
 and execution to allow you to start your debugger.
 
-python3 NewTests/main.py --pattern=MaxStorageReject.test_max_storage_reject.TestMaxStorageReject.* \
+python3 NewTests/main.py --pattern=MaxStorage.test_max_storage_reject.TestMaxStorageReject.* \
                          --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
                          --orthanc_under_tests_http_port=8043 \
                          --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
                          --break_after_preparation
+
+python3 NewTests/main.py --pattern=MaxStorage.test_max_storage_pg.TestMaxStoragePG.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
+                         --plugin=/home/alain/o/build/pg/libOrthancPostgreSQLIndex.so \
+                         --break_after_preparation
+
 
 
 Authorization:
