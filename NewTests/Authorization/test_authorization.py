@@ -242,8 +242,9 @@ class TestAuthorization(OrthancTestCase):
         o.series.get_tags(self.label_a_series_id)
         o.instances.get_tags(self.label_a_instance_id)
         
-        # right now, a user token can not access the dicom-web routes, only a resource token can
-        self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata"))
+        # make sure you can access a resource route with a user token (it does not throw)
+        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
+        self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/metadata"))
 
 
 
