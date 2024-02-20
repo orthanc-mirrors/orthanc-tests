@@ -10140,3 +10140,12 @@ class Orthanc(unittest.TestCase):
                 self.assertEqual(1, len(modifiedPatient["Labels"]))
                 self.assertIn('label-patient', modifiedPatient["Labels"])
 
+    def test_findscu_group_length(self):
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0002.dcm')
+
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0008,0000=22' ])  # GE like C-Find that includes group-length
+        # print(i)
+        s = re.findall('\(0008,0000\).*?\[(.*?)\]', i)
+        self.assertEqual(0, len(s))
