@@ -18,28 +18,25 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def cleanup(cls):
         os.chdir(here)
         print("Cleaning old compose")
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
         subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "down", "-v", "--remove-orphans"], 
-                       env= {
-                           "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
-                       },
-                       check=True)
+                       env=subprocesss_env, check=True)
 
     @classmethod
     def compose_up(cls):
         # print("Pullling containers")
-        # subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "pull"],
-        #                env= {
-        #                    "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image,
-        #                    "PATH": os.environ.get('PATH')
-        #                },
-        #                check=True)
+        # subprocesss_env = os.environ.copy()
+        # subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
+        # subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "pull"], 
+        #                env=subprocesss_env, check=True)
 
         print("Compose up")
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
         subprocess.run(["docker", "compose", "-f", "docker-compose-transfers-concurrency.yml", "up", "-d"], 
-                       env= {
-                           "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
-                       },                       
-                       check=True)        
+                       env=subprocesss_env, check=True)
+
 
     @classmethod
     def setUpClass(cls):
