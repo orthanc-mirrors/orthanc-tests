@@ -51,11 +51,11 @@ class TestPgUpgrades(unittest.TestCase):
         time.sleep(2)
 
         print("Launching newest Orthanc")
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
         subprocess.run(["docker", "compose", "up", "orthanc-pg-15-under-tests", "-d"], 
-            env= {
-                "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
-            },
-            check=True)
+                       env=subprocesss_env, check=True)
+
 
         o = OrthancApiClient("http://localhost:8050")
         o.wait_started()
@@ -96,11 +96,10 @@ class TestPgUpgrades(unittest.TestCase):
         time.sleep(2)
 
         print("Launching newest Orthanc")
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
         subprocess.run(["docker", "compose", "up", "orthanc-pg-15-under-tests", "-d"], 
-            env= {
-                "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
-            },
-            check=True)
+                       env=subprocesss_env, check=True)
 
         o = OrthancApiClient("http://localhost:8050")
         o.wait_started()
@@ -159,12 +158,10 @@ class TestPgUpgrades(unittest.TestCase):
         wait_container_healthy("pg-9")
 
         print("Launching newest Orthanc")
-        subprocess.run(
-            ["docker", "compose", "up", "orthanc-pg-9-under-tests", "-d"], 
-            env= {
-                "ORTHANC_IMAGE_UNDER_TESTS": Helpers.orthanc_under_tests_docker_image
-            },
-            check=True)
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-9-under-tests", "-d"], 
+                       env=subprocesss_env, check=True)
 
         o = OrthancApiClient("http://localhost:8051")
         o.wait_started()
