@@ -102,7 +102,7 @@ class TestDelayedDeletion(OrthancTestCase):
         while not completed:
             print('-------------- waiting for DelayedDeletion to finish processing')
             time.sleep(1)
-            plugin_status = self.o.get_json("/plugins/delayed-deletion/status")
+            plugin_status = self.o.get_json("plugins/delayed-deletion/status")
             completed = plugin_status["FilesPendingDeletion"] == 0
 
         self.assertTrue(completed)

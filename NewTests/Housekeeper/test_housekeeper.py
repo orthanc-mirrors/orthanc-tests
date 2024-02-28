@@ -75,7 +75,7 @@ class TestHousekeeper(OrthancTestCase):
         while not completed:
             print('-------------- waiting for housekeeper to finish processing')
             time.sleep(1)
-            housekeeper_status = cls.o.get_json("/plugins/housekeeper/status")
+            housekeeper_status = cls.o.get_json("plugins/housekeeper/status")
             completed = (housekeeper_status["LastProcessedConfiguration"]["StorageCompressionEnabled"] == True) \
                         and (housekeeper_status["LastChangeToProcess"] == housekeeper_status["LastProcessedChange"])
 
@@ -87,16 +87,16 @@ class TestHousekeeper(OrthancTestCase):
             filter="Instance"
         )[0]
 
-        instance_info = cls.o.get_json(endpoint=f"/instances/{instance_id}")
+        instance_info = cls.o.get_json(endpoint=f"instances/{instance_id}")
         
         series_id = instance_info["ParentSeries"]
-        series_info = cls.o.get_json(endpoint=f"/series/{series_id}")
+        series_info = cls.o.get_json(endpoint=f"series/{series_id}")
         
         study_id = series_info["ParentStudy"]
-        study_info = cls.o.get_json(endpoint=f"/studies/{study_id}")
+        study_info = cls.o.get_json(endpoint=f"studies/{study_id}")
 
         patient_id = study_info["ParentPatient"]
-        patient_info = cls.o.get_json(endpoint=f"/patients/{patient_id}")
+        patient_info = cls.o.get_json(endpoint=f"patients/{patient_id}")
 
         return instance_info, series_info, study_info, patient_info
 
@@ -105,7 +105,7 @@ class TestHousekeeper(OrthancTestCase):
     def test_before_after_reconstruction(self):
 
         # make sure it has run once !
-        housekeeper_status = self.o.get_json("/housekeeper/status")
+        housekeeper_status = self.o.get_json("housekeeper/status")
         self.assertIsNotNone(housekeeper_status["LastTimeStarted"])
 
         instance_after, series_after, study_after, patient_after = self.get_infos()

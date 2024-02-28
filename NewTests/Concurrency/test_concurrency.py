@@ -151,7 +151,7 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(0, len(self.o.series.get_all_ids()))
         self.assertEqual(0, len(self.o.instances.get_all_ids()))
 
-        stats = self.o.get_json("/statistics")
+        stats = self.o.get_json("statistics")
         self.assertEqual(0, stats.get("CountPatients"))
         self.assertEqual(0, stats.get("CountStudies"))
         self.assertEqual(0, stats.get("CountSeries"))
@@ -203,7 +203,7 @@ class TestConcurrency(OrthancTestCase):
     #         self.assertEqual(2, len(self.o.series.get_all_ids()))
     #         self.assertEqual(50, len(self.o.instances.get_all_ids()))
 
-    #         stats = self.o.get_json("/statistics")
+    #         stats = self.o.get_json("statistics")
     #         self.assertEqual(1, stats.get("CountPatients"))
     #         self.assertEqual(1, stats.get("CountStudies"))
     #         self.assertEqual(2, stats.get("CountSeries"))
@@ -241,7 +241,7 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(2 * (1 + workers_count * repeat_count), len(self.o.series.get_all_ids()))
         self.assertEqual(50 * (1 + workers_count * repeat_count), len(self.o.instances.get_all_ids()))
 
-        stats = self.o.get_json("/statistics")
+        stats = self.o.get_json("statistics")
         self.assertEqual(1 + workers_count * repeat_count, stats.get("CountPatients"))
         self.assertEqual(1 + workers_count * repeat_count, stats.get("CountStudies"))
         self.assertEqual(2 * (1 + workers_count * repeat_count), stats.get("CountSeries"))

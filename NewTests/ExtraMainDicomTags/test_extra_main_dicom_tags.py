@@ -93,7 +93,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
         self.assertIn("PerformedProtocolCodeSequence", instance["MainDicomTags"])
 
         # reconstruct instance
-        self.o.post(endpoint="/instances/4dc71dc0-6093b5f8-ca67aa8a-07b18ff5-95dbe3c8/reconstruct", json={})
+        self.o.post(endpoint="instances/4dc71dc0-6093b5f8-ca67aa8a-07b18ff5-95dbe3c8/reconstruct", json={})
         instance = self.o.get(endpoint="instances/4dc71dc0-6093b5f8-ca67aa8a-07b18ff5-95dbe3c8").json()
         self.assertIn("Rows", instance["MainDicomTags"])
         self.assertIn("PerformedProtocolCodeSequence", instance["MainDicomTags"])
@@ -106,7 +106,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
 
         # instance level
         r = self.o.post(
-            endpoint="/tools/find",
+            endpoint="tools/find",
             json={
                 "Level": "Instances",
                 "Query": {
@@ -126,7 +126,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
 
         # series level, request a sequence
         r = self.o.post(
-            endpoint="/tools/find",
+            endpoint="tools/find",
             json={
                 "Level": "Series",
                 "Query": {
@@ -149,7 +149,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
         self.o.upload_file(here / "../../Database/Brainix/Flair/IM-0001-0001.dcm")
 
         metadata = self.o.get(
-            endpoint="/dicom-web/studies/2.16.840.1.113669.632.20.1211.10000357775/metadata"
+            endpoint="dicom-web/studies/2.16.840.1.113669.632.20.1211.10000357775/metadata"
         ).json()
 
         self.assertEqual(1, len(metadata))
