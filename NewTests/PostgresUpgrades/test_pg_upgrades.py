@@ -63,9 +63,9 @@ class TestPgUpgrades(unittest.TestCase):
         # make sure we can 'play' with this Orthanc
         o.instances.get_tags(orthanc_id=instances[0])
         o.instances.delete_all()
-        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
         instances = o.upload_folder(here / "../../Database/Knee")
-        size_before_downgrade = int(o.get_json('/statistics')['TotalDiskSize'])
+        size_before_downgrade = int(o.get_json('statistics')['TotalDiskSize'])
 
         print("Stopping newest Orthanc ")
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
@@ -107,9 +107,9 @@ class TestPgUpgrades(unittest.TestCase):
         # make sure we can 'play' with Orthanc
         o.instances.get_tags(orthanc_id=instances[0])
         o.instances.delete_all()
-        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
         instances = o.upload_folder(here / "../../Database/Knee")
-        size_before_downgrade = int(o.get_json('/statistics')['TotalDiskSize'])
+        size_before_downgrade = int(o.get_json('statistics')['TotalDiskSize'])
 
         print("Stopping newest Orthanc ")
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
@@ -127,12 +127,12 @@ class TestPgUpgrades(unittest.TestCase):
 
         # make sure we can 'play' with Orthanc
         o.instances.get_tags(orthanc_id=instances[0])
-        self.assertEqual(size_before_downgrade, int(o.get_json('/statistics')['TotalDiskSize']))
+        self.assertEqual(size_before_downgrade, int(o.get_json('statistics')['TotalDiskSize']))
         o.instances.delete_all()
-        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
         instances = o.upload_folder(here / "../../Database/Knee")
         o.instances.delete_all()
-        self.assertEqual(0, int(o.get_json('/statistics')['TotalDiskSize']))
+        self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
 
         print("run the integration tests after a downgrade")
         # first create the containers (orthanc-tests + orthanc-pg-15-61-for-integ-tests) so they know each other
