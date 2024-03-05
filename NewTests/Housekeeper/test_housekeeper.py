@@ -63,9 +63,10 @@ class TestHousekeeper(OrthancTestCase):
             print('-------------- launching TestHousekeeper tests')
             cls.launch_orthanc_under_tests(
                 config_path=config_path,
-                config_name="housekepper_under_tests",
+                config_name="housekeeper_under_test",
                 storage_name="housekeeper",
-                plugins=Helpers.plugins
+                plugins=Helpers.plugins,
+                enable_verbose=False
             )
 
         print('-------------- waiting for orthanc-under-tests to be available')
