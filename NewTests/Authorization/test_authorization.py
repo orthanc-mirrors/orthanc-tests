@@ -243,8 +243,14 @@ class TestAuthorization(OrthancTestCase):
         o.instances.get_tags(self.label_a_instance_id)
         
         # make sure you can access a resource route with a user token (it does not throw)
-        o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
+        m = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
         self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/metadata"))
+
+        i = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
+        self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/instances"))
+
+        i = o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
+        self.assert_is_forbidden(lambda: o.get_binary(f"dicom-web/studies/{self.label_b_study_dicom_id}/series/{self.label_b_series_dicom_id}/instances/{self.label_b_instance_dicom_id}"))
 
 
 
