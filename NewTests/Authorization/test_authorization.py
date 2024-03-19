@@ -246,11 +246,12 @@ class TestAuthorization(OrthancTestCase):
         m = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
         self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/metadata"))
 
-        i = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
-        self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/instances"))
+        if o.is_plugin_version_at_least("authorization", 0, 7, 1):
+            i = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
+            self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/instances"))
 
-        i = o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
-        self.assert_is_forbidden(lambda: o.get_binary(f"dicom-web/studies/{self.label_b_study_dicom_id}/series/{self.label_b_series_dicom_id}/instances/{self.label_b_instance_dicom_id}"))
+            i = o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
+            self.assert_is_forbidden(lambda: o.get_binary(f"dicom-web/studies/{self.label_b_study_dicom_id}/series/{self.label_b_series_dicom_id}/instances/{self.label_b_instance_dicom_id}"))
 
 
 
