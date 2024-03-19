@@ -52,7 +52,8 @@ class TestAuthorization(OrthancTestCase):
                     ],
                     "CheckedLevel": "studies",
                     "TokenHttpHeaders": ["user-token-key", "resource-token-key"],
-                    "TokenGetArguments": ["resource-token-key"]
+                    "TokenGetArguments": ["resource-token-key"],
+                    "UncheckedFolders": ["/plugins"]    # to allow testing plugin version while it is not included by default in the auth-plugin
                 },
                 "DicomWeb": {
                     "Enable": True
@@ -162,6 +163,7 @@ class TestAuthorization(OrthancTestCase):
 
     def test_user_a(self):
         
+        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-a"})
 
         # # make sure we can access all these urls (they would throw if not)
@@ -246,7 +248,7 @@ class TestAuthorization(OrthancTestCase):
         m = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
         self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/metadata"))
 
-        if o.is_plugin_version_at_least("authorization", 0, 7, 1):
+        if o_admin.is_plugin_version_at_least("authorization", 0, 7, 1):
             i = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
             self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/instances"))
 
@@ -258,7 +260,7 @@ class TestAuthorization(OrthancTestCase):
     def test_resource_token(self):
 
         o = OrthancApiClient(self.o._root_url, headers={"resource-token-key": "token-a-study"})
-
+        
         # with a resource token, we can access only the given resource, not generic resources or resources from other studies
 
         # generic resources are forbidden
