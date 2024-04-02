@@ -114,31 +114,18 @@ def RunQuery(source, ignoreTags):
                                       args.server, str(args.dicom), f.name ],
                                     stderr = subprocess.STDOUT).splitlines()
 
-        if sys.version_info.major == 2:
-            if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
-                raise Exception('Error while running findscu')
-        else:
-            # pprint.pprint(a)
-            a = list(map(lambda x: x.decode('utf-8', errors="ignore"), a))
-            # pprint.pprint(a)
-
-            if len(list(filter(lambda x: x.startswith('E:'), a))) > 0:
-                raise Exception('Error while running findscu')
-
-        b = map(lambda x: x[3:], filter(lambda x: (x.startswith('I: ---') or
-                                                   x.startswith('W: ---') or
-                                                   x.startswith('I: (') or
-                                                   x.startswith('W: (')), a))
-        b = map(lambda x: re.sub(r'\s*#.*', '', x), b)
-
         answers = []
         current = []
         isQuery = True
 
-        for l in b:
-            l = l.replace('\0', '')
+        for line in a:
+            as_ascii = line.decode('ascii', errors='ignore')
             
-            if l[0] == '-':
+            if as_ascii.startswith('E:'):
+                raise Exception('Error while running findscu')
+
+            if (as_ascii.startswith('I: ---') or
+                as_ascii.startswith('W: ---')):
                 if isQuery:
                     isQuery = False
                 else:
@@ -147,11 +134,16 @@ def RunQuery(source, ignoreTags):
                         answers.append(current)
                         current = []
 
-            else:
+            elif (as_ascii.startswith('I: (') or
+                  as_ascii.startswith('W: (')):
+
+                # This is a tag
                 if not isQuery:
-                    tag = l[1:10].lower()
+                    tag = as_ascii[4:13].lower()
                     if not tag in ignoreTags:
-                        current.append(l)
+                        line_without_comment = re.sub(b'\s*#.*', b'', line)
+                        line_without_comment = line_without_comment.replace(b'\0', b'')
+                        current.append(line_without_comment)
 
         if len(current) > 0:
             answers.append(current)
@@ -176,8 +168,12 @@ def CompareAnswers(expected, actual):
 def ParseTopLevelTags(answer):
     tags = {}
     for line in answer:
-        m = re.match(r'^\(([0-9a-f]{4},[0-9a-f]{4})\)\s*..\s*\[([^]]*)\]', line)
-        tags[m.group(1)] = m.group(2).strip()
+        as_ascii = line.decode('ascii', errors='ignore')
+        tag = as_ascii[4:13]
+        start = line.find(b'[')
+        end = line.rfind(b']')
+
+        tags[tag] = line[start + 1 : end].strip()
         
     return tags
 
