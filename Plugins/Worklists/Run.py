@@ -171,7 +171,7 @@ def ParseTopLevelTags(answer):
     tags = {}
     for line in answer:
         as_ascii = line.decode('ascii', errors='ignore')
-        tag = as_ascii[4:13]
+        tag = as_ascii[1:10]
         start = line.find(b'[')
         end = line.rfind(b']')
 
@@ -313,24 +313,24 @@ class Orthanc(unittest.TestCase):
             else:
                 encoded = TEST.encode(encoding[1], 'ignore')
 
-            self.assertEqual(encoding[0], tags['0008,0005'])
+            self.assertEqual(encoding[0], tags['0008,0005'].decode('ascii'))
             self.assertEqual(encoded, tags['0010,0010'])
 
 
     def test_bitbucket_issue_49(self):
-        def Check(encoding, expectedEncoding, expectedContent):
-            DoPut(ORTHANC, '/tools/default-encoding', encoding)
+        def Check(pythonEncoding, orthancEncoding, expectedEncoding, expectedContent):
+            DoPut(ORTHANC, '/tools/default-encoding', orthancEncoding)
             result = RunQuery('Encodings/issue49-latin1.query', [])
             self.assertEqual(1, len(result))
             self.assertEqual(2, len(result[0]))
             tags = ParseTopLevelTags(result[0])
-            self.assertEqual(expectedEncoding, tags['0008,0005'])
-            self.assertEqual(expectedContent, tags['0010,0010'])
+            self.assertEqual(expectedEncoding, tags['0008,0005'].decode('ascii'))
+            self.assertEqual(expectedContent, tags['0010,0010'].decode(pythonEncoding))
 
         AddToDatabase('Encodings/issue49-latin1.wl')
-        Check('Ascii', 'ISO_IR 6', r'VANILL^LAURA^^^Mme')
-        Check('Utf8', 'ISO_IR 192', r'VANILLÉ^LAURA^^^Mme')
-        Check('Latin1', 'ISO_IR 100', u'VANILLÉ^LAURA^^^Mme'.encode('latin-1', 'ignore'))
+        Check('ascii', 'Ascii', 'ISO_IR 6', r'VANILL^LAURA^^^Mme')
+        Check('utf-8', 'Utf8', 'ISO_IR 192', r'VANILLÉ^LAURA^^^Mme')
+        Check('latin-1', 'Latin1', 'ISO_IR 100', r'VANILLÉ^LAURA^^^Mme')
 
 
     def test_format(self):
