@@ -143,7 +143,7 @@ def RunQuery(source, ignoreTags):
                     if not tag in ignoreTags:
                         line_without_comment = re.sub(b'\s*#.*', b'', line)
                         line_without_comment = line_without_comment.replace(b'\0', b'')
-                        current.append(line_without_comment)
+                        current.append(line_without_comment[4:])
 
         if len(current) > 0:
             answers.append(current)
