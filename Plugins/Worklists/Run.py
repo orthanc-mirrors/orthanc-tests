@@ -325,12 +325,15 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(2, len(result[0]))
             tags = ParseTopLevelTags(result[0])
             self.assertEqual(expectedEncoding, tags['0008,0005'].decode('ascii'))
-            self.assertEqual(expectedContent, tags['0010,0010'].decode(pythonEncoding))
+            if sys.version_info >= (3, 0):
+                self.assertEqual(expectedContent, tags['0010,0010'].decode(pythonEncoding))
+            else:
+                self.assertEqual(expectedContent.decode('utf-8'), tags['0010,0010'].decode(pythonEncoding))
 
         AddToDatabase('Encodings/issue49-latin1.wl')
-        Check('ascii', 'Ascii', 'ISO_IR 6', r'VANILL^LAURA^^^Mme')
-        Check('utf-8', 'Utf8', 'ISO_IR 192', r'VANILLÉ^LAURA^^^Mme')
-        Check('latin-1', 'Latin1', 'ISO_IR 100', r'VANILLÉ^LAURA^^^Mme')
+        Check('ascii', 'Ascii', 'ISO_IR 6', 'VANILL^LAURA^^^Mme')
+        Check('utf-8', 'Utf8', 'ISO_IR 192', 'VANILLÉ^LAURA^^^Mme')
+        Check('latin-1', 'Latin1', 'ISO_IR 100', 'VANILLÉ^LAURA^^^Mme')
 
 
     def test_format(self):
