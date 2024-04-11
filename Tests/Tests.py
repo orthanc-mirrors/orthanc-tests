@@ -626,6 +626,73 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, completed)
 
 
+    def test_changes_extended(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0) and DoGet(_REMOTE, '/system').get("HasExtendedApiV1"):
+            # Check emptiness
+            c = DoGet(_REMOTE, '/extended-api-v1/changes')
+            self.assertEqual(0, len(c['Changes']))
+            #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
+            self.assertTrue(c['Done'])
+            c = DoGet(_REMOTE, '/extended-api-v1/changes?last')
+            self.assertEqual(0, len(c['Changes']))
+            #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
+            self.assertTrue(c['Done'])
+
+            # Add 1 instance
+            i = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+            c = DoGet(_REMOTE, '/extended-api-v1/changes')
+            begin = c['Last']
+            self.assertEqual(4, len(c['Changes']))
+            self.assertTrue(c['Done'])
+            self.assertEqual(c['Changes'][-1]['Seq'], c['Last'])
+
+            # Check the order in which the creation events are reported
+            self.assertEqual(c['Changes'][0]['ChangeType'], 'NewInstance')
+            self.assertEqual(c['Changes'][1]['ChangeType'], 'NewSeries')
+            self.assertEqual(c['Changes'][2]['ChangeType'], 'NewStudy')
+            self.assertEqual(c['Changes'][3]['ChangeType'], 'NewPatient')
+
+            c = DoGet(_REMOTE, '/extended-api-v1/changes?type=NewInstance')
+            self.assertEqual(1, len(c['Changes']))
+            self.assertEqual(begin-3, c['Last'])
+
+            c = DoGet(_REMOTE, '/extended-api-v1/changes?type=NewPatient')
+            self.assertEqual(1, len(c['Changes']))
+            self.assertEqual(begin, c['Last'])
+
+            UploadFolder(_REMOTE, 'Knee/T1')
+            UploadFolder(_REMOTE, 'Knee/T2')
+
+            # 1000 New Instance changes  -> all 50 shall be reported
+            c = DoGet(_REMOTE, '/extended-api-v1/changes', { 'type': 'NewInstance', 'since' : begin, 'limit' : 1000 })
+            self.assertEqual(50, len(c['Changes']))
+            self.assertLess(begin, c['Changes'][0]['Seq'])
+            self.assertTrue(c['Done'])
+            lastFromAll = c['Last']
+
+            # Only 10 New Instance changes  -> only 10 shall be reported
+            c = DoGet(_REMOTE, '/extended-api-v1/changes', { 'type': 'NewInstance', 'since' : begin, 'limit' : 10 })
+            self.assertEqual(10, len(c['Changes']))
+            self.assertFalse(c['Done'])
+            lastFrom10 = c['Last']
+            self.assertLess(lastFrom10, lastFromAll)
+
+            # between begin and begin+10 with a max of 10 and a filter -> less than 10 NewInstance since there are other changes in this range
+            c = DoGet(_REMOTE, '/extended-api-v1/changes', { 'type': 'NewInstance', 'since' : begin, 'to': begin+10, 'limit' : 10 })
+            self.assertLess(len(c['Changes']), 10)
+            self.assertTrue(c['Done'])  # we have received ALL NewInstance that are between since and to so we consider it's done
+            lastFrom10 = c['Last']
+            self.assertLess(lastFrom10, lastFromAll)
+
+            # test with only 'to' -> all 50 shall be reported
+            c = DoGet(_REMOTE, '/extended-api-v1/changes', { 'type': 'NewInstance', 'to': lastFromAll, 'limit' : 50 })
+            self.assertEqual(lastFromAll, c['Changes'][-1]['Seq'])
+            self.assertEqual(50, len(c['Changes']))
+            self.assertFalse(c['Done'])
+            lastFromTo = c['Last']
+            self.assertLess(lastFrom10, lastFromTo)
+
+
     def test_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
