@@ -255,6 +255,9 @@ class TestAuthorization(OrthancTestCase):
             i = o.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
             self.assert_is_forbidden(lambda: o.get_binary(f"dicom-web/studies/{self.label_b_study_dicom_id}/series/{self.label_b_series_dicom_id}/instances/{self.label_b_instance_dicom_id}"))
 
+            o.get_json(f"/system")
+            o.get_json(f"/plugins")
+            o.get_json(f"/plugins/dicom-web")
 
 
     def test_resource_token(self):
