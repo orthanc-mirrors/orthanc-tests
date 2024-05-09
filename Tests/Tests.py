@@ -10287,3 +10287,43 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(9, len(a[0]))
         CheckInstanceContent(a[0])
         CheckRequestedTags(a[0])
+
+        a = DoGet(_REMOTE, '/patients/%s' % u['ParentPatient'])
+        self.assertEqual(7, len(a))
+        CheckPatientContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/patients/%s?requestedTags=%s' % (u['ParentPatient'], requestedTags))
+        self.assertEqual(8, len(a))
+        CheckPatientContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/studies/%s' % u['ParentStudy'])
+        self.assertEqual(9, len(a))
+        CheckStudyContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/studies/%s?requestedTags=%s' % (u['ParentStudy'], requestedTags))
+        self.assertEqual(10, len(a))
+        CheckStudyContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/series/%s' % u['ParentSeries'])
+        self.assertEqual(10, len(a))
+        CheckSeriesContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/series/%s?requestedTags=%s' % (u['ParentSeries'], requestedTags))
+        self.assertEqual(11, len(a))
+        CheckSeriesContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/instances/%s' % u['ID'])
+        self.assertEqual(8, len(a))
+        CheckInstanceContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/instances/%s?requestedTags=%s' % (u['ID'], requestedTags))
+        self.assertEqual(9, len(a))
+        CheckInstanceContent(a)
+        CheckRequestedTags(a)
