@@ -56,6 +56,12 @@ python3 NewTests/main.py --pattern=Housekeeper.test_housekeeper.TestHousekeeper.
                          --plugin=/home/alain/o/build/orthanc/libHousekeeper.so \
                          --break_after_preparation
 
+python3 NewTests/main.py --pattern=Housekeeper.test_housekeeper2.TestHousekeeper2.test_before_after_reconstruction \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --plugin=/home/alain/o/build/orthanc/libHousekeeper.so \
+                         --break_after_preparation
+
 The test script will:
 - generate 2 configuration file in the `configurations` folder,
 - start your local Orthanc version to prepare the db with one of the configuration file, 
