@@ -10152,47 +10152,48 @@ class Orthanc(unittest.TestCase):
 
 
     def test_tags_after_pixel_data(self):
-        # https://discourse.orthanc-server.org/t/private-tags-with-group-7fe0-are-not-provided-via-rest-api/4744
-        u = UploadInstance(_REMOTE, '2024-05-30-GuillemVela.dcm') ['ID']
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            # https://discourse.orthanc-server.org/t/private-tags-with-group-7fe0-are-not-provided-via-rest-api/4744
+            u = UploadInstance(_REMOTE, '2024-05-30-GuillemVela.dcm') ['ID']
 
-        a = DoGet(_REMOTE, '/instances/%s/tags' % u)
-        self.assertFalse('8e05,1000' in a)
+            a = DoGet(_REMOTE, '/instances/%s/tags' % u)
+            self.assertFalse('8e05,1000' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?whole' % u)
-        self.assertTrue('8e05,1000' in a)
-        self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
-        self.assertEqual('acquisition', a['8e05,1000']['Value'])
-        self.assertEqual('specimen', a['8e05,1001']['Value'])
+            a = DoGet(_REMOTE, '/instances/%s/tags?whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
+            self.assertEqual('acquisition', a['8e05,1000']['Value'])
+            self.assertEqual('specimen', a['8e05,1001']['Value'])
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?full' % u)
-        self.assertFalse('8e05,1000' in a)
+            a = DoGet(_REMOTE, '/instances/%s/tags?full' % u)
+            self.assertFalse('8e05,1000' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?full&whole' % u)
-        self.assertTrue('8e05,1000' in a)
-        self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
-        self.assertEqual('acquisition', a['8e05,1000']['Value'])
-        self.assertEqual('specimen', a['8e05,1001']['Value'])
+            a = DoGet(_REMOTE, '/instances/%s/tags?full&whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
+            self.assertEqual('acquisition', a['8e05,1000']['Value'])
+            self.assertEqual('specimen', a['8e05,1001']['Value'])
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?short' % u)
-        self.assertFalse('8e05,1000' in a)
+            a = DoGet(_REMOTE, '/instances/%s/tags?short' % u)
+            self.assertFalse('8e05,1000' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?short&whole' % u)
-        self.assertTrue('8e05,1000' in a)
-        self.assertEqual('XEOS_Attributes', a['8e05,0010'])
-        self.assertEqual('acquisition', a['8e05,1000'])
-        self.assertEqual('specimen', a['8e05,1001'])
+            a = DoGet(_REMOTE, '/instances/%s/tags?short&whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010'])
+            self.assertEqual('acquisition', a['8e05,1000'])
+            self.assertEqual('specimen', a['8e05,1001'])
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?simplify' % u)
-        self.assertFalse('Unknown Tag & Data' in a)
+            a = DoGet(_REMOTE, '/instances/%s/tags?simplify' % u)
+            self.assertFalse('Unknown Tag & Data' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/tags?simplify&whole' % u)
-        self.assertTrue('Unknown Tag & Data' in a)
+            a = DoGet(_REMOTE, '/instances/%s/tags?simplify&whole' % u)
+            self.assertTrue('Unknown Tag & Data' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/simplified-tags' % u)
-        self.assertFalse('Unknown Tag & Data' in a)
+            a = DoGet(_REMOTE, '/instances/%s/simplified-tags' % u)
+            self.assertFalse('Unknown Tag & Data' in a)
 
-        a = DoGet(_REMOTE, '/instances/%s/simplified-tags?whole' % u)
-        self.assertTrue('Unknown Tag & Data' in a)
+            a = DoGet(_REMOTE, '/instances/%s/simplified-tags?whole' % u)
+            self.assertTrue('Unknown Tag & Data' in a)
 
 
     def test_requested_tags(self):
