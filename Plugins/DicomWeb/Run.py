@@ -682,6 +682,14 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('00280010' in a[0])
         self.assertEqual(512, a[0]['00280010']['Value'][0])
 
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 17, 0):
+            a = DoGet(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/series/1.2.840.113619.2.176.2025.1499492.7391.1171285944.394/instances?includefield=00081140')
+            self.assertEqual(1, len(a))
+            self.assertTrue('00081140' in a[0])
+            self.assertEqual(2, len(a[0]['00081140']['Value']))
+            self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286241.719', a[0]['00081140']['Value'][0]['00081155']['Value'][0])
+
+
         
     def test_stow_errors(self):
         def CheckSequences(a):
