@@ -265,29 +265,29 @@ class TestAuthorization(OrthancTestCase):
 
 
     def test_uploader_a(self):
-        
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-uploader-a"})
 
-        # # make sure we can access all these urls (they would throw if not)
-        system = o.get_system()
-        # time.sleep(10000)
+        if o_admin.is_plugin_version_at_least("authorization", 0, 7, 3):
 
-        all_labels = o.get_all_labels()
-        self.assertEqual(1, len(all_labels))
-        self.assertEqual("label_a", all_labels[0])
+            # # make sure we can access all these urls (they would throw if not)
+            system = o.get_system()
 
-        # make sure we can access only the label_a studies
-        self.assert_is_forbidden(lambda: o.studies.get_tags(self.label_b_study_id))
-        self.assert_is_forbidden(lambda: o.studies.get_tags(self.no_label_study_id))
+            all_labels = o.get_all_labels()
+            self.assertEqual(1, len(all_labels))
+            self.assertEqual("label_a", all_labels[0])
 
-        # uploader-a shall be able to upload a study
-        instances_ids = o.upload_file(here / "../../Database/Beaufix/IM-0001-0001.dcm")
-        o_admin.instances.delete(orthanc_ids=instances_ids)
+            # make sure we can access only the label_a studies
+            self.assert_is_forbidden(lambda: o.studies.get_tags(self.label_b_study_id))
+            self.assert_is_forbidden(lambda: o.studies.get_tags(self.no_label_study_id))
 
-        # uploader-a shall be able to upload a study through DICOMWeb too
-        o.upload_files_dicom_web(paths = [here / "../../Database/Beaufix/IM-0001-0001.dcm"])
-        o_admin.instances.delete(orthanc_ids=instances_ids)
+            # uploader-a shall be able to upload a study
+            instances_ids = o.upload_file(here / "../../Database/Beaufix/IM-0001-0001.dcm")
+            o_admin.instances.delete(orthanc_ids=instances_ids)
+
+            # uploader-a shall be able to upload a study through DICOMWeb too
+            o.upload_files_dicom_web(paths = [here / "../../Database/Beaufix/IM-0001-0001.dcm"])
+            o_admin.instances.delete(orthanc_ids=instances_ids)
 
 
     def test_resource_token(self):
