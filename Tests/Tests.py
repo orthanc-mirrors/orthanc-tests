@@ -10377,6 +10377,11 @@ class Orthanc(unittest.TestCase):
 
 
     def test_computed_tags(self):
+        # curl  'http://alice:orthanctest@localhost:8042/patients/0946fcb6-cf12ab43-bad958c1-bf057ad5-0fc6f54c?requested-tags=0020,1200;0020,1202;0020,1204'
+        # curl   'http://alice:orthanctest@localhost:8042/studies/6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208'
+        # curl    'http://alice:orthanctest@localhost:8042/series/318603c5-03e8cffc-a82b6ee1-3ccd3c1e-18d7e3bb?requested-tags=0020,1209'
+        # curl 'http://alice:orthanctest@localhost:8042/instances/ee693caa-9786a685-4f0f9fb0-4411cc8b-988f5574?requested-tags=0008,0056'
+
         UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0002.dcm')
         UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
