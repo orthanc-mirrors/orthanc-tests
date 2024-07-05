@@ -10412,3 +10412,36 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, int(a['RequestedTags']['NumberOfPatientRelatedStudies']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfPatientRelatedSeries']))
         self.assertEqual(4, int(a['RequestedTags']['NumberOfPatientRelatedInstances']))
+
+    def test_computed_tags_and_patient_comments(self):
+        UploadInstance(_REMOTE, 'WithEmptyPatientComments.dcm')
+
+        # without requesting PatientComments, we get the computed tags
+        i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances' ])
+        modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(modalitiesInStudy))
+        self.assertEqual('CT', modalitiesInStudy[0])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            # when requesting PatientComments, with 1.12.4, we did not get the computed tags
+            i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances', '-k', 'PatientComments' ])
+            modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(modalitiesInStudy))
+            self.assertEqual('CT', modalitiesInStudy[0])
+            numberOfStudyRelatedSeries = re.findall('\(0020,1206\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(numberOfStudyRelatedSeries))
+            self.assertEqual(1, int(numberOfStudyRelatedSeries[0]))
+            numberOfStudyRelatedInstances = re.findall('\(0020,1208\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(numberOfStudyRelatedInstances))
+            self.assertEqual(1, int(numberOfStudyRelatedInstances[0]))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand': True,
+                                             'Query' : { 'PatientID' : 'WITH_COMMENTS'},
+                                             'RequestedTags': ['ModalitiesInStudy', 'NumberOfStudyRelatedSeries', 'NumberOfStudyRelatedInstances', 'PatientComments']})
+
+        self.assertEqual(4, len(a[0]['RequestedTags'].keys()))
+        self.assertEqual(1, int(a[0]['RequestedTags']['NumberOfStudyRelatedSeries']))
+        self.assertEqual(1, int(a[0]['RequestedTags']['NumberOfStudyRelatedInstances']))
+        self.assertEqual('CT', a[0]['RequestedTags']['ModalitiesInStudy'])
+        self.assertEqual('', a[0]['RequestedTags']['PatientComments'])
