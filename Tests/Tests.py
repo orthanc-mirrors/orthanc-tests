@@ -10422,7 +10422,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(modalitiesInStudy))
         self.assertEqual('CT', modalitiesInStudy[0])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             # when requesting PatientComments, with 1.12.4, we did not get the computed tags
             i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances', '-k', 'PatientComments' ])
             modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
