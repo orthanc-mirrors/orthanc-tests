@@ -4150,6 +4150,11 @@ class Orthanc(unittest.TestCase):
                                              'Limit' : 3 })
         self.assertEqual(3, len(a))
 
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 0 })  # This is an arbitrary convention
+        self.assertEqual(4, len(a))
+
         b = []
         for i in range(4):
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
@@ -4161,6 +4166,12 @@ class Orthanc(unittest.TestCase):
 
         # Check whether the two sets are equal through symmetric difference
         self.assertEqual(0, len(set(b) ^ set(brainix)))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 1,
+                                             'Since' : 4 })
+        self.assertEqual(0, len(a))
 
         # Check using KNEE
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
