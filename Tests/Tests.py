@@ -1493,6 +1493,12 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('Test Patient BG ' in patientNames)
         self.assertTrue('Anonymized' in patientNames)
 
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0010,0010=*' ])
+        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(patientNames))
+        self.assertTrue('Test Patient BG ' in patientNames)
+        self.assertTrue('Anonymized' in patientNames)
+
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021' ])
         series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(2, len(series))
