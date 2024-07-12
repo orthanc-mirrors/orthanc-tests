@@ -2165,7 +2165,16 @@ class Orthanc(unittest.TestCase):
                                              'Expand' : True,
                                              'Query' : { 'StudyDate' : '20080820-' }})
         self.assertEqual(0, len(a))
-        
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Expand' : True,
+                                             'Query' : { 'PatientPosition' : 'HFS' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Expand' : False,
+                                             'Query' : { 'PatientPosition' : 'HFS' }})
+        self.assertEqual(2, len(a))
         
 
     def test_rest_query_retrieve(self):
