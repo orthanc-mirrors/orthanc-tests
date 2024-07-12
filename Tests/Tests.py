@@ -4138,6 +4138,7 @@ class Orthanc(unittest.TestCase):
             knee.append(UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
 
         # Check using BRAINIX
+        # The tests below correspond to "isSimpleLookup_ == true" in "ResourceFinder"
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
                                              'Query' : { 'PatientName' : 'B*' },
                                              'Limit' : 10 })
@@ -4203,6 +4204,99 @@ class Orthanc(unittest.TestCase):
             b.append(a[0])
 
         self.assertEqual(0, len(set(b) ^ set(knee)))
+
+        # Now test "isSimpleLookup_ == false"
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' }})
+        self.assertEqual(3, len(a))
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Limit' : 0})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[0], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[0], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 3})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 4})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[1], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 2})
+        self.assertEqual(2, len(b))
+        self.assertEqual(a[1], b[0])
+        self.assertEqual(a[2], b[1])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 3})
+        self.assertEqual(2, len(b))
+        self.assertEqual(a[1], b[0])
+        self.assertEqual(a[2], b[1])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 2,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[2], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 2,
+                                             'Limit' : 2})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[2], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 3,
+                                             'Limit' : 1})
+        self.assertEqual(0, len(b))
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 3,
+                                             'Limit' : 10})
+        self.assertEqual(0, len(b))
 
 
     def test_bitbucket_issue_46(self):
