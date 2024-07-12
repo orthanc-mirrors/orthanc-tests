@@ -5443,13 +5443,18 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'DummyCT.dcm')
         UploadInstance(_REMOTE, 'DummyCTInvalidRows.dcm')
 
-        i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'Rows', '-k', 'PatientName' ])
+        i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'PatientName', '-k', 'Rows', '-k', 'Columns' ])
 
         # We have 2 instances...
         patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(patientNames))
         self.assertEqual('KNIX', patientNames[0])
         self.assertEqual('KNIX', patientNames[1])
+
+        columns = re.findall('\(0028,0011\) US ([0-9]+)', i)
+        self.assertEqual(2, len(columns))
+        self.assertEqual('512', columns[0])
+        self.assertEqual('512', columns[1])
         
         # ...but only 1 value for the "Rows" tag
         rows = re.findall('\(0028,0010\) US ([0-9]+)', i)
@@ -5857,7 +5862,14 @@ class Orthanc(unittest.TestCase):
             # This test fails on Orthanc <= 1.5.8
             'Level' : 'Study',
             'Query' : {
-                'SeriesDescription' : '*'  # Wildcard matching => no match, as the tag is absent
+                'ImageComments' : '*'  # Wildcard matching => no match, as the tag is absent
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ImageComments' : ''
             },
             'Normalize' : False
         }))
@@ -5871,7 +5883,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, CountAnswers({
             'Level' : 'Study',
             'Query' : {
-                'SeriesDescription' : '*'  # Matches, as wiped out by the normalization
+                'ImageComments' : '*'  # Matches, as wiped out by the normalization
+            },
+            'Normalize' : True
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ImageComments' : ''
             },
             'Normalize' : True
         }))
