@@ -303,7 +303,10 @@ class Orthanc(unittest.TestCase):
                                  { 'Resources' : [ 'nope' ],
                                    'Synchronous' : True }))  # inexisting resource
 
-        l = 3   # For >= 1.10.1
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            l = 4   # "Server" has been added
+        else:
+            l = 3   # For >= 1.10.1
 
         # study
         r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
@@ -312,6 +315,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(l, len(r))
         self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
+        self.assertEqual("sample", r['Server'])
 
         # series
         r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
