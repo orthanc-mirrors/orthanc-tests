@@ -460,12 +460,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(512, info['height'])
 
         self.assertEqual(3, len(info['sizes']))
-        self.assertEqual(512, info['sizes'][0]['width'])
-        self.assertEqual(512, info['sizes'][0]['height'])
-        self.assertEqual(256, info['sizes'][1]['width'])
-        self.assertEqual(256, info['sizes'][1]['height'])
-        self.assertEqual(128, info['sizes'][2]['width'])
-        self.assertEqual(128, info['sizes'][2]['height'])
+        
+        if IsPluginVersionAbove(ORTHANC, "wsi", 2, 1, 0):   # https://orthanc.uclouvain.be/hg/orthanc-wsi/rev/9dc7f1e8716d
+            self.assertEqual(512, info['sizes'][2]['width'])
+            self.assertEqual(512, info['sizes'][2]['height'])
+            self.assertEqual(256, info['sizes'][1]['width'])
+            self.assertEqual(256, info['sizes'][1]['height'])
+            self.assertEqual(128, info['sizes'][0]['width'])
+            self.assertEqual(128, info['sizes'][0]['height'])
+        else:
+            self.assertEqual(512, info['sizes'][0]['width'])
+            self.assertEqual(512, info['sizes'][0]['height'])
+            self.assertEqual(256, info['sizes'][1]['width'])
+            self.assertEqual(256, info['sizes'][1]['height'])
+            self.assertEqual(128, info['sizes'][2]['width'])
+            self.assertEqual(128, info['sizes'][2]['height'])
 
         self.assertEqual(1, len(info['tiles']))
         self.assertEqual(128, info['tiles'][0]['width'])
