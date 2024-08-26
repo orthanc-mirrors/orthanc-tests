@@ -76,9 +76,9 @@ class TestConcurrencyTransfers(unittest.TestCase):
 
             for i in range(0, repeat_count):
                 oa.transfers.send(target_peer='b',
-                                resources_ids=all_studies_ids,
-                                resource_type=ResourceType.STUDY,
-                                compress=compression)
+                                  resources_ids=all_studies_ids,
+                                  resource_type=ResourceType.STUDY,
+                                  compress=compression)
                 
                 self.assertEqual(instances_count, ob.get_statistics().instances_count)
                 self.assertEqual(disk_size, ob.get_statistics().total_disk_size)
