@@ -315,7 +315,8 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(l, len(r))
         self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
-        self.assertEqual("sample", r['Server'])
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            self.assertEqual("sample", r['Server'])
 
         # series
         r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
