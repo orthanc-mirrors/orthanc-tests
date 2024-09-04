@@ -605,6 +605,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])
         self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
 
+        # new derivated test added later
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            a = DoGet(ORTHANC, '/dicom-web/studies?StudyInstanceUID=1.3.6.1.4.1.5962.1.2.0.1175775771.5711.0')
+            self.assertEqual(1, len(a))
+            pn = a[0]['00100010']  # Patient name
+            self.assertEqual('PN', pn['vr'])
+            self.assertEqual(1, len(pn['Value']))
+            self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])     # before 1.18, one of the 2 values was empty !
+            self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
+
 
     def test_bitbucket_issue_96(self):
         # WADO-RS RetrieveFrames rejects valid accept headers
