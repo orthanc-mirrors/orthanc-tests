@@ -47,6 +47,13 @@ def get_user_profile(user_profile_request: UserProfileRequest):
                 authorized_labels=["label_a"],
                 validity=60
             )
+        elif user_profile_request.token_value == "token-uploader-a":  # this use shall be able to upload anything but view only the labeled studies
+            p = UserProfileResponse(
+                name="uploader-a",
+                permissions=["view", "upload"],
+                authorized_labels=["label_a"],
+                validity=60
+            )
 
     return p        
 

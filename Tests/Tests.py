@@ -5,7 +5,8 @@
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
-# Copyright (C) 2017-2024 Osimis S.A., Belgium
+# Copyright (C) 2017-2023 Osimis S.A., Belgium
+# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
 # Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
@@ -1581,6 +1582,12 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('Test Patient BG ' in patientNames)
         self.assertTrue('Anonymized' in patientNames)
 
+        i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0010,0010=*' ])
+        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        self.assertEqual(2, len(patientNames))
+        self.assertTrue('Test Patient BG ' in patientNames)
+        self.assertTrue('Anonymized' in patientNames)
+
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021' ])
         series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(2, len(series))
@@ -2253,7 +2260,16 @@ class Orthanc(unittest.TestCase):
                                              'Expand' : True,
                                              'Query' : { 'StudyDate' : '20080820-' }})
         self.assertEqual(0, len(a))
-        
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Expand' : True,
+                                             'Query' : { 'PatientPosition' : 'HFS' }})
+        self.assertEqual(2, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Expand' : False,
+                                             'Query' : { 'PatientPosition' : 'HFS' }})
+        self.assertEqual(2, len(a))
         
 
     def test_rest_query_retrieve(self):
@@ -2981,7 +2997,8 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&since=10' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&limit=10' % i))
 
-        self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
+        if not IsOrthancVersionAbove(_REMOTE, 1, 12, 5):   # with ExtendedFind, the limit=0 means no-limit like in /tools/find
+            self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/patients?since=0&limit=100')))
         self.assertEqual(2, len(DoGet(_REMOTE, '/studies?since=0&limit=100')))
         self.assertEqual(4, len(DoGet(_REMOTE, '/series?since=0&limit=100')))
@@ -4217,6 +4234,7 @@ class Orthanc(unittest.TestCase):
             knee.append(UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1)) ['ID'])
 
         # Check using BRAINIX
+        # The tests below correspond to "isSimpleLookup_ == true" in "ResourceFinder"
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
                                              'Query' : { 'PatientName' : 'B*' },
                                              'Limit' : 10 })
@@ -4238,6 +4256,11 @@ class Orthanc(unittest.TestCase):
                                              'Limit' : 3 })
         self.assertEqual(3, len(a))
 
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 0 })  # This is an arbitrary convention
+        self.assertEqual(4, len(a))
+
         b = []
         for i in range(4):
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
@@ -4249,6 +4272,12 @@ class Orthanc(unittest.TestCase):
 
         # Check whether the two sets are equal through symmetric difference
         self.assertEqual(0, len(set(b) ^ set(brainix)))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                             'Query' : { 'PatientName' : 'B*' },
+                                             'Limit' : 1,
+                                             'Since' : 4 })
+        self.assertEqual(0, len(a))
 
         # Check using KNEE
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
@@ -4271,6 +4300,99 @@ class Orthanc(unittest.TestCase):
             b.append(a[0])
 
         self.assertEqual(0, len(set(b) ^ set(knee)))
+
+        # Now test "isSimpleLookup_ == false"
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' }})
+        self.assertEqual(3, len(a))
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Limit' : 0})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[0], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[0], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 3})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 0,
+                                             'Limit' : 4})
+        self.assertEqual(3, len(b))
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(a[1], b[1])
+        self.assertEqual(a[2], b[2])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[1], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 2})
+        self.assertEqual(2, len(b))
+        self.assertEqual(a[1], b[0])
+        self.assertEqual(a[2], b[1])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 1,
+                                             'Limit' : 3})
+        self.assertEqual(2, len(b))
+        self.assertEqual(a[1], b[0])
+        self.assertEqual(a[2], b[1])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 2,
+                                             'Limit' : 1})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[2], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 2,
+                                             'Limit' : 2})
+        self.assertEqual(1, len(b))
+        self.assertEqual(a[2], b[0])
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 3,
+                                             'Limit' : 1})
+        self.assertEqual(0, len(b))
+
+        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                             'Query' : { 'PatientPosition' : '*' },
+                                             'Since' : 3,
+                                             'Limit' : 10})
+        self.assertEqual(0, len(b))
 
 
     def test_bitbucket_issue_46(self):
@@ -5411,13 +5533,18 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'DummyCT.dcm')
         UploadInstance(_REMOTE, 'DummyCTInvalidRows.dcm')
 
-        i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'Rows', '-k', 'PatientName' ])
+        i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'PatientName', '-k', 'Rows', '-k', 'Columns' ])
 
         # We have 2 instances...
         patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(patientNames))
         self.assertEqual('KNIX', patientNames[0])
         self.assertEqual('KNIX', patientNames[1])
+
+        columns = re.findall('\(0028,0011\) US ([0-9]+)', i)
+        self.assertEqual(2, len(columns))
+        self.assertEqual('512', columns[0])
+        self.assertEqual('512', columns[1])
         
         # ...but only 1 value for the "Rows" tag
         rows = re.findall('\(0028,0010\) US ([0-9]+)', i)
@@ -5825,7 +5952,14 @@ class Orthanc(unittest.TestCase):
             # This test fails on Orthanc <= 1.5.8
             'Level' : 'Study',
             'Query' : {
-                'SeriesDescription' : '*'  # Wildcard matching => no match, as the tag is absent
+                'ImageComments' : '*'  # Wildcard matching => no match, as the tag is absent
+            },
+            'Normalize' : False
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ImageComments' : ''
             },
             'Normalize' : False
         }))
@@ -5839,7 +5973,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, CountAnswers({
             'Level' : 'Study',
             'Query' : {
-                'SeriesDescription' : '*'  # Matches, as wiped out by the normalization
+                'ImageComments' : '*'  # Matches, as wiped out by the normalization
+            },
+            'Normalize' : True
+        }))
+        self.assertEqual(1, CountAnswers({
+            'Level' : 'Study',
+            'Query' : {
+                'ImageComments' : ''
             },
             'Normalize' : True
         }))
@@ -9554,7 +9695,6 @@ class Orthanc(unittest.TestCase):
             a = UploadInstance(_REMOTE, '2023-04-21-RLEPlanarConfigurationYBR_FULL.dcm') ['ID']
             uri = '/instances/%s/preview' % a
             im = GetImage(_REMOTE, uri)
-            pprint.pprint(im)
             self.assertEqual('RGB', im.mode)
             self.assertEqual(1260, im.size[0])
             self.assertEqual(910, im.size[1])
@@ -10238,3 +10378,299 @@ class Orthanc(unittest.TestCase):
         # print(i)
         s = re.findall('\(0008,0000\).*?\[(.*?)\]', i)
         self.assertEqual(0, len(s))
+
+
+    def test_tags_after_pixel_data(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            # https://discourse.orthanc-server.org/t/private-tags-with-group-7fe0-are-not-provided-via-rest-api/4744
+            u = UploadInstance(_REMOTE, '2024-05-30-GuillemVela.dcm') ['ID']
+
+            a = DoGet(_REMOTE, '/instances/%s/tags' % u)
+            self.assertFalse('8e05,1000' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
+            self.assertEqual('acquisition', a['8e05,1000']['Value'])
+            self.assertEqual('specimen', a['8e05,1001']['Value'])
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?full' % u)
+            self.assertFalse('8e05,1000' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?full&whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010']['Value'])
+            self.assertEqual('acquisition', a['8e05,1000']['Value'])
+            self.assertEqual('specimen', a['8e05,1001']['Value'])
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?short' % u)
+            self.assertFalse('8e05,1000' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?short&whole' % u)
+            self.assertTrue('8e05,1000' in a)
+            self.assertEqual('XEOS_Attributes', a['8e05,0010'])
+            self.assertEqual('acquisition', a['8e05,1000'])
+            self.assertEqual('specimen', a['8e05,1001'])
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?simplify' % u)
+            self.assertFalse('Unknown Tag & Data' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/tags?simplify&whole' % u)
+            self.assertTrue('Unknown Tag & Data' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/simplified-tags' % u)
+            self.assertFalse('Unknown Tag & Data' in a)
+
+            a = DoGet(_REMOTE, '/instances/%s/simplified-tags?whole' % u)
+            self.assertTrue('Unknown Tag & Data' in a)
+
+
+    def test_requested_tags(self):
+        u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        def CheckPatientContent(patient):
+            self.assertEqual(u['ParentPatient'], patient['ID'])
+            self.assertEqual('Patient', patient['Type'])
+            self.assertFalse(patient['IsStable'])
+            self.assertEqual(0, len(patient['Labels']))
+            self.assertTrue('LastUpdate' in patient)
+            self.assertEqual(2, len(patient['MainDicomTags']))
+            self.assertEqual('ozp00SjY2xG', patient['MainDicomTags']['PatientID'])
+            self.assertEqual('KNIX', patient['MainDicomTags']['PatientName'])
+            self.assertEqual(1, len(patient['Studies']))
+            self.assertEqual(u['ParentStudy'], patient['Studies'][0])
+
+        def CheckStudyContent(study):
+            self.assertEqual(u['ParentStudy'], study['ID'])
+            self.assertEqual(u['ParentPatient'], study['ParentPatient'])
+            self.assertEqual('Study', study['Type'])
+            self.assertFalse(study['IsStable'])
+            self.assertEqual(0, len(study['Labels']))
+            self.assertTrue('LastUpdate' in study)
+            self.assertEqual(7, len(study['MainDicomTags']))
+            self.assertEqual('0ECJ52puWpVIjTuhnBA0um', study['MainDicomTags']['InstitutionName'])
+            self.assertEqual('1', study['MainDicomTags']['ReferringPhysicianName'])
+            self.assertEqual('20070101', study['MainDicomTags']['StudyDate'])
+            self.assertEqual('Knee (R)', study['MainDicomTags']['StudyDescription'])
+            self.assertEqual('1', study['MainDicomTags']['StudyID'])
+            self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.390', study['MainDicomTags']['StudyInstanceUID'])
+            self.assertEqual('120000.000000', study['MainDicomTags']['StudyTime'])
+            self.assertEqual(2, len(study['PatientMainDicomTags']))
+            self.assertEqual('ozp00SjY2xG', study['PatientMainDicomTags']['PatientID'])
+            self.assertEqual('KNIX', study['PatientMainDicomTags']['PatientName'])
+            self.assertEqual(1, len(study['Series']))
+            self.assertEqual(u['ParentSeries'], study['Series'][0])
+
+        def CheckSeriesContent(series):
+            self.assertEqual(None, series['ExpectedNumberOfInstances'])
+            self.assertEqual('Unknown', series['Status'])
+            self.assertEqual(u['ParentSeries'], series['ID'])
+            self.assertEqual(u['ParentStudy'], series['ParentStudy'])
+            self.assertEqual('Series', series['Type'])
+            self.assertFalse(series['IsStable'])
+            self.assertEqual(0, len(series['Labels']))
+            self.assertTrue('LastUpdate' in series)
+            self.assertEqual(13, len(series['MainDicomTags']))
+            self.assertEqual('0', series['MainDicomTags']['CardiacNumberOfImages'])
+            self.assertEqual('0.999841\\0.000366209\\0.0178227\\-0.000427244\\0.999995\\0.00326545', series['MainDicomTags']['ImageOrientationPatient'])
+            self.assertEqual('24', series['MainDicomTags']['ImagesInAcquisition'])
+            self.assertEqual('GE MEDICAL SYSTEMS', series['MainDicomTags']['Manufacturer'])
+            self.assertEqual('MR', series['MainDicomTags']['Modality'])
+            self.assertEqual('ca', series['MainDicomTags']['OperatorsName'])
+            self.assertEqual('324-58-2995/6', series['MainDicomTags']['ProtocolName'])
+            self.assertEqual('20070101', series['MainDicomTags']['SeriesDate'])
+            self.assertEqual('AX.  FSE PD', series['MainDicomTags']['SeriesDescription'])
+            self.assertEqual('1.2.840.113619.2.176.2025.1499492.7391.1171285944.394', series['MainDicomTags']['SeriesInstanceUID'])
+            self.assertEqual('5', series['MainDicomTags']['SeriesNumber'])
+            self.assertEqual('120000.000000', series['MainDicomTags']['SeriesTime'])
+            self.assertEqual('TWINOW', series['MainDicomTags']['StationName'])
+            self.assertEqual(1, len(series['Instances']))
+            self.assertEqual(u['ID'], series['Instances'][0])
+
+        def CheckInstanceContent(instance):
+            self.assertEqual(2472, instance['FileSize'])
+            self.assertTrue('FileUuid' in instance)
+            self.assertEqual(u['ID'], instance['ID'])
+            self.assertEqual(u['ParentSeries'], instance['ParentSeries'])
+            self.assertEqual('Instance', instance['Type'])
+            self.assertEqual(1, instance['IndexInSeries'])
+            self.assertEqual(0, len(instance['Labels']))
+            self.assertEqual(7, len(instance['MainDicomTags']))
+            self.assertEqual('1', instance['MainDicomTags']['AcquisitionNumber'])
+            self.assertEqual('0.999841\\0.000366209\\0.0178227\\-0.000427244\\0.999995\\0.00326545', instance['MainDicomTags']['ImageOrientationPatient'])
+            self.assertEqual('-149.033\\-118.499\\-61.0464', instance['MainDicomTags']['ImagePositionPatient'])
+            self.assertEqual('20070101', instance['MainDicomTags']['InstanceCreationDate'])
+            self.assertEqual('120000.000000', instance['MainDicomTags']['InstanceCreationTime'])
+            self.assertEqual('1', instance['MainDicomTags']['InstanceNumber'])
+            self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286242.109', instance['MainDicomTags']['SOPInstanceUID'])
+
+        def CheckRequestedTags(resource):
+            self.assertEqual(6, len(resource['RequestedTags']))
+            self.assertEqual('ozp00SjY2xG', resource['RequestedTags']['PatientID'])
+            self.assertEqual('Knee (R)', resource['RequestedTags']['StudyDescription'])
+            self.assertEqual('AX.  FSE PD', resource['RequestedTags']['SeriesDescription'])
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.4', resource['RequestedTags']['SOPClassUID'])
+            self.assertEqual('2800', resource['RequestedTags']['RepetitionTime'])
+            self.assertEqual(3, len(resource['RequestedTags']['DerivationCodeSequence'][0]))
+            self.assertEqual('121327', resource['RequestedTags']['DerivationCodeSequence'][0]['CodeValue'])
+
+        requestedTags = 'PatientID;StudyDescription;SeriesDescription;SOPClassUID;RepetitionTime;DerivationCodeSequence'
+
+        a = DoGet(_REMOTE, '/patients?expand')
+        self.assertEqual(1, len(a))
+        self.assertEqual(7, len(a[0]))
+        CheckPatientContent(a[0])
+        self.assertFalse('RequestedTags' in a[0])
+
+        a = DoGet(_REMOTE, '/patients?expand&requestedTags=%s' % requestedTags)
+        self.assertEqual(1, len(a))
+        self.assertEqual(8, len(a[0]))
+        CheckPatientContent(a[0])
+        CheckRequestedTags(a[0])
+
+        a = DoGet(_REMOTE, '/studies?expand')
+        self.assertEqual(1, len(a))
+        self.assertEqual(9, len(a[0]))
+        CheckStudyContent(a[0])
+        self.assertFalse('RequestedTags' in a[0])
+
+        a = DoGet(_REMOTE, '/studies?expand&requestedTags=%s' % requestedTags)
+        self.assertEqual(1, len(a))
+        self.assertEqual(10, len(a[0]))
+        CheckStudyContent(a[0])
+        CheckRequestedTags(a[0])
+
+        a = DoGet(_REMOTE, '/series?expand')
+        self.assertEqual(1, len(a))
+        self.assertEqual(10, len(a[0]))
+        CheckSeriesContent(a[0])
+        self.assertFalse('RequestedTags' in a[0])
+
+        a = DoGet(_REMOTE, '/series?expand&requestedTags=%s' % requestedTags)
+        self.assertEqual(1, len(a))
+        self.assertEqual(11, len(a[0]))
+        CheckSeriesContent(a[0])
+        CheckRequestedTags(a[0])
+
+        a = DoGet(_REMOTE, '/instances?expand')
+        self.assertEqual(1, len(a))
+        self.assertEqual(8, len(a[0]))
+        CheckInstanceContent(a[0])
+        self.assertFalse('RequestedTags' in a[0])
+
+        a = DoGet(_REMOTE, '/instances?expand&requestedTags=%s' % requestedTags)
+        self.assertEqual(1, len(a))
+        self.assertEqual(9, len(a[0]))
+        CheckInstanceContent(a[0])
+        CheckRequestedTags(a[0])
+
+        a = DoGet(_REMOTE, '/patients/%s' % u['ParentPatient'])
+        self.assertEqual(7, len(a))
+        CheckPatientContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/patients/%s?requestedTags=%s' % (u['ParentPatient'], requestedTags))
+        self.assertEqual(8, len(a))
+        CheckPatientContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/studies/%s' % u['ParentStudy'])
+        self.assertEqual(9, len(a))
+        CheckStudyContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/studies/%s?requestedTags=%s' % (u['ParentStudy'], requestedTags))
+        self.assertEqual(10, len(a))
+        CheckStudyContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/series/%s' % u['ParentSeries'])
+        self.assertEqual(10, len(a))
+        CheckSeriesContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/series/%s?requestedTags=%s' % (u['ParentSeries'], requestedTags))
+        self.assertEqual(11, len(a))
+        CheckSeriesContent(a)
+        CheckRequestedTags(a)
+
+        a = DoGet(_REMOTE, '/instances/%s' % u['ID'])
+        self.assertEqual(8, len(a))
+        CheckInstanceContent(a)
+        self.assertFalse('RequestedTags' in a)
+
+        a = DoGet(_REMOTE, '/instances/%s?requestedTags=%s' % (u['ID'], requestedTags))
+        self.assertEqual(9, len(a))
+        CheckInstanceContent(a)
+        CheckRequestedTags(a)
+
+
+    def test_computed_tags(self):
+        # curl  'http://alice:orthanctest@localhost:8042/patients/0946fcb6-cf12ab43-bad958c1-bf057ad5-0fc6f54c?requested-tags=0020,1200;0020,1202;0020,1204'
+        # curl   'http://alice:orthanctest@localhost:8042/studies/6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208'
+        # curl    'http://alice:orthanctest@localhost:8042/series/318603c5-03e8cffc-a82b6ee1-3ccd3c1e-18d7e3bb?requested-tags=0020,1209'
+        # curl 'http://alice:orthanctest@localhost:8042/instances/ee693caa-9786a685-4f0f9fb0-4411cc8b-988f5574?requested-tags=0008,0056'
+
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0002.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0002.dcm')
+
+        instance = 'ee693caa-9786a685-4f0f9fb0-4411cc8b-988f5574'
+        series = '318603c5-03e8cffc-a82b6ee1-3ccd3c1e-18d7e3bb'
+        study = '6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf'
+        patient = '0946fcb6-cf12ab43-bad958c1-bf057ad5-0fc6f54c'
+
+        a = DoGet(_REMOTE, '/instances/%s?requested-tags=0008,0056' % instance)
+        self.assertEqual(1, len(a['RequestedTags']))
+        self.assertEqual('ONLINE', a['RequestedTags']['InstanceAvailability'])
+
+        a = DoGet(_REMOTE, '/series/%s?requested-tags=0020,1209' % series)
+        self.assertEqual(1, len(a['RequestedTags']))
+        self.assertEqual(2, int(a['RequestedTags']['NumberOfSeriesRelatedInstances']))
+
+        a = DoGet(_REMOTE, '/studies/%s?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+        self.assertEqual(4, len(a['RequestedTags']))
+        self.assertEqual('CT\\PT', a['RequestedTags']['ModalitiesInStudy'])
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.128\\1.2.840.10008.5.1.4.1.1.2', a['RequestedTags']['SOPClassesInStudy'])
+        self.assertEqual(2, int(a['RequestedTags']['NumberOfStudyRelatedSeries']))
+        self.assertEqual(4, int(a['RequestedTags']['NumberOfStudyRelatedInstances']))
+
+        a = DoGet(_REMOTE, '/patients/%s?requested-tags=0020,1200;0020,1202;0020,1204' % patient)
+        self.assertEqual(3, len(a['RequestedTags']))
+        self.assertEqual(1, int(a['RequestedTags']['NumberOfPatientRelatedStudies']))
+        self.assertEqual(2, int(a['RequestedTags']['NumberOfPatientRelatedSeries']))
+        self.assertEqual(4, int(a['RequestedTags']['NumberOfPatientRelatedInstances']))
+
+    def test_computed_tags_and_patient_comments(self):
+        UploadInstance(_REMOTE, 'WithEmptyPatientComments.dcm')
+
+        # without requesting PatientComments, we get the computed tags
+        i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances' ])
+        modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        self.assertEqual(1, len(modalitiesInStudy))
+        self.assertEqual('CT', modalitiesInStudy[0])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            # when requesting PatientComments, with 1.12.4, we did not get the computed tags
+            i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances', '-k', 'PatientComments' ])
+            modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(modalitiesInStudy))
+            self.assertEqual('CT', modalitiesInStudy[0])
+            numberOfStudyRelatedSeries = re.findall('\(0020,1206\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(numberOfStudyRelatedSeries))
+            self.assertEqual(1, int(numberOfStudyRelatedSeries[0]))
+            numberOfStudyRelatedInstances = re.findall('\(0020,1208\).*?\[(.*?)\]', i)
+            self.assertEqual(1, len(numberOfStudyRelatedInstances))
+            self.assertEqual(1, int(numberOfStudyRelatedInstances[0]))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                             'Expand': True,
+                                             'Query' : { 'PatientID' : 'WITH_COMMENTS'},
+                                             'RequestedTags': ['ModalitiesInStudy', 'NumberOfStudyRelatedSeries', 'NumberOfStudyRelatedInstances', 'PatientComments']})
+
+        self.assertEqual(4, len(a[0]['RequestedTags'].keys()))
+        self.assertEqual(1, int(a[0]['RequestedTags']['NumberOfStudyRelatedSeries']))
+        self.assertEqual(1, int(a[0]['RequestedTags']['NumberOfStudyRelatedInstances']))
+        self.assertEqual('CT', a[0]['RequestedTags']['ModalitiesInStudy'])
+        self.assertEqual('', a[0]['RequestedTags']['PatientComments'])

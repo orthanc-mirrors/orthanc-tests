@@ -11,3 +11,6 @@ PerfsDb/Results/
 NewTests/storages/**
 NewTests/configurations/*.json
 .env/
+Tests/*.crt
+Tests/*.key
+Tests/dicom-tls.json

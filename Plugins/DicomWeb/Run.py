@@ -1,11 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
-# Copyright (C) 2017-2024 Osimis S.A., Belgium
+# Copyright (C) 2017-2023 Osimis S.A., Belgium
+# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
 # Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
@@ -302,7 +303,10 @@ class Orthanc(unittest.TestCase):
                                  { 'Resources' : [ 'nope' ],
                                    'Synchronous' : True }))  # inexisting resource
 
-        l = 3   # For >= 1.10.1
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            l = 4   # "Server" has been added
+        else:
+            l = 3   # For >= 1.10.1
 
         # study
         r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
@@ -311,6 +315,8 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(l, len(r))
         self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            self.assertEqual("sample", r['Server'])
 
         # series
         r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
@@ -599,6 +605,16 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])
         self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
 
+        # new derivated test added later
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+            a = DoGet(ORTHANC, '/dicom-web/studies?StudyInstanceUID=1.3.6.1.4.1.5962.1.2.0.1175775771.5711.0')
+            self.assertEqual(1, len(a))
+            pn = a[0]['00100010']  # Patient name
+            self.assertEqual('PN', pn['vr'])
+            self.assertEqual(1, len(pn['Value']))
+            self.assertEqual('Wang^XiaoDong', pn['Value'][0]['Alphabetic'])     # before 1.18, one of the 2 values was empty !
+            self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
+
 
     def test_bitbucket_issue_96(self):
         # WADO-RS RetrieveFrames rejects valid accept headers
@@ -680,6 +696,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
         self.assertTrue('00280010' in a[0])
         self.assertEqual(512, a[0]['00280010']['Value'][0])
+
+        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 17, 0):
+            a = DoGet(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/series/1.2.840.113619.2.176.2025.1499492.7391.1171285944.394/instances?includefield=00081140')
+            self.assertEqual(1, len(a))
+            self.assertTrue('00081140' in a[0])
+            self.assertEqual(2, len(a[0]['00081140']['Value']))
+            self.assertEqual('1.2.840.113619.2.176.2025.1499492.7040.1171286241.719', a[0]['00081140']['Value'][0]['00081155']['Value'][0])
+
 
         
     def test_stow_errors(self):

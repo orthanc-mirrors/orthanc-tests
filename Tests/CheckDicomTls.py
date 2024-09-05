@@ -3,7 +3,8 @@
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
-# Copyright (C) 2017-2024 Osimis S.A., Belgium
+# Copyright (C) 2017-2023 Osimis S.A., Belgium
+# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
 # Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
@@ -60,7 +61,9 @@ parser.add_argument('--password',
                     help = 'Password to the REST API')
 parser.add_argument('--force', help = 'Do not warn the user',
                     action = 'store_true')
-parser.add_argument('--config', help = 'Create the configuration files for this test in the current folder',
+parser.add_argument('--config-no-check-client', help = 'Create the configuration files for the "no-check-client" tests in the current folder',
+                    action = 'store_true')
+parser.add_argument('--config-check-client', help = 'Create the configuration files for the "check-client" tests test in the current folder',
                     action = 'store_true')
 parser.add_argument('options', metavar = 'N', nargs = '*',
                     help='Arguments to Python unittest')
@@ -73,14 +76,14 @@ args = parser.parse_args()
 ##
 
 
-if args.config:
+if args.config_no_check_client or args.config_check_client:
     def CreateCertificate(name):
         subprocess.check_call([ 'openssl', 'req', '-x509', '-nodes', '-days', '365', '-newkey', 'rsa:2048',
                                 '-keyout', '%s.key' % name,
                                 '-out', '%s.crt' % name,
                                 '-subj', '/C=BE/CN=localhost' ])
 
-    print('Writing configuration to folder: %s' % args.config)
+    print('Writing configuration for the %s tests to current folder' % ('no-check-client' if args.config_no_check_client else 'check-client'))
     CreateCertificate('dicom-tls-a')
     CreateCertificate('dicom-tls-b')
     CreateCertificate('dicom-tls-c')  # Not trusted by Orthanc
@@ -101,7 +104,7 @@ if args.config:
             'RegisteredUsers' : {
                 'alice' : 'orthanctest'
             },
-            'DicomTlsRemoteCertificateRequired' : False,  # New in Orthanc 1.9.3
+            'DicomTlsRemoteCertificateRequired' : args.config_check_client,  # New in Orthanc 1.9.3
         }))
 
     exit(0)
@@ -135,7 +138,8 @@ ORTHANC = DefineOrthanc(server = args.server,
 FNULL = open(os.devnull, 'w')  # Emulates "subprocess.DEVNULL" on Python 2.7
 
     
-class Orthanc(unittest.TestCase):
+# in these tests, Orthanc does not check client certificates
+class OrthancNoCheckClient(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
             # Remove annoying warnings about unclosed socket in Python 3
@@ -146,7 +150,7 @@ class Orthanc(unittest.TestCase):
 
         
     def test_incoming(self):
-        # No certificate     
+        # No client certificate provided and client does not check server cert -> raise
         self.assertRaises(Exception, lambda: subprocess.check_call([
             FindExecutable('echoscu'),
             ORTHANC['Server'], 
@@ -154,6 +158,16 @@ class Orthanc(unittest.TestCase):
             '-aec', 'ORTHANC',
         ], stderr = FNULL))
 
+        # No client certificate provided and client does check server cert -> no raise
+        self.assertRaises(Exception, lambda: subprocess.check_call([
+            FindExecutable('echoscu'),
+            ORTHANC['Server'], 
+            str(ORTHANC['DicomPort']),
+            '-aec', 'ORTHANC',
+            '+cf', 'dicom-tls-a.crt'
+        ], stderr = FNULL))
+
+        # random client certificate provided and client does check server cert -> no raise since Orthanc does not check the client cert
         subprocess.check_call([
             FindExecutable('echoscu'),
             ORTHANC['Server'], 
@@ -163,23 +177,6 @@ class Orthanc(unittest.TestCase):
             '+cf', 'dicom-tls-a.crt',
         ], stderr = FNULL)
 
-        self.assertRaises(Exception, lambda: subprocess.check_call([
-            FindExecutable('echoscu'),
-            ORTHANC['Server'], 
-            str(ORTHANC['DicomPort']),
-            '-aec', 'ORTHANC',
-            '+tls', 'dicom-tls-c.key', 'dicom-tls-c.crt',  # Not trusted by Orthanc
-            '+cf', 'dicom-tls-a.crt',
-        ], stderr = FNULL))
-
-        self.assertRaises(Exception, lambda: subprocess.check_call([
-            FindExecutable('echoscu'),
-            ORTHANC['Server'], 
-            str(ORTHANC['DicomPort']),
-            '-aec', 'ORTHANC',
-            '+tls', 'dicom-tls-b.key', 'dicom-tls-b.crt',
-            '+cf', 'dicom-tls-b.crt',  # Not the certificate of Orthanc
-        ], stderr = FNULL))
 
         
     def test_outgoing_to_self(self):
@@ -217,7 +214,40 @@ class Orthanc(unittest.TestCase):
             '+cf', 'dicom-tls-a.crt',
         ], stderr = FNULL)
         
+
+# in these tests, Orthanc do checks client certificates
+class OrthancCheckClient(unittest.TestCase):
+    def setUp(self):
+        if (sys.version_info >= (3, 0)):
+            # Remove annoying warnings about unclosed socket in Python 3
+            import warnings
+            warnings.simplefilter('ignore', ResourceWarning)
+
+        DropOrthanc(ORTHANC)
+
         
+    def test_check_client_incoming(self):
+        # client provides an untrusted certificate -> Orthanc will complain -> raise
+        self.assertRaises(Exception, lambda: subprocess.check_call([
+            FindExecutable('echoscu'),
+            ORTHANC['Server'], 
+            str(ORTHANC['DicomPort']),
+            '-aec', 'ORTHANC',
+            '+tls', 'dicom-tls-c.key', 'dicom-tls-c.crt',  # Not trusted by Orthanc
+            '+cf', 'dicom-tls-a.crt',
+        ], stderr = FNULL))
+
+        # client provides a trusted certificate but expects another cert from Orthanc -> raise
+        self.assertRaises(Exception, lambda: subprocess.check_call([
+            FindExecutable('echoscu'),
+            ORTHANC['Server'], 
+            str(ORTHANC['DicomPort']),
+            '-aec', 'ORTHANC',
+            '+tls', 'dicom-tls-b.key', 'dicom-tls-b.crt',
+            '+cf', 'dicom-tls-b.crt',  # Not the certificate of Orthanc
+        ], stderr = FNULL))
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)

@@ -139,6 +139,23 @@ of your remote instance of Orthanc.
 To run the IngestTranscoding tests:
 # rm -rf /tmp/OrthancTest && python ./Tests/CheckIngestTranscoding.py /home/alain/o/build/orthanc/orthanc
 
+To run the DICOM TLS tests without Client certificate checks:
+# cd ./Tests
+# python CheckDicomTls.py --config-no-check-client
+# /home/alain/o/build/orthanc/Orthanc --verbose dicom-tls.json
+#### or
+# docker run -p 8042:8042 -p 4242:4242 -e ORTHANC__DICOM_TLS_ENABLED=true -e ORTHANC__DICOM_TLS_CERTIFICATE=/certs/dicom-tls-a.crt -e ORTHANC__DICOM_TLS_PRIVATE_KEY=/certs/dicom-tls-a.key -e ORTHANC__DICOM_TLS_REMOTE_CERTIFICATE_REQUIRED=false -e ORTHANC__DICOM_TLS_TRUSTED_CERTIFICATES=/certs/dicom-tls-trusted.crt -e ORTHANC__EXECUTE_LUA_ENABLED=true -v .:/certs/ -e ORTHANC__AUTHENTICATION_ENABLED=false -e VERBOSE_ENABLED=true orthancteam/orthanc:24.6.1
+# python CheckDicomTls.py --force OrthancNoCheckClient
+
+To run the DICOM TLS tests without Client certificate checks:
+# cd ./Tests
+# python CheckDicomTls.py --config-check-client
+# /home/alain/o/build/orthanc/Orthanc --verbose dicom-tls.json
+#### or
+# docker run -p 8042:8042 -p 4242:4242 -e ORTHANC__DICOM_TLS_ENABLED=true -e ORTHANC__DICOM_TLS_CERTIFICATE=/certs/dicom-tls-a.crt -e ORTHANC__DICOM_TLS_PRIVATE_KEY=/certs/dicom-tls-a.key -e ORTHANC__DICOM_TLS_REMOTE_CERTIFICATE_REQUIRED=true -e ORTHANC__DICOM_TLS_TRUSTED_CERTIFICATES=/certs/dicom-tls-trusted.crt -e ORTHANC__EXECUTE_LUA_ENABLED=true -v .:/certs/ -e ORTHANC__AUTHENTICATION_ENABLED=false -e VERBOSE_ENABLED=true orthancteam/orthanc:24.6.1
+# python CheckDicomTls.py --force OrthancCheckClient
+
+
 
 (Option 2b) With Docker:
 
