@@ -627,6 +627,95 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, completed)
 
 
+    def test_changes_extended(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and DoGet(_REMOTE, '/system').get("Capabilities").get("HasExtendedChanges"):
+            # Check emptiness
+            c = DoGet(_REMOTE, '/changes')
+            self.assertEqual(0, len(c['Changes']))
+            #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
+            self.assertTrue(c['Done'])
+            c = DoGet(_REMOTE, '/changes?last')
+            self.assertEqual(0, len(c['Changes']))
+            #self.assertEqual(0, c['Last'])   # Not true anymore for Orthanc >= 1.5.2
+            self.assertTrue(c['Done'])
+
+            # Add 1 instance
+            i = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')['ID']
+            c = DoGet(_REMOTE, '/changes')
+            begin = c['Last']
+            self.assertEqual(4, len(c['Changes']))
+            self.assertTrue(c['Done'])
+            self.assertEqual(c['Changes'][-1]['Seq'], c['Last'])
+
+            # Check the order in which the creation events are reported
+            self.assertEqual(c['Changes'][0]['ChangeType'], 'NewInstance')
+            self.assertEqual(c['Changes'][1]['ChangeType'], 'NewSeries')
+            self.assertEqual(c['Changes'][2]['ChangeType'], 'NewStudy')
+            self.assertEqual(c['Changes'][3]['ChangeType'], 'NewPatient')
+
+            c = DoGet(_REMOTE, '/changes?type=NewInstance')
+            self.assertEqual(1, len(c['Changes']))
+            self.assertEqual(begin-3, c['Last'])
+
+            c = DoGet(_REMOTE, '/changes?type=NewPatient')
+            self.assertEqual(1, len(c['Changes']))
+            self.assertEqual(begin, c['Last'])
+
+            UploadFolder(_REMOTE, 'Knee/T1')
+            UploadFolder(_REMOTE, 'Knee/T2')
+
+            # Request the 1000 first NewInstance changes  -> all 50 shall be reported
+            c = DoGet(_REMOTE, '/changes', { 'type': 'NewInstance', 'since' : begin, 'limit' : 1000 })
+            self.assertEqual(50, len(c['Changes']))
+            self.assertLess(begin, c['Changes'][0]['Seq'])
+            self.assertTrue(c['Done'])   #w e have got them all so it's DONE
+            lastFrom1000NewInstances = c['Last']
+            firstFrom1000NewInstances = c['First']
+            self.assertLess(firstFrom1000NewInstances, lastFrom1000NewInstances)
+
+            # Only the 10 first NewInstance changes  -> only 10 shall be reported
+            c = DoGet(_REMOTE, '/changes', { 'type': 'NewInstance', 'since' : begin, 'limit' : 10 })
+            self.assertEqual(10, len(c['Changes']))
+            self.assertFalse(c['Done'])
+            lastFrom10firstNewInstances = c['Last']
+            firstFrom10firstNewInstances = c['First']
+            self.assertLess(firstFrom10firstNewInstances, lastFrom10firstNewInstances)
+            self.assertLess(lastFrom10firstNewInstances, lastFrom1000NewInstances)
+            self.assertEqual(firstFrom10firstNewInstances, firstFrom1000NewInstances)
+
+            # between begin and begin+10 with a max of 10 and a filter -> less than 10 NewInstance since there are other changes in this range
+            c = DoGet(_REMOTE, '/changes', { 'type': 'NewInstance', 'since' : begin, 'to': begin+10, 'limit' : 10 })
+            self.assertLess(len(c['Changes']), 10)
+            self.assertTrue(c['Done'])  # we have received ALL NewInstance that are between since and to so we consider it's done
+            lastFrom10SubsetNewInstances = c['Last']
+            firstFrom10SubsetNewInstances = c['First']
+            self.assertLess(firstFrom10SubsetNewInstances, lastFrom10SubsetNewInstances)
+            self.assertLess(lastFrom10SubsetNewInstances, lastFrom10firstNewInstances)
+            self.assertEqual(firstFrom10SubsetNewInstances, firstFrom1000NewInstances)
+
+            # test with only 'to' -> all 50 NewInstance shall be reported
+            c = DoGet(_REMOTE, '/changes', { 'type': 'NewInstance', 'to': lastFrom1000NewInstances, 'limit' : 50 })
+            self.assertEqual(lastFrom1000NewInstances, c['Changes'][-1]['Seq'])
+            self.assertEqual(50, len(c['Changes']))
+            self.assertFalse(c['Done'])  # Done can not be used when working in reverse direction
+            lastFrom50Reverse = c['Last']
+            firstFrom50Reverse = c['First']
+            self.assertLess(firstFrom50Reverse, lastFrom50Reverse)
+            self.assertEqual(lastFrom50Reverse, lastFrom1000NewInstances)
+            self.assertEqual(firstFrom50Reverse, firstFrom1000NewInstances)
+
+            # test with only 'to' and limit to 10 NewInstance changes
+            c = DoGet(_REMOTE, '/changes', { 'type': 'NewInstance', 'to': lastFrom1000NewInstances, 'limit' : 10 })
+            self.assertEqual(lastFrom1000NewInstances, c['Changes'][-1]['Seq'])
+            self.assertEqual(10, len(c['Changes']))
+            self.assertFalse(c['Done'])  # Done can not be used when working in reverse direction
+            lastFrom10Reverse = c['Last']
+            firstFrom10Reverse = c['First']
+            self.assertLess(firstFrom10Reverse, lastFrom10Reverse)
+            self.assertEqual(lastFrom10Reverse, lastFrom1000NewInstances)
+            self.assertLessEqual(firstFrom50Reverse, firstFrom10Reverse)
+
+
     def test_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
