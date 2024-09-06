@@ -1372,7 +1372,7 @@ class Orthanc(unittest.TestCase):
                              a[0][1]['Content-Location'])
             self.assertEqual(ACCEPT[syntax],
                              'multipart/related; type=%s' % a[0][1]['Content-Type'])
-            if IS_GDCM:
+            if IS_GDCM:  # !!! NOTE: these tests might fail if GDCM is not used to transcode ALL transfer syntaxes.  And, from v1.8, the default configuration handles only JP2K 
                 self.assertEqual({
                     '1.2.840.10008.1.2' : '1c8cebde0c74450ce4dfb75dd52ddad7',
                     '1.2.840.10008.1.2.1' : '1c8cebde0c74450ce4dfb75dd52ddad7',
