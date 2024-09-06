@@ -1904,31 +1904,16 @@ class Orthanc(unittest.TestCase):
                     'PatientName' : 'Jodogne',
                     'Modality' : 'CT',
                     'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
+                    'TimeRange': '3.12\\4.12',                      # https://discourse.orthanc-server.org/t/multiplicity-on-dicom-tags/5144
                     'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
                     }))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
         self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
-
-        png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
-        self.assertEqual((5, 5), png.size)
-
-        j = DoGet(_REMOTE, i['Path'])
-        self.assertEqual('Instance', j['Type'])
-        self.assertEqual(j['ID'], i['ID'])
-
-    def test_create_with_time_range(self):
-        i = DoPost(_REMOTE, '/tools/create-dicom',
-                   json.dumps({
-                    'PatientName' : 'Jodogne',
-                    'Modality' : 'CT',
-                    'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
-                    'TimeRange': '3.12\\4.12',
-                    'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
-                    }))
-
-        self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
-        self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i['ID'])
+        self.assertIn("3.12", tags["TimeRange"])
+        self.assertIn("4.12", tags["TimeRange"])
+        self.assertIn("\\", tags["TimeRange"])
 
         png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
         self.assertEqual((5, 5), png.size)
