@@ -1915,9 +1915,10 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
         self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i['ID'])
-        self.assertIn("3.12", tags["TimeRange"])
-        self.assertIn("4.12", tags["TimeRange"])
-        self.assertIn("\\", tags["TimeRange"])
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            self.assertIn("3.12", tags["TimeRange"])
+            self.assertIn("4.12", tags["TimeRange"])
+            self.assertIn("\\", tags["TimeRange"])
 
         png = GetImage(_REMOTE, '/instances/%s/preview' % i['ID'])
         self.assertEqual((5, 5), png.size)
