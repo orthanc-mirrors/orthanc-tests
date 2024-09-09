@@ -1899,14 +1899,18 @@ class Orthanc(unittest.TestCase):
 
 
     def test_create(self):
+        payload = {
+            'PatientName' : 'Jodogne',
+            'Modality' : 'CT',
+            'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
+            'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
+            }
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            payload['TimeRange'] = '3.12\\4.12',                      # https://discourse.orthanc-server.org/t/multiplicity-on-dicom-tags/5144
+
         i = DoPost(_REMOTE, '/tools/create-dicom',
-                   json.dumps({
-                    'PatientName' : 'Jodogne',
-                    'Modality' : 'CT',
-                    'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.1',
-                    'TimeRange': '3.12\\4.12',                      # https://discourse.orthanc-server.org/t/multiplicity-on-dicom-tags/5144
-                    'PixelData' : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==' # red dot in RGBA
-                    }))
+                   json.dumps(payload))
 
         self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/PatientName' % i['ID']).strip())
         self.assertEqual('CT', DoGet(_REMOTE, '/instances/%s/content/Modality' % i['ID']).strip())
@@ -10626,22 +10630,36 @@ class Orthanc(unittest.TestCase):
         study = '6c65289b-db2fcb71-7eaf73f4-8e12470c-a4d6d7cf'
         patient = '0946fcb6-cf12ab43-bad958c1-bf057ad5-0fc6f54c'
 
-        a = DoGet(_REMOTE, '/instances/%s?requested-tags=0008,0056' % instance)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):     # the old syntax is still required for the upgrade/downgrade PG tests
+            a = DoGet(_REMOTE, '/instances/%s?requested-tags=0008,0056' % instance)
+        else:
+            a = DoGet(_REMOTE, '/instances/%s?RequestedTags=0008,0056' % instance)
+        
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual('ONLINE', a['RequestedTags']['InstanceAvailability'])
 
-        a = DoGet(_REMOTE, '/series/%s?requested-tags=0020,1209' % series)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            a = DoGet(_REMOTE, '/series/%s?requested-tags=0020,1209' % series)
+        else:
+            a = DoGet(_REMOTE, '/series/%s?RequestedTags=0020,1209' % series)
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfSeriesRelatedInstances']))
 
-        a = DoGet(_REMOTE, '/studies/%s?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            a = DoGet(_REMOTE, '/studies/%s?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+        else:
+            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+
         self.assertEqual(4, len(a['RequestedTags']))
         self.assertEqual('CT\\PT', a['RequestedTags']['ModalitiesInStudy'])
         self.assertEqual('1.2.840.10008.5.1.4.1.1.128\\1.2.840.10008.5.1.4.1.1.2', a['RequestedTags']['SOPClassesInStudy'])
         self.assertEqual(2, int(a['RequestedTags']['NumberOfStudyRelatedSeries']))
         self.assertEqual(4, int(a['RequestedTags']['NumberOfStudyRelatedInstances']))
 
-        a = DoGet(_REMOTE, '/patients/%s?requested-tags=0020,1200;0020,1202;0020,1204' % patient)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
+            a = DoGet(_REMOTE, '/patients/%s?requested-tags=0020,1200;0020,1202;0020,1204' % patient)
+        else:
+            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0020,1200;0020,1202;0020,1204' % study)
         self.assertEqual(3, len(a['RequestedTags']))
         self.assertEqual(1, int(a['RequestedTags']['NumberOfPatientRelatedStudies']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfPatientRelatedSeries']))
