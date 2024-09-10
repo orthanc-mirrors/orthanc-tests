@@ -1907,7 +1907,7 @@ class Orthanc(unittest.TestCase):
             }
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
-            payload['TimeRange'] = '3.12\\4.12',                      # https://discourse.orthanc-server.org/t/multiplicity-on-dicom-tags/5144
+            payload['TimeRange'] = '3.12\\4.12'                      # https://discourse.orthanc-server.org/t/multiplicity-on-dicom-tags/5144
 
         i = DoPost(_REMOTE, '/tools/create-dicom',
                    json.dumps(payload))
