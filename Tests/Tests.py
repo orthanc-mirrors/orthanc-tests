@@ -3007,7 +3007,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&since=10' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&limit=10' % i))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):   # with ExtendedFind, the limit=0 means no-limit like in /tools/find
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and DoGet(_REMOTE, '/system')['ApiVersion'] >= 25:   # with ExtendedFind, the limit=0 means no-limit like in /tools/find
             self.assertEqual(2, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
             self.assertEqual(1, len(DoGet(_REMOTE, '/patients?since=1&limit=0')))
             self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=2&limit=0')))
