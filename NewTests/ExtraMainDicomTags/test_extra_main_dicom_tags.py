@@ -35,7 +35,8 @@ class TestExtraMainDicomTags(OrthancTestCase):
                 "DicomWeb" : {
                     "StudiesMetadata" : "MainDicomTags",
                     "SeriesMetadata": "MainDicomTags"
-                }
+                },
+                "StableAge": 1000  # we don't want to be disturbed by events when debugging
             }
 
         config_path = cls.generate_configuration(
@@ -104,7 +105,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
         # upload a study
         self.o.upload_file(here / "../../Database/Brainix/Flair/IM-0001-0001.dcm")
 
-        # instance level
+        # instance level, only extra main dicom tags from that level
         r = self.o.post(
             endpoint="tools/find",
             json={
@@ -113,7 +114,33 @@ class TestExtraMainDicomTags(OrthancTestCase):
                     "PatientID": "5Yp0E"
                 },
                 "Expand": True,
-                "RequestedTags" : ["Rows", "PerformedProtocolCodeSequence", "ReferencedStudySequence"]  # "ReferencedStudySequence" is not stored in MainDicomTags !
+                "RequestedTags" : [
+                    "Rows",                             # in the ExtraMainDicomTags at instance level
+                    "PerformedProtocolCodeSequence"     # in the ExtraMainDicomTags at instance level
+                ]
+            }
+        )
+
+        instances = r.json()
+        self.assertEqual(1, len(instances))
+        self.assertIn("Rows", instances[0]["RequestedTags"])
+        self.assertIn("PerformedProtocolCodeSequence", instances[0]["RequestedTags"])
+        # TO test manually: ReferencedStudySequence 0008,1110 should be read from disk
+
+        # instance level, only extra main dicom tags from that level + a tag from disk
+        r = self.o.post(
+            endpoint="tools/find",
+            json={
+                "Level": "Instances",
+                "Query": {
+                    "PatientID": "5Yp0E"
+                },
+                "Expand": True,
+                "RequestedTags" : [
+                    "Rows",                             # in the ExtraMainDicomTags at instance level
+                    "PerformedProtocolCodeSequence",    # in the ExtraMainDicomTags at instance level
+                    "ReferencedStudySequence"           # "ReferencedStudySequence" is not stored in MainDicomTags !
+                ]
             }
         )
 
@@ -122,7 +149,31 @@ class TestExtraMainDicomTags(OrthancTestCase):
         self.assertIn("Rows", instances[0]["RequestedTags"])
         self.assertIn("PerformedProtocolCodeSequence", instances[0]["RequestedTags"])
         self.assertIn("ReferencedStudySequence", instances[0]["RequestedTags"])
-       
+        # TO test manually: ReferencedStudySequence 0008,1110 should be read from disk
+
+        # instance level, extra main dicom tags from that level + a sequence from upper level
+        r = self.o.post(
+            endpoint="tools/find",
+            json={
+                "Level": "Instances",
+                "Query": {
+                    "PatientID": "5Yp0E"
+                },
+                "Expand": True,
+                "RequestedTags" : [
+                    "Rows",                             # in the ExtraMainDicomTags at instance level
+                    "PerformedProtocolCodeSequence",    # in the ExtraMainDicomTags at instance level   0040,0260
+                    "RequestAttributesSequence"         # in the ExtraMainDicomTags at series level     0040,0275
+                ]
+            }
+        )
+
+        instances = r.json()
+        self.assertEqual(1, len(instances))
+        self.assertIn("Rows", instances[0]["RequestedTags"])
+        self.assertIn("PerformedProtocolCodeSequence", instances[0]["RequestedTags"])
+        self.assertIn("RequestAttributesSequence", instances[0]["RequestedTags"])  # note that, as of 1.12.5, Orthanc reads this from the disk !
+        # TO test manually: nothing should be read from disk
 
         # series level, request a sequence
         r = self.o.post(
@@ -133,14 +184,38 @@ class TestExtraMainDicomTags(OrthancTestCase):
                     "PatientID": "5Yp0E"
                 },
                 "Expand": True,
-                "RequestedTags" : ["RequestAttributesSequence"]
+                "RequestedTags" : [
+                    "RequestAttributesSequence"         # in the ExtraMainDicomTags at series level
+                ]
             }
         )
 
         series = r.json()
         self.assertEqual(1, len(series))
         self.assertIn("RequestAttributesSequence", series[0]["RequestedTags"])
+        # TO test manually: nothing should be read from disk
 
+        # series level, request a sequence + a tag from disk
+        r = self.o.post(
+            endpoint="tools/find",
+            json={
+                "Level": "Series",
+                "Query": {
+                    "PatientID": "5Yp0E"
+                },
+                "Expand": True,
+                "RequestedTags" : [
+                    "RequestAttributesSequence",        # in the ExtraMainDicomTags at series level
+                    "ReferencedStudySequence"           # "ReferencedStudySequence" is not stored in MainDicomTags !
+                ]
+            }
+        )
+
+        series = r.json()
+        self.assertEqual(1, len(series))
+        self.assertIn("RequestAttributesSequence", series[0]["RequestedTags"])
+        self.assertIn("ReferencedStudySequence", series[0]["RequestedTags"])
+        # TO test manually: ReferencedStudySequence 0008,1110 should be read from disk
 
 
     def test_dicom_web_metadata(self):
@@ -153,6 +228,6 @@ class TestExtraMainDicomTags(OrthancTestCase):
         ).json()
 
         self.assertEqual(1, len(metadata))
-        self.assertIn("00280010", metadata[0])   # Rows
+        self.assertIn("00280010", metadata[0])      # Rows
         self.assertNotIn("00280011", metadata[0])   # Columns should not be stored !
-        self.assertIn("00400260", metadata[0])   # PerformedProtocolCodeSequence
+        self.assertIn("00400260", metadata[0])      # PerformedProtocolCodeSequence
