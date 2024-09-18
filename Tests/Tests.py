@@ -1303,7 +1303,10 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('LastUpdate' in m)
 
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            self.assertEqual(4, len(m))
+            self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -1560,7 +1563,10 @@ class Orthanc(unittest.TestCase):
 
         series = DoGet(_REMOTE, '/series')[0]
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            self.assertEqual(4, len(m))
+            self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -10513,6 +10519,9 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('Instance', instance['Type'])
             self.assertEqual(1, instance['IndexInSeries'])
             self.assertEqual(0, len(instance['Labels']))
+            # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            #     self.assertEqual(8, len(instance['MainDicomTags']))  # since we have added SOPClassUID
+            # else:
             self.assertEqual(7, len(instance['MainDicomTags']))
             self.assertEqual('1', instance['MainDicomTags']['AcquisitionNumber'])
             self.assertEqual('0.999841\\0.000366209\\0.0178227\\-0.000427244\\0.999995\\0.00326545', instance['MainDicomTags']['ImageOrientationPatient'])
