@@ -355,6 +355,45 @@ def IsOrthancVersionAbove(orthanc, major, minor, revision):
                 (a == major and b > minor) or
                 (a == major and b == minor and c >= revision))
 
+
+def HasExtendedFind(orthanc):
+    v = DoGet(orthanc, '/system')
+
+    if 'Capabilities' in v and 'HasExtendedFind' in v['Capabilities']:
+        return v['Capabilities']['HasExtendedFind']
+    return False
+
+
+def HasExtendedChanges(orthanc):
+    v = DoGet(orthanc, '/system')
+
+    if 'Capabilities' in v and 'HasExtendedChanges' in v['Capabilities']:
+        return v['Capabilities']['HasExtendedChanges']
+    return False
+
+
+def GetStorageAccessesCount(orthanc):
+    mm = DoGetRaw(orthanc, "/tools/metrics-prometheus")[1]
+
+    if (sys.version_info >= (3, 0)):
+        try:
+            mm = mm.decode()
+        except:
+            pass
+
+    mm = [x.split(" ") for x in mm.split("\n")]
+
+    count = 0
+    for m in mm:
+        if m[0] == 'orthanc_storage_cache_hit_count':
+            count += int(m[1])
+        if m[0] == 'orthanc_storage_cache_miss_count':
+            count += int(m[1])
+
+    # print("storage access count = %s" % count)
+    return count
+
+
 def IsPluginVersionAbove(orthanc, plugin, major, minor, revision):
     v = DoGet(orthanc, '/plugins/%s' % plugin)['Version']
 

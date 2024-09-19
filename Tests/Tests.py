@@ -628,7 +628,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_changes_extended(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and DoGet(_REMOTE, '/system').get("Capabilities") and DoGet(_REMOTE, '/system').get("Capabilities").get("HasExtendedChanges"):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedChanges(_REMOTE):
             # Check emptiness
             c = DoGet(_REMOTE, '/changes')
             self.assertEqual(0, len(c['Changes']))
@@ -10540,7 +10540,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('2800', resource['RequestedTags']['RepetitionTime'])
             self.assertEqual(3, len(resource['RequestedTags']['DerivationCodeSequence'][0]))
             self.assertEqual('121327', resource['RequestedTags']['DerivationCodeSequence'][0]['CodeValue'])
-
+        
         requestedTags = 'PatientID;StudyDescription;SeriesDescription;SOPClassUID;RepetitionTime;DerivationCodeSequence'
 
         a = DoGet(_REMOTE, '/patients?expand')
@@ -10630,6 +10630,62 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(9, len(a))
         CheckInstanceContent(a)
         CheckRequestedTags(a)
+
+        # this is equivalent to calling /dicom-web/series?PatientID=*
+        # when there are no StudyInstanceUID specified, the DICOM-Web standard says we should retrieve all Series and Study tags
+        # which includes e.g. NumberOfStudyRelatedInstances (0020,1208) that is a computed tag at study level
+        c = GetStorageAccessesCount(_REMOTE)
+        a = DoPost(_REMOTE, '/tools/find', {
+            "Query": { "PatientID": "*"},
+            "Level": "Series",
+            "Expand": True,
+            "RequestedTags": [
+                "0008,0020",
+                "0008,0030",
+                "0008,0050",
+                "0008,0056",
+                "0008,0060",
+                "0008,0061",
+                "0008,0090",
+                "0008,0201",
+                "0008,103e",
+                "0010,0010",
+                "0010,0020",
+                "0010,0030",
+                "0010,0040",
+                "0020,000d",
+                "0020,000e",
+                "0020,0010",
+                "0020,0011",
+                "0020,1206",
+                "0020,1208",
+                "0020,1209",
+                "0040,0244",
+                "0040,0245",
+                "0040,0275"
+            ]
+        })        
+        # Up to now, no versions of Orthanc ever returned this value but we keep the test for later (let's wait for someone to comlain !)
+        self.assertNotIn("NumberOfStudyRelatedInstances", a[0]["RequestedTags"])
+        if HasExtendedFind(_REMOTE):
+            self.assertEqual(c, GetStorageAccessesCount(_REMOTE))  # the disk shall not have been accessed
+
+        c = GetStorageAccessesCount(_REMOTE)
+        a = DoPost(_REMOTE, '/tools/find', {
+            "Query": { "PatientID": "*"},
+            "Level": "Study",
+            "Expand": True,
+            "RequestedTags": [
+                "SOPClassesInStudy",
+                "NumberOfStudyRelatedInstances"
+            ]
+        })        
+        # Up to now, no versions of Orthanc ever returned this value but we keep the test for later (let's wait for someone to comlain !)
+        self.assertIn("SOPClassesInStudy", a[0]["RequestedTags"])
+        self.assertIn("NumberOfStudyRelatedInstances", a[0]["RequestedTags"])
+        if HasExtendedFind(_REMOTE):
+            self.assertEqual(c, GetStorageAccessesCount(_REMOTE))  # the disk shall not have been accessed
+
 
 
     def test_computed_tags(self):
