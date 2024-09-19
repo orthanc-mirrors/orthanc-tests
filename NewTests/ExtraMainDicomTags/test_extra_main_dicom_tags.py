@@ -119,7 +119,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
 
 
     def test_tools_find(self):
-        if self.o.is_orthanc_version_at_least(12, 5, 0):
+        if self.o.is_orthanc_version_at_least(12, 5, 0) and self.o.capabilities.has_extended_find:
 
             # upload a study
             self.o.upload_file(here / "../../Database/Brainix/Flair/IM-0001-0001.dcm")
@@ -195,7 +195,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
             self.assertEqual(1, len(instances))
             self.assertIn("Rows", instances[0]["RequestedTags"])
             self.assertIn("PerformedProtocolCodeSequence", instances[0]["RequestedTags"])
-            self.assertIn("RequestAttributesSequence", instances[0]["RequestedTags"])  # note that, as of 1.12.5, Orthanc reads this from the disk !
+            self.assertIn("RequestAttributesSequence", instances[0]["RequestedTags"])
             self.assertEqual(c, self.get_storage_access_count()) # nothing should be read from disk
 
             # series level, request a sequence
@@ -259,7 +259,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
         self.assertIn("00400260", metadata[0])      # PerformedProtocolCodeSequence
 
     def test_storage_accesses_for_dicom_web(self):
-        if self.o.is_orthanc_version_at_least(12, 5, 0):
+        if self.o.is_orthanc_version_at_least(12, 5, 0) and self.o.capabilities.has_extended_find:
 
             # upload a study
             self.o.upload_file(here / "../../Database/Brainix/Flair/IM-0001-0001.dcm")
