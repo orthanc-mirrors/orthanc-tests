@@ -9611,6 +9611,8 @@ class Orthanc(unittest.TestCase):
     def test_list_resources_requested_tags_study_computed_tags(self):
 
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')  # make sure there are 2 different SOPClassUID in the DB
+
             instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
             patient = DoGet(_REMOTE, '/instances/%s/patient' % instance) ['ID']
             study = DoGet(_REMOTE, '/instances/%s/study' % instance) ['ID']
@@ -9624,6 +9626,9 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('1.2.840.10008.5.1.4.1.1.4', a[0]['RequestedTags']['SOPClassesInStudy'])
             self.assertEqual('1', a[0]['RequestedTags']['NumberOfStudyRelatedInstances'])
             self.assertEqual('1', a[0]['RequestedTags']['NumberOfStudyRelatedSeries'])
+
+            a = DoGet(_REMOTE, '/studies/%s?expand&simplify&requestedTags=ModalitiesInStudy;NumberOfStudyRelatedInstances;NumberOfStudyRelatedSeries;SOPClassesInStudy' % study)            
+            self.assertEqual('1.2.840.10008.5.1.4.1.1.4', a['RequestedTags']['SOPClassesInStudy'])
 
 
     def test_list_resources_requested_tags_series_computed_tags(self):
