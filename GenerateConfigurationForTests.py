@@ -110,7 +110,6 @@ with open(args.target, 'r') as f:
     config = json.loads(nocomment)
 
 config['DefaultEncoding'] = 'Utf8'
-config['AllowFindSopClassesInStudy'] = False
 config['AuthenticationEnabled'] = True
 config['DicomAet'] = 'ORTHANC'
 config['DicomAssociationCloseDelay'] = 0
