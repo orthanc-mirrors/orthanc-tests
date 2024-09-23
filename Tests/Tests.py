@@ -661,6 +661,10 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(c['Changes']))
             self.assertEqual(begin, c['Last'])
 
+            c = DoGet(_REMOTE, '/changes?type=NewPatient;NewInstance')
+            self.assertEqual(2, len(c['Changes']))
+            self.assertEqual(begin, c['Last'])
+
             UploadFolder(_REMOTE, 'Knee/T1')
             UploadFolder(_REMOTE, 'Knee/T2')
 
