@@ -5485,18 +5485,19 @@ class Orthanc(unittest.TestCase):
             
 
     def test_dicomweb(self):
-        def Compare(dicom, reference):
-            a = UploadInstance(_REMOTE, dicom) ['ID']
-            b = DoGet(_REMOTE, '/instances/%s/file' % a,
-                      headers = { 'Accept' : 'application/dicom+json' })
-            with open(GetDatabasePath(reference), 'rb') as c:
-                d = json.load(c)
-                AssertAlmostEqualRecursive(self, d, b)
-                    
-        Compare('DummyCT.dcm', 'DummyCT.json')
-        Compare('MarekLatin2.dcm', 'MarekLatin2.json')
-        Compare('HierarchicalAnonymization/StructuredReports/IM0',
-                'HierarchicalAnonymization/StructuredReports/IM0.json')
+        if IsOrthancVersionAbove(_LOCAL, 1, 12, 5) and DoGet(_REMOTE, '/system')['ApiVersion'] >= 26:  # the references have changed with 1.12.5 -> we don't want to keep 2 references
+            def Compare(dicom, reference):
+                a = UploadInstance(_REMOTE, dicom) ['ID']
+                b = DoGet(_REMOTE, '/instances/%s/file' % a,
+                        headers = { 'Accept' : 'application/dicom+json' })
+                with open(GetDatabasePath(reference), 'rb') as c:
+                    d = json.load(c)
+                    AssertAlmostEqualRecursive(self, d, b)
+                        
+            Compare('DummyCT.dcm', 'DummyCT.json')
+            Compare('MarekLatin2.dcm', 'MarekLatin2.json')
+            Compare('HierarchicalAnonymization/StructuredReports/IM0',
+                    'HierarchicalAnonymization/StructuredReports/IM0.json')
 
 
     def test_issue_95_encodings(self):

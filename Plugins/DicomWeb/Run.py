@@ -1143,7 +1143,10 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('00091001' in a[0])   # This fails if DCMTK <= 3.6.1
         self.assertEqual('DS', a[0]['00091001']['vr'])
         self.assertEqual(1, len(a[0]['00091001']['Value']))
-        self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 5) and DoGet(ORTHANC, '/system')['ApiVersion'] >= 26:
+            self.assertEqual("98.41", a[0]['00091001']['Value'][0])
+        else:
+            self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
 
         a = DoGet(ORTHANC, '/dicom-web/studies?00090010=Lunit&includefield=00091001')
         self.assertEqual(1, len(a))
@@ -1154,7 +1157,10 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('00091001' in a[0])
         self.assertEqual('DS', a[0]['00091001']['vr'])
         self.assertEqual(1, len(a[0]['00091001']['Value']))
-        self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 5) and DoGet(ORTHANC, '/system')['ApiVersion'] >= 26:
+            self.assertEqual("98.41", a[0]['00091001']['Value'][0])
+        else:
+            self.assertAlmostEqual(98.41, a[0]['00091001']['Value'][0])
         
         a = DoGet(ORTHANC, '/dicom-web/studies?00090010=Lunit2&includefield=00091001')
         self.assertEqual(0, len(a))
