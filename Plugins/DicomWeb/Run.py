@@ -455,32 +455,33 @@ class Orthanc(unittest.TestCase):
 
     # this test fails if SeriesMetadata = "MainDicomTags" (this is expected since the reference json is the full json)
     def test_wado_hierarchy(self):
-        def CheckJson(uri, headers = {}):
-            with open(GetDatabasePath('DummyCT.json'), 'r') as f:
-                expected = json.loads(f.read())
-                actual = DoGet(ORTHANC, uri, headers)
-                self.assertEqual(1, len(actual))
-                AssertAlmostEqualRecursive(self, expected, actual[0])
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 5) and DoGet(ORTHANC, '/system')['ApiVersion'] >= 26:  # reference file has been updated
+            def CheckJson(uri, headers = {}):
+                with open(GetDatabasePath('DummyCT.json'), 'r') as f:
+                    expected = json.loads(f.read())
+                    actual = DoGet(ORTHANC, uri, headers)
+                    self.assertEqual(1, len(actual))
+                    AssertAlmostEqualRecursive(self, expected, actual[0])
 
-        UploadInstance(ORTHANC, 'DummyCT.dcm')
-        study = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
-        series = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
-        instance = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
+            UploadInstance(ORTHANC, 'DummyCT.dcm')
+            study = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+            series = '1.2.840.113619.2.176.2025.1499492.7391.1171285944.394'
+            instance = '1.2.840.113619.2.176.2025.1499492.7040.1171286242.109'
 
-        URI = '/dicom-web/studies/%s/series/%s/instances/%s/metadata'
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, instance),
-                                                   headers = { 'accept' : 'application/nope' }))
+            URI = '/dicom-web/studies/%s/series/%s/instances/%s/metadata'
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, instance),
+                                                    headers = { 'accept' : 'application/nope' }))
 
-        CheckJson(URI % (study, series, instance), headers = { 'accept' : 'application/dicom+json' })
-        CheckJson('/dicom-web/studies/%s/series/%s/metadata' % (study, series))
-        CheckJson('/dicom-web/studies/%s/metadata' % study)
+            CheckJson(URI % (study, series, instance), headers = { 'accept' : 'application/dicom+json' })
+            CheckJson('/dicom-web/studies/%s/series/%s/metadata' % (study, series))
+            CheckJson('/dicom-web/studies/%s/metadata' % study)
 
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % ('nope', series, instance)))
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, 'nope', instance)))
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, 'nope')))
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % ('nope', series)))
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % (study, 'nope')))
-        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % 'nope'))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % ('nope', series, instance)))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, 'nope', instance)))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, URI % (study, series, 'nope')))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % ('nope', series)))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/metadata' % (study, 'nope')))
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % 'nope'))
 
 
     def test_wado_pixel_data(self):
