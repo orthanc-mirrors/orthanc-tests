@@ -27,7 +27,7 @@ class TestPgUpgrades(unittest.TestCase):
         cls.cleanup()
 
 
-    def test_upgrade_61_to_62(self):
+    def test_upgrade_6rev2_to_6rev3(self):
         # remove everything including the DB from previous tests
         TestPgUpgrades.cleanup()
 
@@ -38,16 +38,16 @@ class TestPgUpgrades(unittest.TestCase):
         subprocess.run(["docker", "compose", "up", "pg-15", "-d"], check=True)
         wait_container_healthy("pg-15")
 
-        print("Launching Orthanc with 6.1 DB")
-        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61", "-d"], check=True)
+        print("Launching Orthanc with 6rev2 DB")
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-6rev2", "-d"], check=True)
 
         o = OrthancApiClient("http://localhost:8052")
         o.wait_started()
 
         instances = o.upload_folder(here / "../../Database/Knee")
 
-        print("Stopping Orthanc with 6.1 DB")
-        subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-61"], check=True)
+        print("Stopping Orthanc with 6rev2 DB")
+        subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-6rev2"], check=True)
         time.sleep(2)
 
         print("Launching newest Orthanc")
@@ -115,12 +115,12 @@ class TestPgUpgrades(unittest.TestCase):
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
         time.sleep(2)
 
-        print("Downgrading Orthanc DB to Rev1")
+        print("Downgrading Orthanc DB to 6rev2")
         subprocess.run(["docker", "exec", "pg-15", "./scripts/downgrade.sh"], check=True)
         time.sleep(2)
 
-        print("Launching previous Orthanc (DB Rev1)")
-        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61", "-d"], check=True)
+        print("Launching previous Orthanc (DB 6rev2)")
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-6rev2", "-d"], check=True)
 
         o = OrthancApiClient("http://localhost:8052")
         o.wait_started()
@@ -135,13 +135,13 @@ class TestPgUpgrades(unittest.TestCase):
         self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
 
         print("run the integration tests after a downgrade")
-        # first create the containers (orthanc-tests + orthanc-pg-15-61-for-integ-tests) so they know each other
-        # subprocess.run(["docker", "compose", "create", "orthanc-tests"], check=True)
+        # first create the containers (orthanc-tests + orthanc-pg-15-6rev2-for-integ-tests) so they know each other
+        subprocess.run(["docker", "compose", "create", "orthanc-tests"], check=True)
 
-        # subprocess.run(["docker", "compose", "up", "orthanc-pg-15-61-for-integ-tests", "-d"], check=True)
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-6rev2-for-integ-tests", "-d"], check=True)
 
-        # o = OrthancApiClient("http://localhost:8053", user="alice", pwd="orthanctest")
-        # o.wait_started()
+        o = OrthancApiClient("http://localhost:8053", user="alice", pwd="orthanctest")
+        o.wait_started()
 
         # time.sleep(10000)
         subprocess.run(["docker", "compose", "up", "orthanc-tests"], check=True)
