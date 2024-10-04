@@ -344,7 +344,7 @@ def FindExecutable(name):
 def IsOrthancVersionAbove(orthanc, major, minor, revision):
     v = DoGet(orthanc, '/system')['Version']
 
-    if v == 'mainline':
+    if v.startswith('mainline'):
         return True
     else:
         tmp = v.split('.')
