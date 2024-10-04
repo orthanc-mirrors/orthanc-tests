@@ -397,7 +397,7 @@ def GetStorageAccessesCount(orthanc):
 def IsPluginVersionAbove(orthanc, plugin, major, minor, revision):
     v = DoGet(orthanc, '/plugins/%s' % plugin)['Version']
 
-    if v == 'mainline':
+    if v.startswith('mainline'):
         return True
     else:
         tmp = v.split('.')
