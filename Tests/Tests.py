@@ -8091,7 +8091,7 @@ class Orthanc(unittest.TestCase):
         tagsDefault = GetTags(study, {})
 
         orthancVersion = DoGet(_REMOTE, '/system') ['Version']
-        if orthancVersion.startWith('mainline-'):  # happens in unstable orthancteam/orthanc images
+        if orthancVersion.startswith('mainline-'):  # happens in unstable orthancteam/orthanc images
             orthancVersion = 'mainline'
             
         self.assertEqual('Orthanc %s - PS 3.15-2008 Table E.1-1' % orthancVersion, tags2008['0012,0063'])
