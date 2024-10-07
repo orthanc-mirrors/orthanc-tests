@@ -11054,11 +11054,51 @@ class Orthanc(unittest.TestCase):
 
     def test_extended_find_parent(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-            pass
-            # TODO:
-            # find and order series in a study
-            # ...
-    
+            # Upload 12 instances
+            for i in range(3):
+                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+            kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            kneeStudyId = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+            kneePatientId = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+
+            # retrieve only the series from a study
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentStudy' : kneeStudyId
+                                                })
+
+            self.assertEqual(2, len(a))
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+
+            # retrieve only the series from a patient
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(2, len(a))
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+
+            # retrieve only the instances from a patient
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(6, len(a))
+
+
     def test_extended_filter_metadata(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
             pass
