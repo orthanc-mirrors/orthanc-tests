@@ -10985,13 +10985,13 @@ class Orthanc(unittest.TestCase):
                                                 'OrderBy' : [
                                                     {
                                                         'Type': 'DicomTag',
-                                                        'Key': 'BodyPartExamined',  # in Knee but not in Brainix  => Brainix is first because NULL is in front of other values
+                                                        'Key': 'BodyPartExamined',  # in Knee but not in Brainix  => Brainix is last because NULL are pushed at the end
                                                         'Direction': 'ASC'
                                                     }
                                                 ]
                                                 })
-            self.assertTrue(a[0] == brainixEpiSeriesId or a[0] == brainixFlairSeriesId)
-            self.assertTrue(a[3] == kneeT1SeriesId or a[3] == kneeT2SeriesId)
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+            self.assertTrue(a[3] == brainixEpiSeriesId or a[3] == brainixFlairSeriesId)
 
             # order by metadata
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
