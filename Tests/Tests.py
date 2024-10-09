@@ -11232,13 +11232,27 @@ class Orthanc(unittest.TestCase):
                                                     'RequestedTags': ['StudyDate']
                                                     })
 
-            # backward compat for Expand = True at instance level
             self.assertIn('ID', a[0])            # the ID is always in the response
             self.assertIn('Type', a[0])          # the Type is always in the response
             self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
             self.assertIn('Attachments', a[0])
             self.assertIn('Uuid', a[0]['Attachments'][0])
             self.assertIn('UncompressedSize', a[0]['Attachments'][0])
+
+
+            # 'internal check': make sure we get the SOPClassUID even when we do not request the Metadata
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'ResponseContent' : [],
+                                                    'RequestedTags': ['SOPClassUID']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('SOPClassUID', a[0]['RequestedTags'])
 
 
     def test_extended_find_full(self):
