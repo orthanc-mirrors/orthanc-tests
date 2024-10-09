@@ -8091,6 +8091,9 @@ class Orthanc(unittest.TestCase):
         tagsDefault = GetTags(study, {})
 
         orthancVersion = DoGet(_REMOTE, '/system') ['Version']
+        if orthancVersion.startswith('mainline-'):  # happens in unstable orthancteam/orthanc images
+            orthancVersion = 'mainline'
+            
         self.assertEqual('Orthanc %s - PS 3.15-2008 Table E.1-1' % orthancVersion, tags2008['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2017c Table E.1-1 Basic Profile' % orthancVersion, tags2017c['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2021b Table E.1-1 Basic Profile' % orthancVersion, tags2021b['0012,0063'])
@@ -10781,3 +10784,525 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, int(a[0]['RequestedTags']['NumberOfStudyRelatedInstances']))
         self.assertEqual('CT', a[0]['RequestedTags']['ModalitiesInStudy'])
         self.assertEqual('', a[0]['RequestedTags']['PatientComments'])
+
+
+    def test_extended_find_order_by(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+
+            # Upload 12 instances
+            for i in range(3):
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+            kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            brainixFlairSeriesId = '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+            brainixEpiSeriesId = '2ac1316d-3e432022-62eabff2-c59f5475-9b1ac3f8'
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT2SeriesId, 'kneeT2')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT1SeriesId, 'kneeT1')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixFlairSeriesId, 'brainixFlair')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixEpiSeriesId, 'brainixEpi')
+
+            # order by resource tag
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                                'Expand': True,
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientName',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            self.assertEqual(2, len(a))
+            self.assertEqual("BRAINIX", a[0]['PatientMainDicomTags']['PatientName'])
+
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
+                                                'Expand': True,
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientName',
+                                                        'Direction': 'DESC'
+                                                    }
+                                                ]
+                                                })
+
+            self.assertEqual("BRAINIX", a[1]['PatientMainDicomTags']['PatientName'])
+
+            # order by parent tag
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Expand': False,
+                                                'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'StudyDate',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            # knee StudyDate = 20080819
+            # brainix StudyDate = 20061201
+            self.assertEqual(4, len(a))
+            self.assertTrue(a[0] == brainixEpiSeriesId or a[0] == brainixFlairSeriesId)
+            self.assertTrue(a[3] == kneeT1SeriesId or a[3] == kneeT2SeriesId)
+
+            # order by parent tag and resource tag
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Expand': False,
+                                                'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'StudyDate',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'SeriesTime',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            # knee StudyDate = 20080819
+            # brainix StudyDate = 20061201
+            self.assertEqual(4, len(a))
+            self.assertEqual(brainixFlairSeriesId, a[0])
+            self.assertEqual(brainixEpiSeriesId, a[1])
+            self.assertEqual(kneeT1SeriesId, a[2])
+            self.assertEqual(kneeT2SeriesId, a[3])
+
+            # order by grandparent tag and resource tag
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Expand': False,
+                                                'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientBirthDate',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'SeriesTime',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            # knee PatientBirthDate = 20080822
+            # brainix PatientBirthDate = 19490301
+            self.assertEqual(4, len(a))
+            self.assertEqual(brainixFlairSeriesId, a[0])
+            self.assertEqual(brainixEpiSeriesId, a[1])
+            self.assertEqual(kneeT1SeriesId, a[2])
+            self.assertEqual(kneeT2SeriesId, a[3])
+
+            # order by grandgrandparent tag and resource tag
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                'Expand': True,
+                                                'Query' : { 
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientBirthDate',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'InstanceNumber',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'SeriesTime',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ],
+                                                'RequestedTags' : ['PatientBirthDate', 'InstanceNumber', 'SeriesTime']
+                                                })
+            self.assertEqual(12, len(a))
+            for i in range(1, len(a)-1):
+                self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
+                if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
+                    self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] <= a[i]['RequestedTags']['InstanceNumber'])
+                    if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
+                        self.assertTrue(a[i-1]['RequestedTags']['SeriesTime'] <= a[i]['RequestedTags']['SeriesTime'])    
+
+            # order by grandgrandparent tag and resource tag (2)
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                'Expand': True,
+                                                'Query' : { 
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'InstanceNumber',
+                                                        'Direction': 'DESC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientBirthDate',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'SeriesTime',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ],
+                                                'RequestedTags' : ['InstanceNumber', 'PatientBirthDate', 'SeriesTime' ]
+                                                })
+            self.assertEqual(12, len(a))
+            for i in range(1, len(a)-1):
+                self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] >= a[i]['RequestedTags']['InstanceNumber'])
+                if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
+                    self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
+                    if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
+                        self.assertTrue(a[i-1]['RequestedTags']['SeriesTime'] <= a[i]['RequestedTags']['SeriesTime'])    
+
+            # order by resource tag on a tag that is missing in one of the resources -> it should be listed
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Expand': False,
+                                                 'Query' : { 
+                                                },
+                                                
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'BodyPartExamined',  # in Knee but not in Brainix  => Brainix is last because NULL are pushed at the end
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+            self.assertTrue(a[3] == brainixEpiSeriesId or a[3] == brainixFlairSeriesId)
+
+            # order by metadata
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'Metadata',
+                                                        'Key': 'my-metadata',
+                                                        'Direction': 'ASC'
+                                                    }
+                                                ]
+                                                })
+            self.assertEqual(brainixEpiSeriesId, a[0])
+            self.assertEqual(brainixFlairSeriesId, a[1])
+            self.assertEqual(kneeT1SeriesId, a[2])
+            self.assertEqual(kneeT2SeriesId, a[3])
+
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'Metadata',
+                                                        'Key': 'my-metadata',
+                                                        'Direction': 'DESC'
+                                                    }
+                                                ]
+                                                })
+            self.assertEqual(brainixEpiSeriesId, a[3])
+            self.assertEqual(brainixFlairSeriesId, a[2])
+            self.assertEqual(kneeT1SeriesId, a[1])
+            self.assertEqual(kneeT2SeriesId, a[0])
+
+            # combined ordering (DicomTag + metadata)
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : '*'
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'PatientName',
+                                                        'Direction': 'ASC'
+                                                    },
+                                                    {
+                                                        'Type': 'Metadata',
+                                                        'Key': 'my-metadata',
+                                                        'Direction': 'DESC'
+                                                    }
+                                                ]
+                                                })
+            self.assertEqual(brainixFlairSeriesId, a[0])
+            self.assertEqual(brainixEpiSeriesId, a[1])
+            self.assertEqual(kneeT2SeriesId, a[2])
+            self.assertEqual(kneeT1SeriesId, a[3])
+
+
+    def test_extended_find_parent(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            # Upload 12 instances
+            for i in range(3):
+                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+
+            kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            kneeStudyId = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+            kneePatientId = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+
+            # retrieve only the series from a study
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentStudy' : kneeStudyId
+                                                })
+
+            self.assertEqual(2, len(a))
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+
+            # retrieve only the series from a patient
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(2, len(a))
+            self.assertTrue(a[0] == kneeT1SeriesId or a[0] == kneeT2SeriesId)
+
+            # retrieve only the instances from a patient
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(6, len(a))
+
+
+    def test_extended_find_filter_metadata(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+
+            # Upload 12 instances
+            for i in range(3):
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+            kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            brainixFlairSeriesId = '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+            brainixEpiSeriesId = '2ac1316d-3e432022-62eabff2-c59f5475-9b1ac3f8'
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT2SeriesId, 'kneeT2')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT1SeriesId, 'kneeT1')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixFlairSeriesId, 'brainixFlair')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixEpiSeriesId, 'brainixEpi')
+
+            # filter on metadata
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'QueryMetadata' : {
+                                                    'my-metadata': '*2*'
+                                                }
+                                                })
+
+            self.assertEqual(1, len(a))
+            self.assertEqual(kneeT2SeriesId, a[0])
+
+    def test_extended_find_expand(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'Expand': True,
+                                                    'RequestedTags': ['StudyDate']
+                                                    })
+
+            # backward compat for Expand = True
+            self.assertIn('ExpectedNumberOfInstances', a[0])
+            self.assertIn('ID', a[0])
+            self.assertIn('Instances', a[0])
+            self.assertIn('Labels', a[0])
+            self.assertIn('LastUpdate', a[0])
+            self.assertIn('MainDicomTags', a[0])
+            self.assertIn('ParentStudy', a[0])
+            self.assertIn('RequestedTags', a[0])
+            self.assertIn('Status', a[0])
+            self.assertIn('Type', a[0])
+            self.assertIn('IsStable', a[0])
+            self.assertNotIn('Attachments', a[0])
+            self.assertNotIn('Metadata', a[0])
+
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'ResponseContent': ["MainDicomTags"],
+                                                    'RequestedTags': ['StudyDate']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('MainDicomTags', a[0])
+            self.assertNotIn('ExpectedNumberOfInstances', a[0])
+            self.assertNotIn('Instances', a[0])
+            self.assertNotIn('Labels', a[0])
+            self.assertNotIn('LastUpdate', a[0])
+            self.assertNotIn('ParentStudy', a[0])
+            self.assertNotIn('Status', a[0])
+            self.assertNotIn('IsStable', a[0])
+            self.assertNotIn('Attachments', a[0])
+            self.assertNotIn('Metadata', a[0])
+
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'ResponseContent': ["MainDicomTags", "Children", "Parent", "IsStable", "Status", "Labels", "Metadata"],
+                                                    'RequestedTags': ['StudyDate']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('MainDicomTags', a[0])
+            self.assertIn('Metadata', a[0])
+            self.assertIn('LastUpdate', a[0]['Metadata'])
+            self.assertIn('Instances', a[0])
+            self.assertIn('Labels', a[0])
+            self.assertIn('ParentStudy', a[0])
+            self.assertIn('Status', a[0])
+            self.assertIn('IsStable', a[0])
+            self.assertNotIn('Attachments', a[0])
+
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'Expand': True,
+                                                    'RequestedTags': ['StudyDate']
+                                                    })
+
+            # backward compat for Expand = True at instance level
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('FileSize', a[0])
+            self.assertIn('FileUuid', a[0])
+            self.assertIn('IndexInSeries', a[0])
+            self.assertIn('ParentSeries', a[0])
+            self.assertIn('Labels', a[0])
+            self.assertNotIn('Attachments', a[0])
+            self.assertNotIn('Metadata', a[0])
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'ResponseContent' : ['Attachments'],
+                                                    'RequestedTags': ['StudyDate']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('Attachments', a[0])
+            self.assertIn('Uuid', a[0]['Attachments'][0])
+            self.assertIn('UncompressedSize', a[0]['Attachments'][0])
+
+
+            # 'internal check': make sure we get the SOPClassUID even when we do not request the Metadata
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'SeriesDescription' : 'T*'
+                                                    },
+                                                    'ResponseContent' : [],
+                                                    'RequestedTags': ['SOPClassUID']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
+            self.assertIn('SOPClassUID', a[0]['RequestedTags'])
+
+
+    def test_extended_find_full(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+
+            # Upload 12 instances
+            for i in range(3):
+                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+
+            kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
+            kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
+            brainixFlairSeriesId = '1e2c125c-411b8e86-3f4fe68e-a7584dd3-c6da78f0'
+            brainixEpiSeriesId = '2ac1316d-3e432022-62eabff2-c59f5475-9b1ac3f8'
+            kneeStudyId = '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918'
+            kneePatientId = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT2SeriesId, 'kneeT2')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % kneeT1SeriesId, 'kneeT1')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixFlairSeriesId, 'brainixFlair')
+            DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixEpiSeriesId, 'brainixEpi')
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
+                                                    'Query' : { 
+                                                        'PatientName' : '*'
+                                                    },
+                                                    'RequestedTags': ['StudyDate'],
+                                                    'QueryMetadata' : {
+                                                        'my-metadata': "*nee*"
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'DicomTag',
+                                                            'Key': 'SeriesDescription',
+                                                            'Direction': 'ASC'
+                                                        },
+                                                        {
+                                                            'Type': 'Metadata',
+                                                            'Key': 'my-metadata',
+                                                            'Direction': 'DESC'
+                                                        }
+                                                    ],
+                                                    'ParentPatient': kneePatientId,
+                                                    'ResponseContent' : ['Parent', 'Children', 'MainDicomTags', 'Metadata']
+                                                    })
+
+            self.assertEqual(2, len(a))
+            self.assertEqual(kneeT1SeriesId, a[0]['ID'])
+            self.assertEqual(kneeT2SeriesId, a[1]['ID'])
+            self.assertEqual(kneeStudyId, a[0]['ParentStudy'])
+            self.assertEqual(3, len(a[0]['Instances']))
+            self.assertEqual('', a[0]['Metadata']['RemoteAET'])
