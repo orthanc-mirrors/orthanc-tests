@@ -11306,3 +11306,92 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(kneeStudyId, a[0]['ParentStudy'])
             self.assertEqual(3, len(a[0]['Instances']))
             self.assertEqual('', a[0]['Metadata']['RemoteAET'])
+
+    def test_pagination_and_limit_find_results(self):
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+
+        # LimitFindInstances is set to 20
+        # LimitFindResults is set to 10
+
+        # Upload 27 instances from KNIX
+        UploadFolder(_REMOTE, 'Knix/Loc')
+
+        # Upload 13 other series
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        UploadInstance(_REMOTE, 'Phenix/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Implicit-vr-us-palette.dcm')
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'PrivateTags.dcm')
+        UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Encodings/Lena-ascii.dcm')
+
+        self.assertEqual(14, len(DoGet(_REMOTE, '/series')))
+
+        knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False
+                                                })
+
+        # pprint.pprint(knixInstancesNoLimit)
+        self.assertEqual(21, len(knixInstancesNoLimit))  # Orthanc actually returns LimitFindInstances + 1 resources
+
+        knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False,
+                                                'Since': 5,
+                                                'Limit': 20
+                                                })
+        # pprint.pprint(knixInstancesSince5Limit20)
+        
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
+            # the first 5 from previous call shall not be in this answer
+            for i in range(0, 5):
+                self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
+            # the last 4 from last call shall not be in the first answer
+            for i in range(16, 20):
+                self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
+
+        seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Series',
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'Expand': False
+                                                })
+
+        # pprint.pprint(seriesNoLimit)
+        self.assertEqual(11, len(seriesNoLimit))  # Orthanc actually returns LimitFindResults + 1 resources
+
+        seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Series',
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'Expand': False,
+                                                'Since': 8,
+                                                'Limit': 6
+                                                })
+
+        # pprint.pprint(seriesSince8Limit6)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            self.assertEqual(6, len(seriesSince8Limit6))
+
+            # the first 7 from previous call shall not be in this answer
+            for i in range(0, 7):
+                self.assertNotIn(seriesNoLimit[i], knixInstancesSince5Limit20)
+            # the last 3 from last call shall not be in the first answer
+            for i in range(3, 5):
+                self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
