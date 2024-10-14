@@ -11123,7 +11123,7 @@ class Orthanc(unittest.TestCase):
                                                  'Query' : { 
                                                     'SeriesDescription' : 'T*'
                                                 },
-                                                'QueryMetadata' : {
+                                                'MetadataQuery' : {
                                                     'my-metadata': '*2*'
                                                 }
                                                 })
@@ -11281,7 +11281,7 @@ class Orthanc(unittest.TestCase):
                                                         'PatientName' : '*'
                                                     },
                                                     'RequestedTags': ['StudyDate'],
-                                                    'QueryMetadata' : {
+                                                    'MetadataQuery' : {
                                                         'my-metadata': "*nee*"
                                                     },
                                                     'OrderBy' : [
