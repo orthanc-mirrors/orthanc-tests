@@ -11342,7 +11342,7 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(knixInstancesNoLimit)
-        self.assertEqual(21, len(knixInstancesNoLimit))  # Orthanc actually returns LimitFindInstances + 1 resources
+        self.assertEqual(20, len(knixInstancesNoLimit))
 
         knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Instances',
@@ -11364,6 +11364,19 @@ class Orthanc(unittest.TestCase):
             for i in range(16, 20):
                 self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
 
+        # request more instances than LimitFindInstances
+        knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False,
+                                                'Since': 0,
+                                                'Limit': 23
+                                                })
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            self.assertEqual(20, len(knixInstancesSince0Limit23))
+
         seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Series',
                                                 'Query' : { 
@@ -11373,7 +11386,7 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(seriesNoLimit)
-        self.assertEqual(11, len(seriesNoLimit))  # Orthanc actually returns LimitFindResults + 1 resources
+        self.assertEqual(10, len(seriesNoLimit))
 
         seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Series',
@@ -11391,7 +11404,7 @@ class Orthanc(unittest.TestCase):
 
             # the first 7 from previous call shall not be in this answer
             for i in range(0, 7):
-                self.assertNotIn(seriesNoLimit[i], knixInstancesSince5Limit20)
+                self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
             # the last 3 from last call shall not be in the first answer
             for i in range(3, 5):
                 self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
