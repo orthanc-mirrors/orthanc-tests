@@ -11333,6 +11333,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(14, len(DoGet(_REMOTE, '/series')))
 
+
         knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Instances',
                                                 'Query' : { 
@@ -11342,7 +11343,10 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(knixInstancesNoLimit)
-        self.assertEqual(20, len(knixInstancesNoLimit))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            self.assertEqual(20, len(knixInstancesNoLimit))
+        else:
+            self.assertEqual(21, len(knixInstancesNoLimit))
 
         knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Instances',
@@ -11376,6 +11380,8 @@ class Orthanc(unittest.TestCase):
                                                 })
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
             self.assertEqual(20, len(knixInstancesSince0Limit23))
+        else:
+            self.assertEqual(21, len(knixInstancesSince0Limit23))
 
         seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Series',
@@ -11386,7 +11392,10 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(seriesNoLimit)
-        self.assertEqual(10, len(seriesNoLimit))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            self.assertEqual(10, len(seriesNoLimit))
+        else:
+            self.assertEqual(11, len(seriesNoLimit))
 
         seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Series',
@@ -11408,3 +11417,27 @@ class Orthanc(unittest.TestCase):
             # the last 3 from last call shall not be in the first answer
             for i in range(3, 5):
                 self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
+
+        # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
+        a = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PhotometricInterpretation' : 'MONOCHROME*'
+                                                },
+                                                'Expand': True,
+                                                'OrderBy' : [
+                                                        {
+                                                            'Type': 'DicomTag',
+                                                            'Key': 'InstanceNumber',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                ]})
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+            # pprint.pprint(a)
+            # print(len(a))
+            # TODO: we should have something in the response that notifies us that the response is not "complete"
+            # TODO: we should receive an error if we try to use "since" in this kind of search ?
+            self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 meet the criteria
+        else:
+            self.assertEqual(21, len(a))   # previous Orthanc version returns 21 instances because they are not ordered and, by chance, Orthanc picks 21 instances that are matching the criteria
