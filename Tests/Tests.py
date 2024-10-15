@@ -11098,6 +11098,16 @@ class Orthanc(unittest.TestCase):
 
             self.assertEqual(6, len(a))
 
+            # same query in count-resources
+            a = DoPost(_REMOTE, '/tools/count-resources', { 'Level' : 'Instance',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(6, a["Count"])
+
 
     def test_extended_find_filter_metadata(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
@@ -11119,17 +11129,24 @@ class Orthanc(unittest.TestCase):
             DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixEpiSeriesId, 'brainixEpi')
 
             # filter on metadata
-            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                                 'Query' : { 
-                                                    'SeriesDescription' : 'T*'
-                                                },
-                                                'MetadataQuery' : {
-                                                    'my-metadata': '*2*'
-                                                }
-                                                })
+            q = {
+                'Level' : 'Series',
+                'Query' : { 
+                    'SeriesDescription' : 'T*'
+                },
+                'MetadataQuery' : {
+                    'my-metadata': '*2*'
+                }
+            }
+            a = DoPost(_REMOTE, '/tools/find', q)
 
             self.assertEqual(1, len(a))
             self.assertEqual(kneeT2SeriesId, a[0])
+
+            a = DoPost(_REMOTE, '/tools/count-resources', q)
+            self.assertEqual(1, a["Count"])
+
+
 
     def test_extended_find_expand(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
