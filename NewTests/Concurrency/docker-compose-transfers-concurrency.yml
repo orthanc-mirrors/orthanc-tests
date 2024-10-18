@@ -12,7 +12,8 @@ services:
       VERBOSE_STARTUP: "true"
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
-      # increase this timeout for large transfers
+      # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
+      ORTHANC__HTTP_TIMEOUT: "60"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       # disable DICOMWEB to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
       DICOM_WEB_PLUGIN_ENABLED: "false"
@@ -45,7 +46,8 @@ services:
       VERBOSE_STARTUP: "true"
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
-      # increase this timeout for large transfers
+      # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
+      ORTHANC__HTTP_TIMEOUT: "60"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       DICOM_WEB_PLUGIN_ENABLED: "false"
       ORTHANC__POSTGRESQL: |
