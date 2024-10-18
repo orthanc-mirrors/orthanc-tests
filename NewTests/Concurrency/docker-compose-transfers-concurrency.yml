@@ -9,7 +9,7 @@ services:
     ports: ["8062:8042"]
     volumes: ["storage-orthanc-a:/var/lib/orthanc/db"]
     environment:
-      # VERBOSE_ENABLED: "true"
+      VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
       # disable DICOMWEB to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
       DICOM_WEB_PLUGIN_ENABLED: "false"
@@ -39,7 +39,7 @@ services:
     ports: ["8063:8042"]
     volumes: ["storage-orthanc-b:/var/lib/orthanc/db"]
     environment:
-      # VERBOSE_ENABLED: "true"
+      VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
       DICOM_WEB_PLUGIN_ENABLED: "false"
       ORTHANC__POSTGRESQL: |

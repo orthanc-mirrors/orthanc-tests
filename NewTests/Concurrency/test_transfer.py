@@ -110,6 +110,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
                 job = oa.jobs.get(orthanc_id=remote_job.remote_job_id)
                 job.wait_completed(polling_interval=0.1)
 
+                self.assertTrue(job.is_complete())
                 self.assertEqual(instances_count, oa.get_statistics().instances_count)
                 self.assertEqual(disk_size, oa.get_statistics().total_disk_size)
                 oa.delete_all_content()
