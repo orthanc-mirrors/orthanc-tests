@@ -9,6 +9,7 @@ services:
     ports: ["8062:8042"]
     volumes: ["storage-orthanc-a:/var/lib/orthanc/db"]
     environment:
+      VERBOSE_STARTUP: "true"
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
       # increase this timeout for large transfers
@@ -41,6 +42,7 @@ services:
     ports: ["8063:8042"]
     volumes: ["storage-orthanc-b:/var/lib/orthanc/db"]
     environment:
+      VERBOSE_STARTUP: "true"
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
       # increase this timeout for large transfers
