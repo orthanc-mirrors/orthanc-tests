@@ -11,6 +11,8 @@ services:
     environment:
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
+      # increase this timeout for large transfers
+      ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       # disable DICOMWEB to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
       DICOM_WEB_PLUGIN_ENABLED: "false"
       ORTHANC__POSTGRESQL: |
@@ -41,6 +43,8 @@ services:
     environment:
       VERBOSE_ENABLED: "true"
       TRANSFERS_PLUGIN_ENABLED: "true"
+      # increase this timeout for large transfers
+      ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       DICOM_WEB_PLUGIN_ENABLED: "false"
       ORTHANC__POSTGRESQL: |
         {
