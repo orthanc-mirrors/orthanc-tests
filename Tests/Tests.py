@@ -1307,7 +1307,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('LastUpdate' in m)
 
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             self.assertEqual(4, len(m))
             self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
         elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
@@ -1567,7 +1567,7 @@ class Orthanc(unittest.TestCase):
 
         series = DoGet(_REMOTE, '/series')[0]
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             self.assertEqual(4, len(m))
             self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
         elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
@@ -3017,7 +3017,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&since=10' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&limit=10' % i))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5)  and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged:   # with ExtendedFind, the limit=0 means no-limit like in /tools/find
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5): # with ExtendedFind, the limit=0 means no-limit like in /tools/find
             self.assertEqual(2, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
             self.assertEqual(1, len(DoGet(_REMOTE, '/patients?since=1&limit=0')))
             self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=2&limit=0')))
@@ -11360,7 +11360,7 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(knixInstancesNoLimit)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             self.assertEqual(20, len(knixInstancesNoLimit))
         else:
             self.assertEqual(21, len(knixInstancesNoLimit))
@@ -11395,10 +11395,8 @@ class Orthanc(unittest.TestCase):
                                                 'Since': 0,
                                                 'Limit': 23
                                                 })
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             self.assertEqual(20, len(knixInstancesSince0Limit23))
-        else:
-            self.assertEqual(21, len(knixInstancesSince0Limit23))
 
         seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
                                                 'Level' : 'Series',
@@ -11409,7 +11407,7 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(seriesNoLimit)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             self.assertEqual(10, len(seriesNoLimit))
         else:
             self.assertEqual(11, len(seriesNoLimit))
@@ -11425,7 +11423,7 @@ class Orthanc(unittest.TestCase):
                                                 })
 
         # pprint.pprint(seriesSince8Limit6)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
             self.assertEqual(6, len(seriesSince8Limit6))
 
             # the first 7 from previous call shall not be in this answer
@@ -11435,26 +11433,24 @@ class Orthanc(unittest.TestCase):
             for i in range(3, 5):
                 self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
 
-        # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
-        a = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Instances',
-                                                'Query' : { 
-                                                    'PhotometricInterpretation' : 'MONOCHROME*'
-                                                },
-                                                'Expand': True,
-                                                'OrderBy' : [
-                                                        {
-                                                            'Type': 'DicomTag',
-                                                            'Key': 'InstanceNumber',
-                                                            'Direction': 'ASC'
-                                                        }
-                                                ]})
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
+            # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
+            a = DoPost(_REMOTE, '/tools/find', {    
+                                                    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Expand': True,
+                                                    'OrderBy' : [
+                                                            {
+                                                                'Type': 'DicomTag',
+                                                                'Key': 'InstanceNumber',
+                                                                'Direction': 'ASC'
+                                                            }
+                                                    ]})
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
             # pprint.pprint(a)
             # print(len(a))
             # TODO: we should have something in the response that notifies us that the response is not "complete"
             # TODO: we should receive an error if we try to use "since" in this kind of search ?
             self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 meet the criteria
-        else:
-            self.assertEqual(21, len(a))   # previous Orthanc version returns 21 instances because they are not ordered and, by chance, Orthanc picks 21 instances that are matching the criteria
