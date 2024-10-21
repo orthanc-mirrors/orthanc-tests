@@ -91,7 +91,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def test_pull(self):
         oa, ob = self.clean_start()
 
-        populator = OrthancTestDbPopulator(ob, studies_count=5, random_seed=65)
+        populator = OrthancTestDbPopulator(ob, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = ob.studies.get_all_ids()
