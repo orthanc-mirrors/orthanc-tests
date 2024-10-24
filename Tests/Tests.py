@@ -4334,93 +4334,96 @@ class Orthanc(unittest.TestCase):
                                              'Query' : { 'PatientPosition' : '*' }})
         self.assertEqual(3, len(a))
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Limit' : 0})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+        if not HasExtendedFind(_REMOTE):  # once you have ExtendedFind, usage of Limit and Since is forbidden when filtering on tags that are not in DB because that's just impossible to use on real life DB !
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[0], b[0])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Limit' : 0})
+            self.assertEqual(3, len(b))
+            self.assertEqual(a[0], b[0])
+            self.assertEqual(a[1], b[1])
+            self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 3})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Limit' : 1})
+            self.assertEqual(1, len(b))
+            self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 4})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 0,
+                                                'Limit' : 1})
+            self.assertEqual(1, len(b))
+            self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[1], b[0])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 0,
+                                                'Limit' : 3})
+            self.assertEqual(3, len(b))
+            self.assertEqual(a[0], b[0])
+            self.assertEqual(a[1], b[1])
+            self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 2})
-        self.assertEqual(2, len(b))
-        self.assertEqual(a[1], b[0])
-        self.assertEqual(a[2], b[1])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 0,
+                                                'Limit' : 4})
+            self.assertEqual(3, len(b))
+            self.assertEqual(a[0], b[0])
+            self.assertEqual(a[1], b[1])
+            self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 3})
-        self.assertEqual(2, len(b))
-        self.assertEqual(a[1], b[0])
-        self.assertEqual(a[2], b[1])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 1,
+                                                'Limit' : 1})
+            self.assertEqual(1, len(b))
+            self.assertEqual(a[1], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 2,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[2], b[0])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 1,
+                                                'Limit' : 2})
+            self.assertEqual(2, len(b))
+            self.assertEqual(a[1], b[0])
+            self.assertEqual(a[2], b[1])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 2,
-                                             'Limit' : 2})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[2], b[0])
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 1,
+                                                'Limit' : 3})
+            self.assertEqual(2, len(b))
+            self.assertEqual(a[1], b[0])
+            self.assertEqual(a[2], b[1])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 3,
-                                             'Limit' : 1})
-        self.assertEqual(0, len(b))
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 2,
+                                                'Limit' : 1})
+            self.assertEqual(1, len(b))
+            self.assertEqual(a[2], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 3,
-                                             'Limit' : 10})
-        self.assertEqual(0, len(b))
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 2,
+                                                'Limit' : 2})
+            self.assertEqual(1, len(b))
+            self.assertEqual(a[2], b[0])
+
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 3,
+                                                'Limit' : 1})
+            self.assertEqual(0, len(b))
+
+            b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+                                                'Query' : { 'PatientPosition' : '*' },
+                                                'Since' : 3,
+                                                'Limit' : 10})
+            self.assertEqual(0, len(b))
 
 
     def test_bitbucket_issue_46(self):
@@ -11325,8 +11328,6 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('', a[0]['Metadata']['RemoteAET'])
 
     def test_pagination_and_limit_find_results(self):
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
         # LimitFindInstances is set to 20
         # LimitFindResults is set to 10
 
@@ -11433,7 +11434,7 @@ class Orthanc(unittest.TestCase):
             for i in range(3, 5):
                 self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
             a = DoPost(_REMOTE, '/tools/find', {    
                                                     'Level' : 'Instances',
@@ -11453,4 +11454,21 @@ class Orthanc(unittest.TestCase):
             # print(len(a))
             # TODO: we should have something in the response that notifies us that the response is not "complete"
             # TODO: we should receive an error if we try to use "since" in this kind of search ?
-            self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 meet the criteria
+            self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', {'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Since': 2
+                                                    }))
+
+            # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', {'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Limit': 10
+                                                    }))
