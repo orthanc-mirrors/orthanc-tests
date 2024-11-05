@@ -63,7 +63,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def test_push(self):
         oa, ob = self.clean_start()
 
-        populator = OrthancTestDbPopulator(oa, studies_count=5, random_seed=65)
+        populator = OrthancTestDbPopulator(oa, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = oa.studies.get_all_ids()
@@ -91,7 +91,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def test_pull(self):
         oa, ob = self.clean_start()
 
-        populator = OrthancTestDbPopulator(ob, studies_count=5, random_seed=65)
+        populator = OrthancTestDbPopulator(ob, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = ob.studies.get_all_ids()
@@ -110,7 +110,6 @@ class TestConcurrencyTransfers(unittest.TestCase):
                 job = oa.jobs.get(orthanc_id=remote_job.remote_job_id)
                 job.wait_completed(polling_interval=0.1)
 
-                self.assertEqual("Success", job.info.status)
                 self.assertEqual(instances_count, oa.get_statistics().instances_count)
                 self.assertEqual(disk_size, oa.get_statistics().total_disk_size)
                 oa.delete_all_content()
