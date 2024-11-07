@@ -10742,7 +10742,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/studies/%s?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
         else:
-            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+            a = DoGet(_REMOTE, '/studies/%s?requestedTags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
 
         self.assertEqual(4, len(a['RequestedTags']))
         self.assertEqual('CT\\PT', a['RequestedTags']['ModalitiesInStudy'])
@@ -10753,7 +10753,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/patients/%s?requested-tags=0020,1200;0020,1202;0020,1204' % patient)
         else:
-            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0020,1200;0020,1202;0020,1204' % study)
+            a = DoGet(_REMOTE, '/studies/%s?requestedTags=0020,1200;0020,1202;0020,1204' % study)
         self.assertEqual(3, len(a['RequestedTags']))
         self.assertEqual(1, int(a['RequestedTags']['NumberOfPatientRelatedStudies']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfPatientRelatedSeries']))
