@@ -10727,7 +10727,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):     # the old syntax is still required for the upgrade/downgrade PG tests
             a = DoGet(_REMOTE, '/instances/%s?requested-tags=0008,0056' % instance)
         else:
-            a = DoGet(_REMOTE, '/instances/%s?RequestedTags=0008,0056' % instance)
+            a = DoGet(_REMOTE, '/instances/%s?requestedTags=0008,0056' % instance)
         
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual('ONLINE', a['RequestedTags']['InstanceAvailability'])
@@ -10735,7 +10735,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/series/%s?requested-tags=0020,1209' % series)
         else:
-            a = DoGet(_REMOTE, '/series/%s?RequestedTags=0020,1209' % series)
+            a = DoGet(_REMOTE, '/series/%s?requestedTags=0020,1209' % series)
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfSeriesRelatedInstances']))
 
