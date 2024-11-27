@@ -176,43 +176,49 @@ class TestConcurrency(OrthancTestCase):
         for t in workers:
             t.join()
 
-    # TODO: reactivate once 1.12.4 is released.  It needs this fix: https://orthanc.uclouvain.be/hg/orthanc/rev/acdb8d78bf99
-    # def test_concurrent_uploads_same_study(self):
-    #     if self.o.is_orthanc_version_at_least(1, 12, 4):
+    def test_concurrent_uploads_same_study(self):
+        if self.o.is_orthanc_version_at_least(1, 12, 4):
 
-    #         self.o.delete_all_content()
-    #         self.clear_storage(storage_name=self._storage_name)
+            self.o.delete_all_content()
+            self.clear_storage(storage_name=self._storage_name)
 
-    #         start_time = time.time()
-    #         workers_count = 20
-    #         repeat_count = 10
+            start_time = time.time()
+            workers_count = 20
+            repeat_count = 5
 
-    #         # massively reupload the same study multiple times with OverwriteInstances set to true
-    #         # Make sure the studies, series and instances are created only once
-    #         self.execute_workers(
-    #             worker_func=worker_upload_folder,
-    #             worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
-    #             workers_count=workers_count)
+            # massively reupload the same study multiple times with OverwriteInstances set to true
+            # Make sure the studies, series and instances are created only once
+            self.execute_workers(
+                worker_func=worker_upload_folder,
+                worker_args=(self.o._root_url, here / "../../Database/Knee", repeat_count,),
+                workers_count=workers_count)
 
-    #         elapsed = time.time() - start_time
-    #         print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
+            elapsed = time.time() - start_time
+            print(f"TIMING test_concurrent_uploads_same_study with {workers_count} workers and {repeat_count}x repeat: {elapsed:.3f} s")
 
-    #         self.assertTrue(self.o.is_alive())
+            self.assertTrue(self.o.is_alive())
 
-    #         self.assertEqual(1, len(self.o.studies.get_all_ids()))
-    #         self.assertEqual(2, len(self.o.series.get_all_ids()))
-    #         self.assertEqual(50, len(self.o.instances.get_all_ids()))
+            self.assertEqual(1, len(self.o.studies.get_all_ids()))
+            self.assertEqual(2, len(self.o.series.get_all_ids()))
+            self.assertEqual(50, len(self.o.instances.get_all_ids()))
 
-    #         stats = self.o.get_json("statistics")
-    #         self.assertEqual(1, stats.get("CountPatients"))
-    #         self.assertEqual(1, stats.get("CountStudies"))
-    #         self.assertEqual(2, stats.get("CountSeries"))
-    #         self.assertEqual(50, stats.get("CountInstances"))
-    #         self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
+            # check the computed count tags
+            patients = self.o.get_json("/patients?requested-tags=NumberOfPatientRelatedInstances;NumberOfPatientRelatedSeries;NumberOfPatientRelatedStudies&expand=true")
+            self.assertEqual(50, int(patients[0]['RequestedTags']['NumberOfPatientRelatedInstances']))
+            self.assertEqual(2, int(patients[0]['RequestedTags']['NumberOfPatientRelatedSeries']))
+            self.assertEqual(1, int(patients[0]['RequestedTags']['NumberOfPatientRelatedStudies']))
 
-    #         self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
 
-    #         self.check_is_empty()
+            stats = self.o.get_json("statistics")
+            self.assertEqual(1, stats.get("CountPatients"))
+            self.assertEqual(1, stats.get("CountStudies"))
+            self.assertEqual(2, stats.get("CountSeries"))
+            self.assertEqual(50, stats.get("CountInstances"))
+            self.assertEqual(4118738, int(stats.get("TotalDiskSize")))
+
+            self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
+
+            self.check_is_empty()
 
     def test_concurrent_anonymize_same_study(self):
         self.o.delete_all_content()
@@ -254,6 +260,13 @@ class TestConcurrency(OrthancTestCase):
         self.assertEqual(2 * (1 + workers_count * repeat_count), count_changes(changes, ChangeType.NEW_SERIES))
         self.assertEqual(50 * (1 + workers_count * repeat_count), count_changes(changes, ChangeType.NEW_INSTANCE))
 
+        # check the computed count tags
+        patients = self.o.get_json("/patients?requested-tags=NumberOfPatientRelatedInstances;NumberOfPatientRelatedSeries;NumberOfPatientRelatedStudies&expand=true")
+        for patient in patients:
+            self.assertEqual(50, int(patient['RequestedTags']['NumberOfPatientRelatedInstances']))
+            self.assertEqual(2, int(patient['RequestedTags']['NumberOfPatientRelatedSeries']))
+            self.assertEqual(1, int(patient['RequestedTags']['NumberOfPatientRelatedStudies']))
+
         start_time = time.time()
 
         self.o.instances.delete(orthanc_ids=self.o.instances.get_all_ids())
@@ -283,6 +296,13 @@ class TestConcurrency(OrthancTestCase):
                 workers_count=workers_count)
 
             self.check_is_empty()
+
+        # let's upload it one more time and check the children counts
+        self.o.upload_folder(here / "../../Database/Knee")
+        patients = self.o.get_json("/patients?requested-tags=NumberOfPatientRelatedInstances;NumberOfPatientRelatedSeries;NumberOfPatientRelatedStudies&expand=true")
+        self.assertEqual(50, int(patients[0]['RequestedTags']['NumberOfPatientRelatedInstances']))
+        self.assertEqual(2, int(patients[0]['RequestedTags']['NumberOfPatientRelatedSeries']))
+        self.assertEqual(1, int(patients[0]['RequestedTags']['NumberOfPatientRelatedStudies']))
 
         elapsed = time.time() - start_time
         print(f"TIMING test_upload_delete_same_study_from_multiple_threads with {workers_count} workers and {repeat_count}x repeat ({overall_repeat}x): {elapsed:.3f} s")
