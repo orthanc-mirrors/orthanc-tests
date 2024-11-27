@@ -84,7 +84,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
                 self.assertEqual(disk_size, ob.get_statistics().total_disk_size)
 
                 # check the computed count tags
-                studies = self.ob.get_json("/studies?requested-tags=NumberOfStudyRelatedInstances;NumberOfStudyRelatedSeries&expand=true")
+                studies = ob.get_json("/studies?requested-tags=NumberOfStudyRelatedInstances;NumberOfStudyRelatedSeries&expand=true")
                 for study in studies:
                     self.assertEqual(400, int(study['RequestedTags']['NumberOfStudyRelatedInstances']))
                     self.assertEqual(2, int(study['RequestedTags']['NumberOfStudyRelatedSeries']))
