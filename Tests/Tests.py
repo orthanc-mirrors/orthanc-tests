@@ -1979,12 +1979,12 @@ class Orthanc(unittest.TestCase):
         
         self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/module' % p))
         self.assertTrue('PatientName' in DoGet(_REMOTE, '/patients/%s/module?simplify' % p))
-        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/studies/%s/module-patient' % p))
-        self.assertTrue('PatientName' in DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % p))
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/studies/%s/module-patient' % s))
+        self.assertTrue('PatientName' in DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % s))
         self.assertTrue('0008,1030' in DoGet(_REMOTE, '/studies/%s/module' % s))
         self.assertTrue('StudyDescription' in DoGet(_REMOTE, '/studies/%s/module?simplify' % s))
-        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/series/%s/module' % p))
-        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/series/%s/module?simplify' % p))
+        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/series/%s/module' % t))
+        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/series/%s/module?simplify' % t))
         self.assertTrue('0008,0018' in DoGet(_REMOTE, '/instances/%s/module' % a))
         self.assertTrue('SOPInstanceUID' in DoGet(_REMOTE, '/instances/%s/module?simplify' % a))
 
@@ -2529,21 +2529,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         self.assertEqual('887', i[i.keys()[1]]['PatientID'])
 
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/studies')[0])
+        i = DoGet(_REMOTE, '/studies/%s/instances-tags?simplify' % DoGet(_REMOTE, '/studies')[0])
         self.assertEqual(2, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         self.assertEqual('887', i[i.keys()[1]]['PatientID'])
 
         self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[0])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[0])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[1])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[1])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
 
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?short' % DoGet(_REMOTE, '/series')[1])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?short' % DoGet(_REMOTE, '/series')[1])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['0010,0020'])
 
