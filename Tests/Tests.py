@@ -10793,6 +10793,108 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('', a[0]['RequestedTags']['PatientComments'])
 
 
+    def test_attachment_range(self):
+        def TestData(path):
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path))
+            self.assertFalse('content-range' in resp)
+            self.assertEqual(200, resp.status)
+            self.assertEqual(2472, len(content))
+            self.assertEqual('2472', resp['content-length'])
+            self.assertEqual('application/dicom', resp['content-type'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=128-131' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(4, len(content))
+            self.assertEqual('D', content[0])
+            self.assertEqual('I', content[1])
+            self.assertEqual('C', content[2])
+            self.assertEqual('M', content[3])
+            self.assertEqual('4', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 128-131/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(2472, len(content))
+            self.assertEqual('2472', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-2471/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=128-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(2344, len(content))
+            self.assertEqual('D', content[0])
+            self.assertEqual('I', content[1])
+            self.assertEqual('C', content[2])
+            self.assertEqual('M', content[3])
+            self.assertEqual('2344', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 128-2471/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=-131' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(132, len(content))
+            self.assertEqual('D', content[-4])
+            self.assertEqual('I', content[-3])
+            self.assertEqual('C', content[-2])
+            self.assertEqual('M', content[-1])
+            self.assertEqual('132', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-131/2472', resp['content-range'])
+
+        i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/uncompress' % i)
+        TestData('data')
+        TestData('compressed-data')
+
+        DoPost(_REMOTE, '/instances/%s/attachments/dicom/compress' % i)
+        TestData('data')
+
+        (resp, compressed) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i)
+        self.assertFalse('content-range' in resp)
+        self.assertEqual(200, resp.status)
+        self.assertTrue(len(compressed) < 2000)
+        self.assertEqual(len(compressed), int(resp['content-length']))
+        self.assertEqual('application/octet-stream', resp['content-type'])
+
+        (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=-' })
+        self.assertTrue('content-range' in resp)
+        self.assertEqual(206, resp.status)
+        self.assertEqual(compressed, content)
+        self.assertEqual(len(compressed), int(resp['content-length']))
+        self.assertEqual('application/octet-stream', resp['content-type'])
+        self.assertEqual('bytes 0-%d/%d' % (len(compressed) - 1, len(compressed)), resp['content-range'])
+
+        (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=10-' })
+        self.assertTrue('content-range' in resp)
+        self.assertEqual(206, resp.status)
+        self.assertEqual(compressed[10:], content)
+        self.assertEqual(len(compressed) - 10, int(resp['content-length']))
+        self.assertEqual('application/octet-stream', resp['content-type'])
+        self.assertEqual('bytes 10-%d/%d' % (len(compressed) - 1, len(compressed)), resp['content-range'])
+
+        (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=-20' })
+        self.assertTrue('content-range' in resp)
+        self.assertEqual(206, resp.status)
+        self.assertEqual(compressed[0:21], content)
+        self.assertEqual(21, int(resp['content-length']))
+        self.assertEqual('application/octet-stream', resp['content-type'])
+        self.assertEqual('bytes 0-20/%d' % len(compressed), resp['content-range'])
+
+        (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=10-20' })
+        self.assertTrue('content-range' in resp)
+        self.assertEqual(206, resp.status)
+        self.assertEqual(compressed[10:21], content)
+        self.assertEqual(11, int(resp['content-length']))
+        self.assertEqual('application/octet-stream', resp['content-type'])
+        self.assertEqual('bytes 10-20/%d' % len(compressed), resp['content-range'])
+
+
     def test_extended_find_order_by(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
 
