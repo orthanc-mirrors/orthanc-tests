@@ -10798,10 +10798,14 @@ class Orthanc(unittest.TestCase):
 
             # Upload 12 instances
             for i in range(3):
-                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                r = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (10.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (20.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (30.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (40.0 + 0.1 * i))
 
             kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
             kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
@@ -10931,7 +10935,7 @@ class Orthanc(unittest.TestCase):
                                                         'Direction': 'ASC'
                                                     },
                                                     {
-                                                        'Type': 'DicomTag',
+                                                        'Type': 'DicomTagAsInt',
                                                         'Key': 'InstanceNumber',
                                                         'Direction': 'ASC'
                                                     },
@@ -10947,7 +10951,7 @@ class Orthanc(unittest.TestCase):
             for i in range(1, len(a)-1):
                 self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
                 if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
-                    self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] <= a[i]['RequestedTags']['InstanceNumber'])
+                    self.assertTrue(int(a[i-1]['RequestedTags']['InstanceNumber']) <= int(a[i]['RequestedTags']['InstanceNumber']))
                     if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
                         self.assertTrue(a[i-1]['RequestedTags']['SeriesTime'] <= a[i]['RequestedTags']['SeriesTime'])    
 
@@ -10958,7 +10962,7 @@ class Orthanc(unittest.TestCase):
                                                 },
                                                 'OrderBy' : [
                                                     {
-                                                        'Type': 'DicomTag',
+                                                        'Type': 'DicomTagAsInt',
                                                         'Key': 'InstanceNumber',
                                                         'Direction': 'DESC'
                                                     },
@@ -10977,7 +10981,7 @@ class Orthanc(unittest.TestCase):
                                                 })
             self.assertEqual(12, len(a))
             for i in range(1, len(a)-1):
-                self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] >= a[i]['RequestedTags']['InstanceNumber'])
+                self.assertTrue(int(a[i-1]['RequestedTags']['InstanceNumber']) >= int(a[i]['RequestedTags']['InstanceNumber']))
                 if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
                     self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
                     if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
@@ -11057,6 +11061,35 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(brainixEpiSeriesId, a[1])
             self.assertEqual(kneeT2SeriesId, a[2])
             self.assertEqual(kneeT1SeriesId, a[3])
+
+
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                'ResponseContent': ['Metadata', 'RequestedTags'],
+                                                'Query' : { 
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'MetadataAsFloat',
+                                                        'Key': '1234',
+                                                        'Direction': 'DESC'
+                                                    }
+                                                ],
+                                                'RequestedTags' : ['SeriesDescription']
+                                                })
+            self.assertEqual(12, len(a))
+            for i in range(0, 2):
+                self.assertEqual("T2W_TSE", a[i]['RequestedTags']['SeriesDescription'])
+            self.assertAlmostEqual(40.2, float(a[0]['Metadata']['1234']))
+            self.assertAlmostEqual(40.0, float(a[2]['Metadata']['1234']))
+
+            for i in range(3, 5):
+                self.assertEqual("T1W_aTSE", a[i]['RequestedTags']['SeriesDescription'])
+
+            for i in range(6, 8):
+                self.assertEqual("T2W/FE-EPI", a[i]['RequestedTags']['SeriesDescription'])
+
+            for i in range(9, 11):
+                self.assertEqual("sT2W/FLAIR", a[i]['RequestedTags']['SeriesDescription'])
 
 
     def test_extended_find_parent(self):
