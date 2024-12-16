@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 
@@ -461,7 +461,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(3, len(info['sizes']))
         
-        if IsPluginVersionAbove(ORTHANC, "wsi", 2, 1, 0):   # https://orthanc.uclouvain.be/hg/orthanc-wsi/rev/9dc7f1e8716d
+        if IsPluginVersionAtLeast(ORTHANC, "wsi", 2, 1, 0):   # https://orthanc.uclouvain.be/hg/orthanc-wsi/rev/9dc7f1e8716d
             self.assertEqual(512, info['sizes'][2]['width'])
             self.assertEqual(512, info['sizes'][2]['height'])
             self.assertEqual(256, info['sizes'][1]['width'])
