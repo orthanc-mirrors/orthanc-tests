@@ -82,6 +82,16 @@ class TestConcurrencyTransfers(unittest.TestCase):
                 
                 self.assertEqual(instances_count, ob.get_statistics().instances_count)
                 self.assertEqual(disk_size, ob.get_statistics().total_disk_size)
+
+                # check the computed count tags
+                studies = ob.get_json("/studies?requested-tags=NumberOfStudyRelatedInstances;NumberOfStudyRelatedSeries&expand=true")
+                for study in studies:
+                    instance_count_a = len(oa.studies.get_instances_ids(study["ID"]))
+                    instance_count_b = len(ob.studies.get_instances_ids(study["ID"]))
+                    self.assertEqual(instance_count_a, instance_count_b)
+                    self.assertEqual(instance_count_a, int(study['RequestedTags']['NumberOfStudyRelatedInstances']))
+                    self.assertEqual(2, int(study['RequestedTags']['NumberOfStudyRelatedSeries']))
+
                 ob.delete_all_content()
 
             elapsed = time.time() - start_time
@@ -112,6 +122,16 @@ class TestConcurrencyTransfers(unittest.TestCase):
 
                 self.assertEqual(instances_count, oa.get_statistics().instances_count)
                 self.assertEqual(disk_size, oa.get_statistics().total_disk_size)
+
+                # check the computed count tags
+                studies = oa.get_json("/studies?requested-tags=NumberOfStudyRelatedInstances;NumberOfStudyRelatedSeries&expand=true")
+                for study in studies:
+                    instance_count_a = len(oa.studies.get_instances_ids(study["ID"]))
+                    instance_count_b = len(ob.studies.get_instances_ids(study["ID"]))
+                    self.assertEqual(instance_count_a, instance_count_b)
+                    self.assertEqual(instance_count_a, int(study['RequestedTags']['NumberOfStudyRelatedInstances']))
+                    self.assertEqual(2, int(study['RequestedTags']['NumberOfStudyRelatedSeries']))
+
                 oa.delete_all_content()
 
 
