@@ -10794,8 +10794,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_order_by(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 r = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11093,7 +11092,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_parent(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
@@ -11150,8 +11149,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_filter_metadata(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11189,7 +11187,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_expand(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11313,8 +11311,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_full(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11414,7 +11411,7 @@ class Orthanc(unittest.TestCase):
                                                 })
         # pprint.pprint(knixInstancesSince5Limit20)
         
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
             # the first 5 from previous call shall not be in this answer
             for i in range(0, 5):
