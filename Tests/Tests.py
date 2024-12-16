@@ -10794,7 +10794,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_order_by(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11059,7 +11059,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_parent(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
@@ -11116,7 +11116,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_filter_metadata(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11278,7 +11278,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_full(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
