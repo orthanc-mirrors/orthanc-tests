@@ -2113,7 +2113,7 @@ class Orthanc(unittest.TestCase):
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             a = DoPost(_REMOTE, '/tools/count-resources', { 'Level' : 'Series',
-                                                            'CaseSensitive' : True,
+                                                            'CaseSensitive' : False,
                                                             'Query' : { 'StationName' : 'SMR4-MP3' }})
             self.assertEqual(1, len(a))
             self.assertEqual(1, a['Count'])
@@ -2125,6 +2125,8 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(expectedAnswers, len(a))
 
             if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and executeCountResources:
+                if 'CaseSensitive' in query:
+                    del query['CaseSensitive']
                 b = DoPost(_REMOTE, '/tools/count-resources', query)
                 self.assertEqual(1, len(b))
                 self.assertEqual(expectedAnswers, b['Count'])
@@ -2205,7 +2207,7 @@ class Orthanc(unittest.TestCase):
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*n*' }}
-        CheckFind(query, 0)
+        CheckFind(query, 0, False)  # "CaseSensitive" is not available in "/tools/count-resources"
 
         query = { 'Expand' : True,
                   'Level' : 'Patient',
@@ -2217,7 +2219,7 @@ class Orthanc(unittest.TestCase):
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*ne*' }}
-        CheckFind(query, 0)
+        CheckFind(query, 0, False)  # "CaseSensitive" is not available in "/tools/count-resources"
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
