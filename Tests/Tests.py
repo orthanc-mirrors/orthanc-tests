@@ -2111,8 +2111,26 @@ class Orthanc(unittest.TestCase):
                                              'Query' : { 'StationName' : 'SMR4-MP3' }})
         self.assertEqual(1, len(a))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            a = DoPost(_REMOTE, '/tools/count-resources', { 'Level' : 'Series',
+                                                            'CaseSensitive' : True,
+                                                            'Query' : { 'StationName' : 'SMR4-MP3' }})
+            self.assertEqual(1, len(a))
+            self.assertEqual(1, a['Count'])
+
 
     def test_rest_find(self):
+        def CheckFind(query, expectedAnswers, executeCountResources = True):
+            a = DoPost(_REMOTE, '/tools/find', query)
+            self.assertEqual(expectedAnswers, len(a))
+
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and executeCountResources:
+                b = DoPost(_REMOTE, '/tools/count-resources', query)
+                self.assertEqual(1, len(b))
+                self.assertEqual(expectedAnswers, b['Count'])
+
+            return a
+
         # Upload 12 instances
         for i in range(3):
             UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -2121,175 +2139,174 @@ class Orthanc(unittest.TestCase):
             UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
 
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'PatientName' : '*NE*',
-                                                 'StudyDate': '20080819'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'PatientName' : '*NE*',
-                                                 'PatientBirthDate': '20080101-20081231',
-                                                 'PatientSex': '0000'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
-                                              }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
+                  }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
-                                                 'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
-                                              }})
-        self.assertEqual(3, len(a))
+        query = { 'Level' : 'Instance',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+                      'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
+                  }}
+        CheckFind(query, 3)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyDate' : '20080818-20080820',
-                                                 'Modality': 'MR'
-                                              }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyDate' : '20080818-20080820',
+                      'Modality': 'MR'
+                  }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyDate' : '20080818-',
-                                                 'ModalitiesInStudy': 'MR'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyDate' : '20080818-',
+                      'ModalitiesInStudy': 'MR'
+                  }}
+        CheckFind(query, 1, False)   # "ModalitiesInStudy" is not a main DICOM tag, so unavailable in "/tools/count-resources"
 
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : 'BRAINIX' }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : 'BRAINIX' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : '*n*' }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : '*n*' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*n*' }}
+        #CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*n*' }})
-        self.assertEqual(0, len(a))
-
-        a = DoPost(_REMOTE, '/tools/find', { 'Expand' : True,
-                                             'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : '*ne*' }})
-        self.assertEqual(1, len(a))
+        query = { 'Expand' : True,
+                  'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : '*ne*' }}
+        a = CheckFind(query, 1)
         self.assertEqual('20080822', a[0]['MainDicomTags']['PatientBirthDate'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*ne*' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*ne*' }}
+        #CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(6, len(a))
+        query = { 'Level' : 'Instance',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 6)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient', 'Query' : { }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Patient', 'Query' : { }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : { }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study', 'Query' : { }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series', 'Query' : { }})
-        self.assertEqual(4, len(a))
+        query = { 'Level' : 'Series', 'Query' : { }}
+        CheckFind(query, 4)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance', 'Query' : { }})
-        self.assertEqual(12, len(a))
+        query = { 'Level' : 'Instance', 'Query' : { }}
+        CheckFind(query, 12)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-20061201' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-20061201' }}
+        a = CheckFind(query, 1)
         self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-20091201' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-20091201' }}
+        a = CheckFind(query, 2)
         for i in range(2):
             self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Query' : { 'StudyDate' : '20061202-20061202' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Query' : { 'StudyDate' : '20061202-20061202' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '-20061201' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '-20061201' }}
+        a = CheckFind(query, 1)
         self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '-20051201' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '-20051201' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-' }}
+        a = CheckFind(query, 2)
         for i in range(2):
             self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061202-' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061202-' }}
+        a = CheckFind(query, 1)
         self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20080819-' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20080819-' }}
+        a = CheckFind(query, 1)
         self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20080820-' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20080820-' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Expand' : True,
-                                             'Query' : { 'PatientPosition' : 'HFS' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'Expand' : True,
+                  'Query' : { 'PatientPosition' : 'HFS' }}
+        CheckFind(query, 2, False)   # "PatientPosition" is not a main DICOM tag, so unavailable in "/tools/count-resources"
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Expand' : False,
-                                             'Query' : { 'PatientPosition' : 'HFS' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'Expand' : False,
+                  'Query' : { 'PatientPosition' : 'HFS' }}
+        CheckFind(query, 2, False)   # "PatientPosition" is not a main DICOM tag, so unavailable in "/tools/count-resources"
         
 
     def test_rest_query_retrieve(self):
