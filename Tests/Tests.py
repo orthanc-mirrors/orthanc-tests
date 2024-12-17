@@ -2205,7 +2205,7 @@ class Orthanc(unittest.TestCase):
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*n*' }}
-        #CheckFind(query, 0)
+        CheckFind(query, 0)
 
         query = { 'Expand' : True,
                   'Level' : 'Patient',
@@ -2217,7 +2217,7 @@ class Orthanc(unittest.TestCase):
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*ne*' }}
-        #CheckFind(query, 0)
+        CheckFind(query, 0)
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
