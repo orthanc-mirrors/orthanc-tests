@@ -156,6 +156,9 @@ To run the DICOM TLS tests without Client certificate checks:
 # python CheckDicomTls.py --force OrthancCheckClient
 
 
+To run the Recycling tests:
+# python2 Plugins/Recycling/Run.py --force
+
 
 (Option 2b) With Docker:
 
