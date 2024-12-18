@@ -50,8 +50,10 @@ Housekeeper:
 Run the Housekeeper tests with your locally build version and break between preparation
 and execution to allow you to start your debugger.
 
+//                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+
 python3 NewTests/main.py --pattern=Housekeeper.test_housekeeper.TestHousekeeper.test_before_after_reconstruction \
-                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
                          --orthanc_under_tests_http_port=8043 \
                          --plugin=/home/alain/o/build/orthanc/libHousekeeper.so \
                          --break_after_preparation

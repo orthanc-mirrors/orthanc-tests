@@ -76,7 +76,7 @@ class TestHousekeeper(OrthancTestCase):
         while not completed:
             print('-------------- waiting for housekeeper to finish processing')
             time.sleep(1)
-            housekeeper_status = cls.o.get_json("plugins/housekeeper/status")
+            housekeeper_status = cls.o.get_json("/plugins/housekeeper/status")
             completed = (housekeeper_status["LastProcessedConfiguration"]["StorageCompressionEnabled"] == True) \
                         and (housekeeper_status["LastChangeToProcess"] == housekeeper_status["LastProcessedChange"])
 
