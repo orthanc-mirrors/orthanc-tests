@@ -144,6 +144,12 @@ def CallTiffInfoOnSeries(series):
     return tiff
 
 
+def IsWhite(self, image):
+    e = image.getextrema()
+    self.assertEqual(3, len(e))
+    return e == ((255, 255), (255, 255), (255, 255))
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -577,6 +583,149 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(width, info['tiles'][0]['width'])
             self.assertEqual(height, info['tiles'][0]['height'])
             self.assertEqual([ 1 ], info['tiles'][0]['scaleFactors'])
+
+    def test_on_the_fly(self):
+        a = UploadInstance(ORTHANC, 'Implicit-vr-us-palette.dcm') ['ID']
+
+        self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/wsi/frames-pyramids/%s/1' % a))
+
+        info = DoGet(ORTHANC, '/wsi/frames-pyramids/%s/0' % a)
+        self.assertEqual('#ffffff', info['BackgroundColor'])
+        self.assertEqual(0, info['FrameNumber'])
+        self.assertEqual(a, info['ID'])
+        self.assertEqual(2, len(info['Resolutions']))
+        self.assertEqual(1, info['Resolutions'][0])
+        self.assertEqual(2, info['Resolutions'][1])
+        self.assertEqual(2, len(info['Sizes']))
+        self.assertEqual(832, info['Sizes'][0][0])  # Default padding is (64,64) for an image size (800,600)
+        self.assertEqual(640, info['Sizes'][0][1])
+        self.assertEqual(416, info['Sizes'][1][0])
+        self.assertEqual(320, info['Sizes'][1][1])
+        self.assertEqual(2, info['TilesCount'][0][0])
+        self.assertEqual(2, info['TilesCount'][0][1])
+        self.assertEqual(1, info['TilesCount'][1][0])
+        self.assertEqual(1, info['TilesCount'][1][1])
+        self.assertEqual(512, info['TilesSizes'][0][0])
+        self.assertEqual(512, info['TilesSizes'][0][1])
+        self.assertEqual(512, info['TilesSizes'][1][0])
+        self.assertEqual(512, info['TilesSizes'][1][1])
+        self.assertEqual(832, info['TotalWidth'])
+        self.assertEqual(640, info['TotalHeight'])
+
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/0/0' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/1/0' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/0/1' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/1/1' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/1/2' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/2/1' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/0/2/2' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/1/0/0' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/1/0/1' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/1/1/0' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/frames-tiles/%s/0/1/1/1' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertTrue(IsWhite(self, tile))
+
+    def test_iiif_on_the_fly(self):
+        a = UploadInstance(ORTHANC, 'Implicit-vr-us-palette.dcm') ['ID']
+
+        uri = '/wsi/iiif/frames-pyramids/%s/0' % a
+        manifest = DoGet(ORTHANC, uri + '/manifest.json')
+
+        self.assertEqual('http://iiif.io/api/presentation/3/context.json', manifest['@context'])
+        self.assertEqual('http://localhost:8042%s/manifest.json' % uri, manifest['id'])
+
+        self.assertEqual(1, len(manifest['items']))
+        self.assertEqual(1, len(manifest['items'][0]['items']))
+        self.assertEqual(1, len(manifest['items'][0]['items'][0]['items']))
+
+        self.assertEqual('Manifest', manifest['type'])
+        self.assertEqual('Canvas', manifest['items'][0]['type'])
+        self.assertEqual('AnnotationPage', manifest['items'][0]['items'][0]['type'])
+        self.assertEqual('Annotation', manifest['items'][0]['items'][0]['items'][0]['type'])
+
+        self.assertEqual(' - US -  - ', manifest['label']['en'][0])
+        self.assertEqual('http://localhost:8042%s/canvas/p1' % uri, manifest['items'][0]['id'])
+
+        annotation = manifest['items'][0]['items'][0]
+        self.assertEqual('http://localhost:8042%s/page/p1/1' % uri, annotation['id'])
+        self.assertEqual('AnnotationPage', annotation['type'])
+        self.assertEqual(1, len(annotation['items']))
+
+        item = manifest['items'][0]['items'][0]['items'][0]
+        self.assertEqual('image/jpeg', item['body']['format'])
+        self.assertEqual('Image', item['body']['type'])
+        self.assertEqual(832, item['body']['width'])
+        self.assertEqual(640, item['body']['height'])
+        self.assertEqual('http://localhost:8042%s/full/max/0/default.jpg' % uri, item['body']['id'])
+        self.assertEqual(1, len(item['body']['service']))
+        self.assertEqual('http://localhost:8042%s' % uri, item['body']['service'][0]['id'])
+        self.assertEqual('level0', item['body']['service'][0]['profile'])
+        self.assertEqual('ImageService3', item['body']['service'][0]['type'])
+        self.assertEqual('http://localhost:8042%s/annotation/p1-image' % uri, item['id'])
+        self.assertEqual('painting', item['motivation'])
+        self.assertEqual('Annotation', item['type'])
+        self.assertEqual(manifest['items'][0]['id'], item['target'])
+
+        self.assertEqual(832, manifest['items'][0]['width'])  # Default padding is (64,64) for an image size (800,600)
+        self.assertEqual(640, manifest['items'][0]['height'])
+
+        info = DoGet(ORTHANC, uri + '/info.json')
+        self.assertEqual('http://iiif.io/api/image/3/context.json', info['@context'])
+        self.assertEqual('http://iiif.io/api/image', info['protocol'])
+        self.assertEqual('http://localhost:8042%s' % uri, info['id'])
+        self.assertEqual('level0', info['profile'])
+        self.assertEqual('ImageService3', info['type'])
+        self.assertEqual(832, info['width'])
+        self.assertEqual(640, info['height'])
+
+        self.assertEqual(2, len(info['sizes']))
+        self.assertEqual(320, info['sizes'][0]['height'])
+        self.assertEqual(416, info['sizes'][0]['width'])
+        self.assertEqual(640, info['sizes'][1]['height'])
+        self.assertEqual(832, info['sizes'][1]['width'])
+
+        self.assertEqual(1, len(info['tiles']))
+        self.assertEqual(512, info['tiles'][0]['width'])
+        self.assertEqual(512, info['tiles'][0]['height'])
+        self.assertEqual([1, 2], info['tiles'][0]['scaleFactors'])
+
+        # Those are the calls made by Mirador
+        tile = GetImage(ORTHANC, '/wsi/iiif/frames-pyramids/%s/0/full/416,320/0/default.jpg' % a)
+        self.assertEqual((416, 320), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/iiif/frames-pyramids/%s/0/0,0,512,512/512,512/0/default.jpg' % a)
+        self.assertEqual((512, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/iiif/frames-pyramids/%s/0/512,0,320,512/320,512/0/default.jpg' % a)
+        self.assertEqual((320, 512), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/iiif/frames-pyramids/%s/0/0,512,512,128/512,128/0/default.jpg' % a)
+        self.assertEqual((512, 128), tile.size)
+        self.assertFalse(IsWhite(self, tile))
+        tile = GetImage(ORTHANC, '/wsi/iiif/frames-pyramids/%s/0/512,512,320,128/320,128/0/default.jpg' % a)
+        self.assertEqual((320, 128), tile.size)
+        self.assertFalse(IsWhite(self, tile))
 
 try:
     print('\nStarting the tests...')
