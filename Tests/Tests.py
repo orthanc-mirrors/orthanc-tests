@@ -11526,6 +11526,28 @@ class Orthanc(unittest.TestCase):
                                                     'Limit': 10
                                                     }))
 
+        # disabled while waiting for https://github.com/orthanc-server/orthanc-explorer-2/issues/73 to be fixed
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 6) and HasExtendedFind(_REMOTE):
+        #     # make sur no error is returned when using Since or Limit when querying against ModalitiesInStudy
+        #     a = DoPost(_REMOTE, '/tools/find', {'Level' : 'Studies',
+        #                                         'Query' : { 
+        #                                             'ModalitiesInStudy' : 'CT\\MR'
+        #                                         },
+        #                                         'Since': 2,
+        #                                         'Limit': 3,
+        #                                         'Expand': True,
+        #                                         'OrderBy': [
+        #                                             {
+        #                                                 'Type': 'DicomTag',
+        #                                                 'Key': 'StudyDate',
+        #                                                 'Direction': 'ASC'
+        #                                             }                                                        
+        #                                         ]})
+        #     # pprint.pprint(a)
+        #     self.assertEqual('20050927', a[0]['MainDicomTags']['StudyDate'])
+        #     self.assertEqual('20061201', a[1]['MainDicomTags']['StudyDate'])
+        #     self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
+
 
     def test_attachment_range(self):
         def TestData(path):
