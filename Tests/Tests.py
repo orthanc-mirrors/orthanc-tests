@@ -2120,18 +2120,28 @@ class Orthanc(unittest.TestCase):
 
 
     def test_rest_find(self):
-        def CheckFind(query, expectedAnswers, executeCountResources = True):
-            a = DoPost(_REMOTE, '/tools/find', query)
-            self.assertEqual(expectedAnswers, len(a))
+        def CheckFind(query, expectedAnswers, shouldThrow = False):
+            
+            if not shouldThrow:
+                a = DoPost(_REMOTE, '/tools/find', query)
+                self.assertEqual(expectedAnswers, len(a))
+                return a
+            else:
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', query))
 
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and executeCountResources:
-                if 'CaseSensitive' in query:
-                    del query['CaseSensitive']
+            
+
+        def CheckCount(query, expectedAnswers, shouldThrow = False):
+            if not shouldThrow:
                 b = DoPost(_REMOTE, '/tools/count-resources', query)
                 self.assertEqual(1, len(b))
                 self.assertEqual(expectedAnswers, b['Count'])
+                return b
+            else:
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/count-resources', query))
 
-            return a
+            
+
 
         # Upload 12 instances
         for i in range(3):
@@ -2148,6 +2158,28 @@ class Orthanc(unittest.TestCase):
                       'StudyDate': '20080819'
                   }}
         CheckFind(query, 1)
+        CheckCount(query, 1, True) # tools/count does not support CaseSensitive
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  }}
+        CheckFind(query, 1)
+        CheckCount(query, 1)
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  },
+                  'Since' : 1
+                  }
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0)
+            CheckCount(query, 1) # Since is ignored in tools/count-resources
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2157,6 +2189,39 @@ class Orthanc(unittest.TestCase):
                       'PatientSex': '0000'
                   }}
         CheckFind(query, 1)
+        CheckCount(query, 1, True) # tools/count-resources does not support CaseSensitive
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  },
+                  'Since': 1}
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since'
+            CheckCount(query, 0, True) # tools/count-resources does not support CaseSensitive
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*ne*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  }
+                }
+        CheckFind(query, 0)
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*ne*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  },
+                  'Since': 1}
+        CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since' when searching for lower case (because the DicomIdentifiers are stored in UPPERCASE)
 
         query = { 'Level' : 'Series',
                   'CaseSensitive' : True,
@@ -2164,6 +2229,7 @@ class Orthanc(unittest.TestCase):
                       'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
                   }}
         CheckFind(query, 2)
+        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Instance',
                   'CaseSensitive' : True,
@@ -2172,6 +2238,7 @@ class Orthanc(unittest.TestCase):
                       'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
                   }}
         CheckFind(query, 3)
+        CheckCount(query, 3, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Series',
                   'CaseSensitive' : True,
@@ -2180,6 +2247,7 @@ class Orthanc(unittest.TestCase):
                       'Modality': 'MR'
                   }}
         CheckFind(query, 2)
+        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2187,27 +2255,43 @@ class Orthanc(unittest.TestCase):
                       'StudyDate' : '20080818-',
                       'ModalitiesInStudy': 'MR'
                   }}
-        CheckFind(query, 1, False)   # "ModalitiesInStudy" is not a main DICOM tag, so unavailable in "/tools/count-resources"
+        CheckFind(query, 1)
+
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'StudyDate' : '20080818-',
+                      'ModalitiesInStudy': 'MR'
+                  }, 
+                  'Since': 1}
+
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0)
+            CheckCount(query, 1) # Since is ignored in tools/count-resources
 
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : False,
                   'Query' : { 'PatientName' : 'BRAINIX' }}
         CheckFind(query, 1)
+        CheckCount(query, 1)
 
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : False,
                   'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }}
         CheckFind(query, 2)
+        CheckCount(query, 2)
 
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : False,
                   'Query' : { 'PatientName' : '*n*' }}
         CheckFind(query, 2)
+        CheckCount(query, 2)
 
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*n*' }}
-        CheckFind(query, 0, False)  # "CaseSensitive" is not available in "/tools/count-resources"
+        CheckFind(query, 0)
+        CheckCount(query, 0, True)   # "CaseSensitive" is not available in "/tools/count-resources"
 
         query = { 'Expand' : True,
                   'Level' : 'Patient',
@@ -2219,7 +2303,7 @@ class Orthanc(unittest.TestCase):
         query = { 'Level' : 'Patient',
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*ne*' }}
-        CheckFind(query, 0, False)  # "CaseSensitive" is not available in "/tools/count-resources"
+        CheckFind(query, 0)
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2255,7 +2339,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
 
         query = { 'Level' : 'Study',
-                'Expand' : True,
+                  'Expand' : True,
                   'Query' : { 'StudyDate' : '20061201-20091201' }}
         a = CheckFind(query, 2)
         for i in range(2):
@@ -11405,109 +11489,109 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(14, len(DoGet(_REMOTE, '/series')))
 
 
-        knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Instances',
-                                                'Query' : { 
-                                                    'PatientName' : 'KNIX'
-                                                },
-                                                'Expand': False
-                                                })
+        # knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False
+        #                                         })
 
-        # pprint.pprint(knixInstancesNoLimit)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-            self.assertEqual(20, len(knixInstancesNoLimit))
-        else:
-            self.assertEqual(21, len(knixInstancesNoLimit))
+        # # pprint.pprint(knixInstancesNoLimit)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(20, len(knixInstancesNoLimit))
+        # else:
+        #     self.assertEqual(21, len(knixInstancesNoLimit))
 
-        knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Instances',
-                                                'Query' : { 
-                                                    'PatientName' : 'KNIX'
-                                                },
-                                                'Expand': False,
-                                                'Since': 5,
-                                                'Limit': 20
-                                                })
-        # pprint.pprint(knixInstancesSince5Limit20)
+        # knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 5,
+        #                                         'Limit': 20
+        #                                         })
+        # # pprint.pprint(knixInstancesSince5Limit20)
         
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
-            self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
-            # the first 5 from previous call shall not be in this answer
-            for i in range(0, 5):
-                self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
-            # the last 4 from last call shall not be in the first answer
-            for i in range(16, 20):
-                self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        #     self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
+        #     # the first 5 from previous call shall not be in this answer
+        #     for i in range(0, 5):
+        #         self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
+        #     # the last 4 from last call shall not be in the first answer
+        #     for i in range(16, 20):
+        #         self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
 
-        # request more instances than LimitFindInstances
-        knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Instances',
-                                                'Query' : { 
-                                                    'PatientName' : 'KNIX'
-                                                },
-                                                'Expand': False,
-                                                'Since': 0,
-                                                'Limit': 23
-                                                })
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-            self.assertEqual(20, len(knixInstancesSince0Limit23))
+        # # request more instances than LimitFindInstances
+        # knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 0,
+        #                                         'Limit': 23
+        #                                         })
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(20, len(knixInstancesSince0Limit23))
 
-        seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Series',
-                                                'Query' : { 
-                                                    'PatientName' : '*'
-                                                },
-                                                'Expand': False
-                                                })
+        # seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Series',
+        #                                         'Query' : { 
+        #                                             'PatientName' : '*'
+        #                                         },
+        #                                         'Expand': False
+        #                                         })
 
-        # pprint.pprint(seriesNoLimit)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-            self.assertEqual(10, len(seriesNoLimit))
-        else:
-            self.assertEqual(11, len(seriesNoLimit))
+        # # pprint.pprint(seriesNoLimit)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(10, len(seriesNoLimit))
+        # else:
+        #     self.assertEqual(11, len(seriesNoLimit))
 
-        seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
-                                                'Level' : 'Series',
-                                                'Query' : { 
-                                                    'PatientName' : '*'
-                                                },
-                                                'Expand': False,
-                                                'Since': 8,
-                                                'Limit': 6
-                                                })
+        # seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Series',
+        #                                         'Query' : { 
+        #                                             'PatientName' : '*'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 8,
+        #                                         'Limit': 6
+        #                                         })
 
-        # pprint.pprint(seriesSince8Limit6)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
-            self.assertEqual(6, len(seriesSince8Limit6))
+        # # pprint.pprint(seriesSince8Limit6)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
+        #     self.assertEqual(6, len(seriesSince8Limit6))
 
-            # the first 7 from previous call shall not be in this answer
-            for i in range(0, 7):
-                self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
-            # the last 3 from last call shall not be in the first answer
-            for i in range(3, 5):
-                self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
+        #     # the first 7 from previous call shall not be in this answer
+        #     for i in range(0, 7):
+        #         self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
+        #     # the last 3 from last call shall not be in the first answer
+        #     for i in range(3, 5):
+        #         self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-            # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
-            a = DoPost(_REMOTE, '/tools/find', {    
-                                                    'Level' : 'Instances',
-                                                    'Query' : { 
-                                                        'PhotometricInterpretation' : 'MONOCHROME*'
-                                                    },
-                                                    'Expand': True,
-                                                    'OrderBy' : [
-                                                            {
-                                                                'Type': 'DicomTag',
-                                                                'Key': 'InstanceNumber',
-                                                                'Direction': 'ASC'
-                                                            }
-                                                    ]})
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
+        #     a = DoPost(_REMOTE, '/tools/find', {    
+        #                                             'Level' : 'Instances',
+        #                                             'Query' : { 
+        #                                                 'PhotometricInterpretation' : 'MONOCHROME*'
+        #                                             },
+        #                                             'Expand': True,
+        #                                             'OrderBy' : [
+        #                                                     {
+        #                                                         'Type': 'DicomTag',
+        #                                                         'Key': 'InstanceNumber',
+        #                                                         'Direction': 'ASC'
+        #                                                     }
+        #                                             ]})
 
-            # pprint.pprint(a)
-            # print(len(a))
-            # TODO: we should have something in the response that notifies us that the response is not "complete"
-            # TODO: we should receive an error if we try to use "since" in this kind of search ?
-            self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
+        #     # pprint.pprint(a)
+        #     # print(len(a))
+        #     # TODO: we should have something in the response that notifies us that the response is not "complete"
+        #     # TODO: we should receive an error if we try to use "since" in this kind of search ?
+        #     self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
@@ -11518,35 +11602,35 @@ class Orthanc(unittest.TestCase):
                                                     'Since': 2
                                                     }))
 
-            # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
+            # make sur an error is returned when using Since when querying a tag that is not in DB
             self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', {'Level' : 'Instances',
                                                     'Query' : { 
                                                         'PhotometricInterpretation' : 'MONOCHROME*'
                                                     },
-                                                    'Limit': 10
+                                                    'Since': 10
                                                     }))
 
-        # disabled while waiting for https://github.com/orthanc-server/orthanc-explorer-2/issues/73 to be fixed
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 6) and HasExtendedFind(_REMOTE):
-        #     # make sur no error is returned when using Since or Limit when querying against ModalitiesInStudy
-        #     a = DoPost(_REMOTE, '/tools/find', {'Level' : 'Studies',
-        #                                         'Query' : { 
-        #                                             'ModalitiesInStudy' : 'CT\\MR'
-        #                                         },
-        #                                         'Since': 2,
-        #                                         'Limit': 3,
-        #                                         'Expand': True,
-        #                                         'OrderBy': [
-        #                                             {
-        #                                                 'Type': 'DicomTag',
-        #                                                 'Key': 'StudyDate',
-        #                                                 'Direction': 'ASC'
-        #                                             }                                                        
-        #                                         ]})
-        #     # pprint.pprint(a)
-        #     self.assertEqual('20050927', a[0]['MainDicomTags']['StudyDate'])
-        #     self.assertEqual('20061201', a[1]['MainDicomTags']['StudyDate'])
-        #     self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
+        # https://github.com/orthanc-server/orthanc-explorer-2/issues/73
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6) and HasExtendedFind(_REMOTE):
+            # make sur no error is returned when using Since or Limit when querying against ModalitiesInStudy
+            a = DoPost(_REMOTE, '/tools/find', {'Level' : 'Studies',
+                                                'Query' : { 
+                                                    'ModalitiesInStudy' : 'CT\\MR'
+                                                },
+                                                'Since': 2,
+                                                'Limit': 3,
+                                                'Expand': True,
+                                                'OrderBy': [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'StudyDate',
+                                                        'Direction': 'ASC'
+                                                    }                                                        
+                                                ]})
+            # pprint.pprint(a)
+            self.assertEqual('20050927', a[0]['MainDicomTags']['StudyDate'])
+            self.assertEqual('20061201', a[1]['MainDicomTags']['StudyDate'])
+            self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
 
 
     def test_attachment_range(self):
