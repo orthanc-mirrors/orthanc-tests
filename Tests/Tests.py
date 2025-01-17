@@ -10380,8 +10380,18 @@ class Orthanc(unittest.TestCase):
             Check('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', True, False, 'OB') # Explicit Little Endian, 8bpp
             Check('Phenix/IM-0001-0001.dcm', True, False, 'OW')  # Explicit Little Endian, 16bpp
             Check('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', True, False, 'OB') # Explicit Big Endian, 8bpp
-            Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
-            Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+                # From Orthanc 1.12.6, the PixelData is not present.  Anyway, it was not usable in 1.12.5
+                Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', False, False, 'OB')  # JPEG
+                Check('Knee/T1/IM-0001-0001.dcm', False, False, 'OB') # JPEG2k
+            else:
+                # up to Orthanc 1.12.5, we get this (that is basically useless):
+                # "7FE00010" : {
+                #   "InlineBinary" : "",
+                #   "vr" : "OB"
+                # }
+                Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
+                Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
 
     def test_encapsulate_stl(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
