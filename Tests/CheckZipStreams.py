@@ -128,8 +128,8 @@ for streaming in [ False, True, None ]:
                 Assert(streaming == True or streaming == None)
 
                 try:
-                    if (sys.version_info >= (3, 0)):
-                        z = bytearray(z, 'utf-8')
+                    #if (sys.version_info >= (3, 0)):
+                    #    z = bytearray(z, 'utf-8')
                     Toolbox.ParseArchive(z)
                     print('error, got valid archive')
                     queue.put(False)  # The archive is not corrupted as expected
