@@ -45,7 +45,7 @@ class TestConcurrencyTransfers(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        #cls.cleanup()
+        cls.cleanup()
         pass
 
     def clean_start(self):
