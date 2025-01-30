@@ -6,8 +6,8 @@
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
 # Copyright (C) 2017-2023 Osimis S.A., Belgium
-# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
-# Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+# Copyright (C) 2024-2025 Orthanc Team SRL, Belgium
+# Copyright (C) 2021-2025 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -303,7 +303,7 @@ class Orthanc(unittest.TestCase):
                                  { 'Resources' : [ 'nope' ],
                                    'Synchronous' : True }))  # inexisting resource
 
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
             l = 4   # "Server" has been added
         else:
             l = 3   # For >= 1.10.1
@@ -315,7 +315,7 @@ class Orthanc(unittest.TestCase):
 
         self.assertEqual(l, len(r))
         self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
             self.assertEqual("sample", r['Server'])
 
         # series
@@ -607,7 +607,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(u'王^小東', pn['Value'][0]['Ideographic'])
 
         # new derivated test added later
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 18, 0):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
             a = DoGet(ORTHANC, '/dicom-web/studies?StudyInstanceUID=1.3.6.1.4.1.5962.1.2.0.1175775771.5711.0')
             self.assertEqual(1, len(a))
             pn = a[0]['00100010']  # Patient name
@@ -670,7 +670,7 @@ class Orthanc(unittest.TestCase):
         # WADO-RS RetrieveFrames shall transcode ExplicitBigEndian to ExplicitLittleEndian
         # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=219
         
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 17, 0):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 17, 0):
 
             UploadInstance(ORTHANC, 'TransferSyntaxes/1.2.840.10008.1.2.2.dcm')
 
@@ -698,7 +698,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('00280010' in a[0])
         self.assertEqual(512, a[0]['00280010']['Value'][0])
 
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 17, 0):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 17, 0):
             a = DoGet(ORTHANC, '/dicom-web/studies/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390/series/1.2.840.113619.2.176.2025.1499492.7391.1171285944.394/instances?includefield=00081140')
             self.assertEqual(1, len(a))
             self.assertTrue('00081140' in a[0])
@@ -1729,7 +1729,7 @@ class Orthanc(unittest.TestCase):
         })
         self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
 
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 13, 1):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 13, 1):
             m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
                 'X-Forwarded-Host': 'my-domain',
                 'X-Forwarded-Proto': 'https'
@@ -1764,7 +1764,7 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(m))
         self.assertEqual(studyUid, m[0]['0020000D']['Value'][0])
 
-        if IsPluginVersionAbove(ORTHANC, "dicom-web", 1, 13, 1) and IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 13, 1) and IsOrthancVersionAbove(ORTHANC, 1, 12, 1):
             # This fails on DICOMweb <= 1.13 because of the "; q=.2",
             # since multiple accepts were not supported
             # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=216

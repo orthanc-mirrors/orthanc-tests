@@ -4,8 +4,8 @@
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
 # Copyright (C) 2017-2023 Osimis S.A., Belgium
-# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
-# Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+# Copyright (C) 2024-2025 Orthanc Team SRL, Belgium
+# Copyright (C) 2021-2025 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -394,7 +394,7 @@ def GetStorageAccessesCount(orthanc):
     return count
 
 
-def IsPluginVersionAbove(orthanc, plugin, major, minor, revision):
+def IsPluginVersionAtLeast(orthanc, plugin, major, minor, revision):
     v = DoGet(orthanc, '/plugins/%s' % plugin)['Version']
 
     if v.startswith('mainline'):
@@ -412,7 +412,7 @@ def IsPluginVersionAbove(orthanc, plugin, major, minor, revision):
             a = int(tmp[0])
             b = int(tmp[1])
             return (a > major or
-                    (a == major and b > minor))
+                    (a == major and b >= minor))
         else:
             return False
 

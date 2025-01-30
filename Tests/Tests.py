@@ -6,8 +6,8 @@
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
 # Copyright (C) 2017-2023 Osimis S.A., Belgium
-# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
-# Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+# Copyright (C) 2024-2025 Orthanc Team SRL, Belgium
+# Copyright (C) 2021-2025 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -722,22 +722,33 @@ class Orthanc(unittest.TestCase):
 
     def test_archive(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
-        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0003.dcm')
         kneePatient = 'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17'
         kneeStudy = DoGet(_REMOTE, '/studies')[0]
         kneeSeries = DoGet(_REMOTE, '/series')[0]
 
         z = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T2W_TSE/MR000003.dcm', z.namelist())
+        else:
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         z = GetArchive(_REMOTE, '/studies/%s/archive' % kneeStudy)
         self.assertEqual(2, len(z.namelist()))
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T2W_TSE/MR000003.dcm', z.namelist())
+        else:
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         z = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
         self.assertEqual(1, len(z.namelist()))
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        else:
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
         brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
@@ -751,8 +762,12 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainixPatient, kneePatient ]
             })
         self.assertEqual(3, len(z.namelist()))
-        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        else:
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         z = PostArchive(_REMOTE, '/patients/%s/archive' % kneePatient, {
             'Synchronous' : True
@@ -764,16 +779,24 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainixStudy, kneeStudy ]
             })
         self.assertEqual(3, len(z.namelist()))
-        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        else:
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
         # archive with 1 patient & 1 study
         z = PostArchive(_REMOTE, '/tools/create-archive', {
             'Resources' : [ brainixPatient, kneeStudy ]
             })
         self.assertEqual(3, len(z.namelist()))
-        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
-        self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        else:
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000000.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
 
     def test_archive_with_patient_ids_collision(self):
@@ -1307,7 +1330,7 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('LastUpdate' in m)
 
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             self.assertEqual(4, len(m))
             self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
         elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
@@ -1567,7 +1590,7 @@ class Orthanc(unittest.TestCase):
 
         series = DoGet(_REMOTE, '/series')[0]
         m = DoGet(_REMOTE, '/series/%s/metadata' % series)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             self.assertEqual(4, len(m))
             self.assertTrue('MainDicomSequences' in m)    # since RequestAttributeSequence is now in the MainDicomTags
         elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
@@ -1979,12 +2002,12 @@ class Orthanc(unittest.TestCase):
         
         self.assertTrue('0010,0010' in DoGet(_REMOTE, '/patients/%s/module' % p))
         self.assertTrue('PatientName' in DoGet(_REMOTE, '/patients/%s/module?simplify' % p))
-        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/studies/%s/module-patient' % p))
-        self.assertTrue('PatientName' in DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % p))
+        self.assertTrue('0010,0010' in DoGet(_REMOTE, '/studies/%s/module-patient' % s))
+        self.assertTrue('PatientName' in DoGet(_REMOTE, '/studies/%s/module-patient?simplify' % s))
         self.assertTrue('0008,1030' in DoGet(_REMOTE, '/studies/%s/module' % s))
         self.assertTrue('StudyDescription' in DoGet(_REMOTE, '/studies/%s/module?simplify' % s))
-        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/series/%s/module' % p))
-        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/series/%s/module?simplify' % p))
+        self.assertTrue('0008,103e' in DoGet(_REMOTE, '/series/%s/module' % t))
+        self.assertTrue('SeriesDescription' in DoGet(_REMOTE, '/series/%s/module?simplify' % t))
         self.assertTrue('0008,0018' in DoGet(_REMOTE, '/instances/%s/module' % a))
         self.assertTrue('SOPInstanceUID' in DoGet(_REMOTE, '/instances/%s/module?simplify' % a))
 
@@ -2111,8 +2134,38 @@ class Orthanc(unittest.TestCase):
                                              'Query' : { 'StationName' : 'SMR4-MP3' }})
         self.assertEqual(1, len(a))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            a = DoPost(_REMOTE, '/tools/count-resources', { 'Level' : 'Series',
+                                                            'CaseSensitive' : False,
+                                                            'Query' : { 'StationName' : 'SMR4-MP3' }})
+            self.assertEqual(1, len(a))
+            self.assertEqual(1, a['Count'])
+
 
     def test_rest_find(self):
+        def CheckFind(query, expectedAnswers, shouldThrow = False):
+            
+            if not shouldThrow:
+                a = DoPost(_REMOTE, '/tools/find', query)
+                self.assertEqual(expectedAnswers, len(a))
+                return a
+            else:
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', query))
+
+            
+
+        def CheckCount(query, expectedAnswers, shouldThrow = False):
+            if not shouldThrow:
+                b = DoPost(_REMOTE, '/tools/count-resources', query)
+                self.assertEqual(1, len(b))
+                self.assertEqual(expectedAnswers, b['Count'])
+                return b
+            else:
+                self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/count-resources', query))
+
+            
+
+
         # Upload 12 instances
         for i in range(3):
             UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -2121,175 +2174,248 @@ class Orthanc(unittest.TestCase):
             UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
 
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'PatientName' : '*NE*',
-                                                 'StudyDate': '20080819'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  }}
+        CheckFind(query, 1)
+        CheckCount(query, 1, True) # tools/count does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'PatientName' : '*NE*',
-                                                 'PatientBirthDate': '20080101-20081231',
-                                                 'PatientSex': '0000'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  }}
+        CheckFind(query, 1)
+        CheckCount(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
-                                              }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'StudyDate': '20080819'
+                  },
+                  'Since' : 1
+                  }
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0)
+            CheckCount(query, 1) # Since is ignored in tools/count-resources
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
-                                                 'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
-                                              }})
-        self.assertEqual(3, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  }}
+        CheckFind(query, 1)
+        CheckCount(query, 1, True) # tools/count-resources does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyDate' : '20080818-20080820',
-                                                 'Modality': 'MR'
-                                              }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*NE*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  },
+                  'Since': 1}
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since'
+            CheckCount(query, 0, True) # tools/count-resources does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 
-                                                 'StudyDate' : '20080818-',
-                                                 'ModalitiesInStudy': 'MR'
-                                              }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*ne*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  }
+                }
+        CheckFind(query, 0)
 
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'PatientName' : '*ne*',
+                      'PatientBirthDate': '20080101-20081231',
+                      'PatientSex': '0000'
+                  },
+                  'Since': 1}
+        CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since' when searching for lower case (because the DicomIdentifiers are stored in UPPERCASE)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : 'BRAINIX' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
+                  }}
+        CheckFind(query, 2)
+        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Instance',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881',
+                      'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
+                  }}
+        CheckFind(query, 3)
+        CheckCount(query, 3, True) # tools/count-resources does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : '*n*' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyDate' : '20080818-20080820',
+                      'Modality': 'MR'
+                  }}
+        CheckFind(query, 2)
+        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*n*' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : {
+                      'StudyDate' : '20080818-',
+                      'ModalitiesInStudy': 'MR'
+                  }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Expand' : True,
-                                             'Level' : 'Patient',
-                                             'CaseSensitive' : False,
-                                             'Query' : { 'PatientName' : '*ne*' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : False,
+                  'Query' : {
+                      'StudyDate' : '20080818-',
+                      'ModalitiesInStudy': 'MR'
+                  }, 
+                  'Since': 1}
+
+        if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
+            CheckFind(query, 0)
+            CheckCount(query, 1) # Since is ignored in tools/count-resources
+
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : 'BRAINIX' }}
+        CheckFind(query, 1)
+        CheckCount(query, 1)
+
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : 'BRAINIX\\KNEE\\NOPE' }}
+        CheckFind(query, 2)
+        CheckCount(query, 2)
+
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : '*n*' }}
+        CheckFind(query, 2)
+        CheckCount(query, 2)
+
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*n*' }}
+        CheckFind(query, 0)
+        CheckCount(query, 0, True)   # "CaseSensitive" is not available in "/tools/count-resources"
+
+        query = { 'Expand' : True,
+                  'Level' : 'Patient',
+                  'CaseSensitive' : False,
+                  'Query' : { 'PatientName' : '*ne*' }}
+        a = CheckFind(query, 1)
         self.assertEqual('20080822', a[0]['MainDicomTags']['PatientBirthDate'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*ne*' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Patient',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*ne*' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 1)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'CaseSensitive' : True,
-                                             'Query' : { 'PatientName' : '*NE*' }})
-        self.assertEqual(6, len(a))
+        query = { 'Level' : 'Instance',
+                  'CaseSensitive' : True,
+                  'Query' : { 'PatientName' : '*NE*' }}
+        CheckFind(query, 6)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient', 'Query' : { }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Patient', 'Query' : { }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study', 'Query' : { }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study', 'Query' : { }}
+        CheckFind(query, 2)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series', 'Query' : { }})
-        self.assertEqual(4, len(a))
+        query = { 'Level' : 'Series', 'Query' : { }}
+        CheckFind(query, 4)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance', 'Query' : { }})
-        self.assertEqual(12, len(a))
+        query = { 'Level' : 'Instance', 'Query' : { }}
+        CheckFind(query, 12)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-20061201' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-20061201' }}
+        a = CheckFind(query, 1)
         self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-20091201' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-20091201' }}
+        a = CheckFind(query, 2)
         for i in range(2):
             self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Query' : { 'StudyDate' : '20061202-20061202' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Query' : { 'StudyDate' : '20061202-20061202' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '-20061201' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '-20061201' }}
+        a = CheckFind(query, 1)
         self.assertEqual('BRAINIX', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '-20051201' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '-20051201' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061201-' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061201-' }}
+        a = CheckFind(query, 2)
         for i in range(2):
             self.assertTrue(a[i]['PatientMainDicomTags']['PatientName'] in ['BRAINIX', 'KNEE'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20061202-' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20061202-' }}
+        a = CheckFind(query, 1)
         self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20080819-' }})
-        self.assertEqual(1, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20080819-' }}
+        a = CheckFind(query, 1)
         self.assertEqual('KNEE', a[0]['PatientMainDicomTags']['PatientName'])
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Study',
-                                             'Expand' : True,
-                                             'Query' : { 'StudyDate' : '20080820-' }})
-        self.assertEqual(0, len(a))
+        query = { 'Level' : 'Study',
+                  'Expand' : True,
+                  'Query' : { 'StudyDate' : '20080820-' }}
+        CheckFind(query, 0)
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Expand' : True,
-                                             'Query' : { 'PatientPosition' : 'HFS' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'Expand' : True,
+                  'Query' : { 'PatientPosition' : 'HFS' }}
+        CheckFind(query, 2, False)   # "PatientPosition" is not a main DICOM tag, so unavailable in "/tools/count-resources"
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Expand' : False,
-                                             'Query' : { 'PatientPosition' : 'HFS' }})
-        self.assertEqual(2, len(a))
+        query = { 'Level' : 'Series',
+                  'Expand' : False,
+                  'Query' : { 'PatientPosition' : 'HFS' }}
+        CheckFind(query, 2, False)   # "PatientPosition" is not a main DICOM tag, so unavailable in "/tools/count-resources"
         
 
     def test_rest_query_retrieve(self):
@@ -2529,21 +2655,21 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         self.assertEqual('887', i[i.keys()[1]]['PatientID'])
 
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/studies')[0])
+        i = DoGet(_REMOTE, '/studies/%s/instances-tags?simplify' % DoGet(_REMOTE, '/studies')[0])
         self.assertEqual(2, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         self.assertEqual('887', i[i.keys()[1]]['PatientID'])
 
         self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[0])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[0])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
         
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[1])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?simplify' % DoGet(_REMOTE, '/series')[1])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['PatientID'])
 
-        i = DoGet(_REMOTE, '/patients/%s/instances-tags?short' % DoGet(_REMOTE, '/series')[1])
+        i = DoGet(_REMOTE, '/series/%s/instances-tags?short' % DoGet(_REMOTE, '/series')[1])
         self.assertEqual(1, len(i))
         self.assertEqual('887', i[i.keys()[0]]['0010,0020'])
 
@@ -3017,7 +3143,7 @@ class Orthanc(unittest.TestCase):
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&since=10' % i))
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients&limit=10' % i))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5)  and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged:   # with ExtendedFind, the limit=0 means no-limit like in /tools/find
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5): # with ExtendedFind, the limit=0 means no-limit like in /tools/find
             self.assertEqual(2, len(DoGet(_REMOTE, '/patients?since=0&limit=0')))
             self.assertEqual(1, len(DoGet(_REMOTE, '/patients?since=1&limit=0')))
             self.assertEqual(0, len(DoGet(_REMOTE, '/patients?since=2&limit=0')))
@@ -4273,11 +4399,12 @@ class Orthanc(unittest.TestCase):
                                              'Limit' : 4 })
         self.assertEqual(4, len(a))
 
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'Query' : { 'PatientName' : 'B*' },
-                                             'Since' : 2,
-                                             'Limit' : 4 })
-        self.assertEqual(2, len(a))
+        if HasExtendedFind(_REMOTE):  # usage of since is not reliable without ExtendedFind
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                'Query' : { 'PatientName' : 'B*' },
+                                                'Since' : 2,
+                                                'Limit' : 4 })
+            self.assertEqual(2, len(a))
 
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
                                              'Query' : { 'PatientName' : 'B*' },
@@ -4289,23 +4416,24 @@ class Orthanc(unittest.TestCase):
                                              'Limit' : 0 })  # This is an arbitrary convention
         self.assertEqual(4, len(a))
 
-        b = []
-        for i in range(4):
+        if HasExtendedFind(_REMOTE):  # usage of since is not reliable without ExtendedFind
+            b = []
+            for i in range(4):
+                a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                    'Query' : { 'PatientName' : 'B*' },
+                                                    'Limit' : 1,
+                                                    'Since' : i })
+                self.assertEqual(1, len(a))
+                b.append(a[0])
+
+            # Check whether the two sets are equal through symmetric difference
+            self.assertEqual(0, len(set(b) ^ set(brainix)))
+
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                                 'Query' : { 'PatientName' : 'B*' },
-                                                 'Limit' : 1,
-                                                 'Since' : i })
-            self.assertEqual(1, len(a))
-            b.append(a[0])
-
-        # Check whether the two sets are equal through symmetric difference
-        self.assertEqual(0, len(set(b) ^ set(brainix)))
-
-        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                             'Query' : { 'PatientName' : 'B*' },
-                                             'Limit' : 1,
-                                             'Since' : 4 })
-        self.assertEqual(0, len(a))
+                                                'Query' : { 'PatientName' : 'B*' },
+                                                'Limit' : 1,
+                                                'Since' : 4 })
+            self.assertEqual(0, len(a))
 
         # Check using KNEE
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
@@ -4318,109 +4446,114 @@ class Orthanc(unittest.TestCase):
                                              'Limit' : 2 })
         self.assertEqual(2, len(a))
 
-        b = []
-        for i in range(2):
-            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
-                                                 'Query' : { 'PatientName' : 'K*' },
-                                                 'Limit' : 1,
-                                                 'Since' : i })
-            self.assertEqual(1, len(a))
-            b.append(a[0])
+        if HasExtendedFind(_REMOTE):  # usage of since is not reliable without ExtendedFind
+            b = []
+            for i in range(2):
+                a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                    'Query' : { 'PatientName' : 'K*' },
+                                                    'Limit' : 1,
+                                                    'Since' : i })
+                self.assertEqual(1, len(a))
+                b.append(a[0])
 
-        self.assertEqual(0, len(set(b) ^ set(knee)))
+            self.assertEqual(0, len(set(b) ^ set(knee)))
 
         # Now test "isSimpleLookup_ == false"
         a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
                                              'Query' : { 'PatientPosition' : '*' }})
         self.assertEqual(3, len(a))
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Limit' : 0})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+        # TODO: remove these tests for good once 1.12.5 is out
+        # if not HasExtendedFind(_REMOTE):  # once you have ExtendedFind, usage of Limit and Since is forbidden when filtering on tags that are not in DB because that's just impossible to use on real life DB !
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[0], b[0])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Limit' : 0})
+        #     self.assertEqual(3, len(b))
+        #     self.assertEqual(a[0], b[0])
+        #     self.assertEqual(a[1], b[1])
+        #     self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 3})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Limit' : 1})
+        #     self.assertEqual(1, len(b))
+        #     self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 0,
-                                             'Limit' : 4})
-        self.assertEqual(3, len(b))
-        self.assertEqual(a[0], b[0])
-        self.assertEqual(a[1], b[1])
-        self.assertEqual(a[2], b[2])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 0,
+        #                                         'Limit' : 1})
+        #     self.assertEqual(1, len(b))
+        #     self.assertEqual(a[0], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[1], b[0])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 0,
+        #                                         'Limit' : 3})
+        #     self.assertEqual(3, len(b))
+        #     self.assertEqual(a[0], b[0])
+        #     self.assertEqual(a[1], b[1])
+        #     self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 2})
-        self.assertEqual(2, len(b))
-        self.assertEqual(a[1], b[0])
-        self.assertEqual(a[2], b[1])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 0,
+        #                                         'Limit' : 4})
+        #     self.assertEqual(3, len(b))
+        #     self.assertEqual(a[0], b[0])
+        #     self.assertEqual(a[1], b[1])
+        #     self.assertEqual(a[2], b[2])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 1,
-                                             'Limit' : 3})
-        self.assertEqual(2, len(b))
-        self.assertEqual(a[1], b[0])
-        self.assertEqual(a[2], b[1])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 1,
+        #                                         'Limit' : 1})
+        #     self.assertEqual(1, len(b))
+        #     self.assertEqual(a[1], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 2,
-                                             'Limit' : 1})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[2], b[0])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 1,
+        #                                         'Limit' : 2})
+        #     self.assertEqual(2, len(b))
+        #     self.assertEqual(a[1], b[0])
+        #     self.assertEqual(a[2], b[1])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 2,
-                                             'Limit' : 2})
-        self.assertEqual(1, len(b))
-        self.assertEqual(a[2], b[0])
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 1,
+        #                                         'Limit' : 3})
+        #     self.assertEqual(2, len(b))
+        #     self.assertEqual(a[1], b[0])
+        #     self.assertEqual(a[2], b[1])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 3,
-                                             'Limit' : 1})
-        self.assertEqual(0, len(b))
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 2,
+        #                                         'Limit' : 1})
+        #     self.assertEqual(1, len(b))
+        #     self.assertEqual(a[2], b[0])
 
-        b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                             'Query' : { 'PatientPosition' : '*' },
-                                             'Since' : 3,
-                                             'Limit' : 10})
-        self.assertEqual(0, len(b))
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 2,
+        #                                         'Limit' : 2})
+        #     self.assertEqual(1, len(b))
+        #     self.assertEqual(a[2], b[0])
+
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 3,
+        #                                         'Limit' : 1})
+        #     self.assertEqual(0, len(b))
+
+        #     b = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
+        #                                         'Query' : { 'PatientPosition' : '*' },
+        #                                         'Since' : 3,
+        #                                         'Limit' : 10})
+        #     self.assertEqual(0, len(b))
 
 
     def test_bitbucket_issue_46(self):
@@ -10247,8 +10380,18 @@ class Orthanc(unittest.TestCase):
             Check('TransferSyntaxes/1.2.840.10008.1.2.1.dcm', True, False, 'OB') # Explicit Little Endian, 8bpp
             Check('Phenix/IM-0001-0001.dcm', True, False, 'OW')  # Explicit Little Endian, 16bpp
             Check('TransferSyntaxes/1.2.840.10008.1.2.2.dcm', True, False, 'OB') # Explicit Big Endian, 8bpp
-            Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
-            Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+                # From Orthanc 1.12.6, the PixelData is not present.  Anyway, it was not usable in 1.12.5
+                Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', False, False, 'OB')  # JPEG
+                Check('Knee/T1/IM-0001-0001.dcm', False, False, 'OB') # JPEG2k
+            else:
+                # up to Orthanc 1.12.5, we get this (that is basically useless):
+                # "7FE00010" : {
+                #   "InlineBinary" : "",
+                #   "vr" : "OB"
+                # }
+                Check('TransferSyntaxes/1.2.840.10008.1.2.4.50.dcm', True, False, 'OB')  # JPEG
+                Check('Knee/T1/IM-0001-0001.dcm', True, False, 'OB') # JPEG2k
 
     def test_encapsulate_stl(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 1):
@@ -10720,7 +10863,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):     # the old syntax is still required for the upgrade/downgrade PG tests
             a = DoGet(_REMOTE, '/instances/%s?requested-tags=0008,0056' % instance)
         else:
-            a = DoGet(_REMOTE, '/instances/%s?RequestedTags=0008,0056' % instance)
+            a = DoGet(_REMOTE, '/instances/%s?requestedTags=0008,0056' % instance)
         
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual('ONLINE', a['RequestedTags']['InstanceAvailability'])
@@ -10728,14 +10871,14 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/series/%s?requested-tags=0020,1209' % series)
         else:
-            a = DoGet(_REMOTE, '/series/%s?RequestedTags=0020,1209' % series)
+            a = DoGet(_REMOTE, '/series/%s?requestedTags=0020,1209' % series)
         self.assertEqual(1, len(a['RequestedTags']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfSeriesRelatedInstances']))
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/studies/%s?requested-tags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
         else:
-            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
+            a = DoGet(_REMOTE, '/studies/%s?requestedTags=0008,0061;0008,0062;0020,1206;0020,1208' % study)
 
         self.assertEqual(4, len(a['RequestedTags']))
         self.assertEqual('CT\\PT', a['RequestedTags']['ModalitiesInStudy'])
@@ -10746,7 +10889,7 @@ class Orthanc(unittest.TestCase):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 4):
             a = DoGet(_REMOTE, '/patients/%s?requested-tags=0020,1200;0020,1202;0020,1204' % patient)
         else:
-            a = DoGet(_REMOTE, '/studies/%s?RequestedTags=0020,1200;0020,1202;0020,1204' % study)
+            a = DoGet(_REMOTE, '/studies/%s?requestedTags=0020,1200;0020,1202;0020,1204' % study)
         self.assertEqual(3, len(a['RequestedTags']))
         self.assertEqual(1, int(a['RequestedTags']['NumberOfPatientRelatedStudies']))
         self.assertEqual(2, int(a['RequestedTags']['NumberOfPatientRelatedSeries']))
@@ -10787,14 +10930,17 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_order_by(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
-                UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
-                UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                r = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (10.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (20.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (30.0 + 0.1 * i))
+                r = UploadInstance(_REMOTE, 'Knee/T2/IM-0001-000%d.dcm' % (i + 1))
+                DoPut(_REMOTE, '/instances/%s/metadata/1234' % r['ID'], '%f' % (40.0 + 0.1 * i))
 
             kneeT2SeriesId = 'bbf7a453-0d34251a-03663b55-46bb31b9-ffd74c59'
             kneeT1SeriesId = '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285'
@@ -10924,7 +11070,7 @@ class Orthanc(unittest.TestCase):
                                                         'Direction': 'ASC'
                                                     },
                                                     {
-                                                        'Type': 'DicomTag',
+                                                        'Type': 'DicomTagAsInt',
                                                         'Key': 'InstanceNumber',
                                                         'Direction': 'ASC'
                                                     },
@@ -10940,7 +11086,7 @@ class Orthanc(unittest.TestCase):
             for i in range(1, len(a)-1):
                 self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
                 if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
-                    self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] <= a[i]['RequestedTags']['InstanceNumber'])
+                    self.assertTrue(int(a[i-1]['RequestedTags']['InstanceNumber']) <= int(a[i]['RequestedTags']['InstanceNumber']))
                     if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
                         self.assertTrue(a[i-1]['RequestedTags']['SeriesTime'] <= a[i]['RequestedTags']['SeriesTime'])    
 
@@ -10951,7 +11097,7 @@ class Orthanc(unittest.TestCase):
                                                 },
                                                 'OrderBy' : [
                                                     {
-                                                        'Type': 'DicomTag',
+                                                        'Type': 'DicomTagAsInt',
                                                         'Key': 'InstanceNumber',
                                                         'Direction': 'DESC'
                                                     },
@@ -10970,7 +11116,7 @@ class Orthanc(unittest.TestCase):
                                                 })
             self.assertEqual(12, len(a))
             for i in range(1, len(a)-1):
-                self.assertTrue(a[i-1]['RequestedTags']['InstanceNumber'] >= a[i]['RequestedTags']['InstanceNumber'])
+                self.assertTrue(int(a[i-1]['RequestedTags']['InstanceNumber']) >= int(a[i]['RequestedTags']['InstanceNumber']))
                 if a[i-1]['RequestedTags']['InstanceNumber'] == a[i]['RequestedTags']['InstanceNumber']:
                     self.assertTrue(a[i-1]['RequestedTags']['PatientBirthDate'] <= a[i]['RequestedTags']['PatientBirthDate'])
                     if a[i-1]['RequestedTags']['PatientBirthDate'] == a[i]['RequestedTags']['PatientBirthDate']:
@@ -11052,8 +11198,37 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(kneeT1SeriesId, a[3])
 
 
+            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Instance',
+                                                'ResponseContent': ['Metadata', 'RequestedTags'],
+                                                'Query' : { 
+                                                },
+                                                'OrderBy' : [
+                                                    {
+                                                        'Type': 'MetadataAsFloat',
+                                                        'Key': '1234',
+                                                        'Direction': 'DESC'
+                                                    }
+                                                ],
+                                                'RequestedTags' : ['SeriesDescription']
+                                                })
+            self.assertEqual(12, len(a))
+            for i in range(0, 2):
+                self.assertEqual("T2W_TSE", a[i]['RequestedTags']['SeriesDescription'])
+            self.assertAlmostEqual(40.2, float(a[0]['Metadata']['1234']))
+            self.assertAlmostEqual(40.0, float(a[2]['Metadata']['1234']))
+
+            for i in range(3, 5):
+                self.assertEqual("T1W_aTSE", a[i]['RequestedTags']['SeriesDescription'])
+
+            for i in range(6, 8):
+                self.assertEqual("T2W/FE-EPI", a[i]['RequestedTags']['SeriesDescription'])
+
+            for i in range(9, 11):
+                self.assertEqual("sT2W/FLAIR", a[i]['RequestedTags']['SeriesDescription'])
+
+
     def test_extended_find_parent(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Knee/T1/IM-0001-000%d.dcm' % (i + 1))
@@ -11098,10 +11273,19 @@ class Orthanc(unittest.TestCase):
 
             self.assertEqual(6, len(a))
 
+            # same query in count-resources
+            a = DoPost(_REMOTE, '/tools/count-resources', { 'Level' : 'Instance',
+                                                 'Query' : { 
+                                                    'SeriesDescription' : 'T*'
+                                                },
+                                                'ParentPatient' : kneePatientId
+                                                })
+
+            self.assertEqual(6, a["Count"])
+
 
     def test_extended_find_filter_metadata(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11119,20 +11303,27 @@ class Orthanc(unittest.TestCase):
             DoPut(_REMOTE, '/series/%s/metadata/my-metadata' % brainixEpiSeriesId, 'brainixEpi')
 
             # filter on metadata
-            a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Series',
-                                                 'Query' : { 
-                                                    'SeriesDescription' : 'T*'
-                                                },
-                                                'QueryMetadata' : {
-                                                    'my-metadata': '*2*'
-                                                }
-                                                })
+            q = {
+                'Level' : 'Series',
+                'Query' : { 
+                    'SeriesDescription' : 'T*'
+                },
+                'MetadataQuery' : {
+                    'my-metadata': '*2*'
+                }
+            }
+            a = DoPost(_REMOTE, '/tools/find', q)
 
             self.assertEqual(1, len(a))
             self.assertEqual(kneeT2SeriesId, a[0])
 
+            a = DoPost(_REMOTE, '/tools/count-resources', q)
+            self.assertEqual(1, a["Count"])
+
+
+
     def test_extended_find_expand(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11256,8 +11447,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_extended_find_full(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # Upload 12 instances
             for i in range(3):
                 UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-000%d.dcm' % (i + 1))
@@ -11281,7 +11471,7 @@ class Orthanc(unittest.TestCase):
                                                         'PatientName' : '*'
                                                     },
                                                     'RequestedTags': ['StudyDate'],
-                                                    'QueryMetadata' : {
+                                                    'MetadataQuery' : {
                                                         'my-metadata': "*nee*"
                                                     },
                                                     'OrderBy' : [
@@ -11306,3 +11496,274 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(kneeStudyId, a[0]['ParentStudy'])
             self.assertEqual(3, len(a[0]['Instances']))
             self.assertEqual('', a[0]['Metadata']['RemoteAET'])
+
+    def test_pagination_and_limit_find_results(self):
+        # LimitFindInstances is set to 20
+        # LimitFindResults is set to 10
+
+        # Upload 27 instances from KNIX
+        UploadFolder(_REMOTE, 'Knix/Loc')
+
+        # Upload 13 other series
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+        UploadInstance(_REMOTE, 'Phenix/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Implicit-vr-us-palette.dcm')
+        UploadInstance(_REMOTE, 'Multiframe.dcm')
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'PrivateTags.dcm')
+        UploadInstance(_REMOTE, 'PrivateMDNTags.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')
+        UploadInstance(_REMOTE, 'Encodings/Lena-ascii.dcm')
+
+        self.assertEqual(14, len(DoGet(_REMOTE, '/series')))
+
+
+        # knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False
+        #                                         })
+
+        # # pprint.pprint(knixInstancesNoLimit)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(20, len(knixInstancesNoLimit))
+        # else:
+        #     self.assertEqual(21, len(knixInstancesNoLimit))
+
+        # knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 5,
+        #                                         'Limit': 20
+        #                                         })
+        # # pprint.pprint(knixInstancesSince5Limit20)
+        
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+        #     self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
+        #     # the first 5 from previous call shall not be in this answer
+        #     for i in range(0, 5):
+        #         self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
+        #     # the last 4 from last call shall not be in the first answer
+        #     for i in range(16, 20):
+        #         self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
+
+        # # request more instances than LimitFindInstances
+        # knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Instances',
+        #                                         'Query' : { 
+        #                                             'PatientName' : 'KNIX'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 0,
+        #                                         'Limit': 23
+        #                                         })
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(20, len(knixInstancesSince0Limit23))
+
+        # seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Series',
+        #                                         'Query' : { 
+        #                                             'PatientName' : '*'
+        #                                         },
+        #                                         'Expand': False
+        #                                         })
+
+        # # pprint.pprint(seriesNoLimit)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     self.assertEqual(10, len(seriesNoLimit))
+        # else:
+        #     self.assertEqual(11, len(seriesNoLimit))
+
+        # seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
+        #                                         'Level' : 'Series',
+        #                                         'Query' : { 
+        #                                             'PatientName' : '*'
+        #                                         },
+        #                                         'Expand': False,
+        #                                         'Since': 8,
+        #                                         'Limit': 6
+        #                                         })
+
+        # # pprint.pprint(seriesSince8Limit6)
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
+        #     self.assertEqual(6, len(seriesSince8Limit6))
+
+        #     # the first 7 from previous call shall not be in this answer
+        #     for i in range(0, 7):
+        #         self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
+        #     # the last 3 from last call shall not be in the first answer
+        #     for i in range(3, 5):
+        #         self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
+
+        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+        #     # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
+        #     a = DoPost(_REMOTE, '/tools/find', {    
+        #                                             'Level' : 'Instances',
+        #                                             'Query' : { 
+        #                                                 'PhotometricInterpretation' : 'MONOCHROME*'
+        #                                             },
+        #                                             'Expand': True,
+        #                                             'OrderBy' : [
+        #                                                     {
+        #                                                         'Type': 'DicomTag',
+        #                                                         'Key': 'InstanceNumber',
+        #                                                         'Direction': 'ASC'
+        #                                                     }
+        #                                             ]})
+
+        #     # pprint.pprint(a)
+        #     # print(len(a))
+        #     # TODO: we should have something in the response that notifies us that the response is not "complete"
+        #     # TODO: we should receive an error if we try to use "since" in this kind of search ?
+        #     self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', {'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Since': 2
+                                                    }))
+
+            # make sur an error is returned when using Since when querying a tag that is not in DB
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/find', {'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Since': 10
+                                                    }))
+
+        # https://github.com/orthanc-server/orthanc-explorer-2/issues/73
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6) and HasExtendedFind(_REMOTE):
+            # make sur no error is returned when using Since or Limit when querying against ModalitiesInStudy
+            a = DoPost(_REMOTE, '/tools/find', {'Level' : 'Studies',
+                                                'Query' : { 
+                                                    'ModalitiesInStudy' : 'CT\\MR'
+                                                },
+                                                'Since': 2,
+                                                'Limit': 3,
+                                                'Expand': True,
+                                                'OrderBy': [
+                                                    {
+                                                        'Type': 'DicomTag',
+                                                        'Key': 'StudyDate',
+                                                        'Direction': 'ASC'
+                                                    }                                                        
+                                                ]})
+            # pprint.pprint(a)
+            self.assertEqual('20050927', a[0]['MainDicomTags']['StudyDate'])
+            self.assertEqual('20061201', a[1]['MainDicomTags']['StudyDate'])
+            self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
+
+
+    def test_attachment_range(self):
+        def TestData(path):
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path))
+            self.assertFalse('content-range' in resp)
+            self.assertEqual(200, resp.status)
+            self.assertEqual(2472, len(content))
+            self.assertEqual('2472', resp['content-length'])
+            self.assertEqual('application/dicom', resp['content-type'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=128-131' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(4, len(content))
+            self.assertEqual('D', content[0])
+            self.assertEqual('I', content[1])
+            self.assertEqual('C', content[2])
+            self.assertEqual('M', content[3])
+            self.assertEqual('4', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 128-131/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(2472, len(content))
+            self.assertEqual('2472', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-2471/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=128-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(2344, len(content))
+            self.assertEqual('D', content[0])
+            self.assertEqual('I', content[1])
+            self.assertEqual('C', content[2])
+            self.assertEqual('M', content[3])
+            self.assertEqual('2344', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 128-2471/2472', resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/%s' % (i, path), headers = { 'Range' : 'bytes=-131' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(132, len(content))
+            self.assertEqual('D', content[-4])
+            self.assertEqual('I', content[-3])
+            self.assertEqual('C', content[-2])
+            self.assertEqual('M', content[-1])
+            self.assertEqual('132', resp['content-length'])
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-131/2472', resp['content-range'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            i = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+
+            DoPost(_REMOTE, '/instances/%s/attachments/dicom/uncompress' % i)
+            TestData('data')
+            TestData('compressed-data')
+
+            DoPost(_REMOTE, '/instances/%s/attachments/dicom/compress' % i)
+            TestData('data')
+
+            (resp, compressed) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i)
+            self.assertFalse('content-range' in resp)
+            self.assertEqual(200, resp.status)
+            self.assertTrue(len(compressed) < 2000)
+            self.assertEqual(len(compressed), int(resp['content-length']))
+            self.assertEqual('application/octet-stream', resp['content-type'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(compressed, content)
+            self.assertEqual(len(compressed), int(resp['content-length']))
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-%d/%d' % (len(compressed) - 1, len(compressed)), resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=10-' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(compressed[10:], content)
+            self.assertEqual(len(compressed) - 10, int(resp['content-length']))
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 10-%d/%d' % (len(compressed) - 1, len(compressed)), resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=-20' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(compressed[0:21], content)
+            self.assertEqual(21, int(resp['content-length']))
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 0-20/%d' % len(compressed), resp['content-range'])
+
+            (resp, content) = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/compressed-data' % i, headers = { 'Range' : 'bytes=10-20' })
+            self.assertTrue('content-range' in resp)
+            self.assertEqual(206, resp.status)
+            self.assertEqual(compressed[10:21], content)
+            self.assertEqual(11, int(resp['content-length']))
+            self.assertEqual('application/octet-stream', resp['content-type'])
+            self.assertEqual('bytes 10-20/%d' % len(compressed), resp['content-range'])

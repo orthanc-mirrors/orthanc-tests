@@ -17,9 +17,9 @@ services:
       AC_AUTHENTICATION_ENABLED: "false"
 
   # Orthanc previous version
-  orthanc-pg-15-6rev2:
-    image: orthancteam/orthanc:24.9.1
-    container_name: orthanc-pg-15-6rev2
+  orthanc-pg-15-6rev3:
+    image: orthancteam/orthanc:25.1.1
+    container_name: orthanc-pg-15-6rev3
     depends_on: [pg-15]
     restart: unless-stopped
     ports: ["8052:8042"]
@@ -30,9 +30,9 @@ services:
       ORTHANC__AUTHENTICATION_ENABLED: "false"
 
   # Orthanc previous version to run the integration tests
-  orthanc-pg-15-6rev2-for-integ-tests:
-    image: orthancteam/orthanc:24.9.1
-    container_name: orthanc-pg-15-6rev2-for-integ-tests
+  orthanc-pg-15-6rev3-for-integ-tests:
+    image: orthancteam/orthanc:25.1.1
+    container_name: orthanc-pg-15-6rev3-for-integ-tests
     depends_on: [pg-15]
     restart: unless-stopped
     ports: ["8053:8042"]
@@ -51,7 +51,7 @@ services:
     image: jodogne/orthanc-tests
     container_name: orthanc-tests
     depends_on:
-      - orthanc-pg-15-6rev2-for-integ-tests
+      - orthanc-pg-15-6rev3-for-integ-tests
     volumes:
       - ../../:/tests/orthanc-tests
       - ./wait-for-it.sh:/scripts/wait-for-it.sh

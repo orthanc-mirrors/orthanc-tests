@@ -4,8 +4,8 @@
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
 # Copyright (C) 2017-2023 Osimis S.A., Belgium
-# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
-# Copyright (C) 2021-2024 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+# Copyright (C) 2024-2025 Orthanc Team SRL, Belgium
+# Copyright (C) 2021-2025 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -128,6 +128,8 @@ for streaming in [ False, True, None ]:
                 Assert(streaming == True or streaming == None)
 
                 try:
+                    #if (sys.version_info >= (3, 0)):
+                    #    z = bytearray(z, 'utf-8')
                     Toolbox.ParseArchive(z)
                     print('error, got valid archive')
                     queue.put(False)  # The archive is not corrupted as expected
