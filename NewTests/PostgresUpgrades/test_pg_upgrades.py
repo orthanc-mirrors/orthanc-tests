@@ -135,6 +135,10 @@ class TestPgUpgrades(unittest.TestCase):
         self.assertEqual(0, int(o.get_json('statistics')['TotalDiskSize']))
 
         print("run the integration tests after a downgrade")
+        # first create the containers (orthanc-tests + orthanc-pg-15-6rev3-for-integ-tests) so they know each other
+        subprocess.run(["docker", "compose", "create", "orthanc-tests"], check=True)
+
+        subprocess.run(["docker", "compose", "up", "orthanc-pg-15-6rev3-for-integ-tests", "-d"], check=True)
 
         o = OrthancApiClient("http://localhost:8053", user="alice", pwd="orthanctest")
         o.wait_started()
