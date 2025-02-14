@@ -240,7 +240,8 @@ def ParseArchive(s):
         return zipfile.ZipFile(StringIO(s), "r")
 
 def GetArchive(orthanc, uri):
-    return ParseArchive(DoGet(orthanc, uri))
+    (resp, content) = DoGetRaw(orthanc, uri)
+    return ParseArchive(content), resp
 
 def PostArchive(orthanc, uri, body):
     # http://stackoverflow.com/a/1313868/881731
