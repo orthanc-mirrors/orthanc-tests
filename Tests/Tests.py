@@ -11788,3 +11788,55 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(11, int(resp['content-length']))
             self.assertEqual('application/octet-stream', resp['content-type'])
             self.assertEqual('bytes 10-20/%d' % len(compressed), resp['content-range'])
+
+    def test_order_by_non_existing_metadata(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            r = UploadInstance(_REMOTE, 'sample-pdf.dcm')
+
+            # order by a metadata that does not exist (PDF do not have IndexInSeries)
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'Metadata',
+                                                            'Key': 'IndexInSeries',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'Metadata',
+                                                            'Key': '9876',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
+
+    def test_order_by_non_existing_tag(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            r = UploadInstance(_REMOTE, 'sample-pdf.dcm')
+
+            # order by a DICOM Tag that does not exist (PDF do not have ROWS)
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'DicomTag',
+                                                            'Key': 'Rows',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
