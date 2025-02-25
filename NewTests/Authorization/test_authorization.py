@@ -57,7 +57,8 @@ class TestAuthorization(OrthancTestCase):
                 },
                 "DicomWeb": {
                     "Enable": True
-                }
+                },
+                "StableAge": 5000 # not to be disturbed by StableAge events while debugging
             }
 
         config_path = cls.generate_configuration(
@@ -121,6 +122,17 @@ class TestAuthorization(OrthancTestCase):
         cls.no_label_series_dicom_id = o.series.get_tags(cls.no_label_series_id)["SeriesInstanceUID"]
         cls.no_label_instance_dicom_id = o.instances.get_tags(cls.no_label_instance_id)["SOPInstanceUID"]
 
+        cls.both_labels_instance_id = o.upload_file(here / "../../Database/Phenix/IM-0001-0001.dcm")[0]
+        cls.both_labels_study_id = o.instances.get_parent_study_id(cls.both_labels_instance_id)
+        cls.both_labels_series_id = o.instances.get_parent_series_id(cls.both_labels_instance_id)
+        cls.both_labels_study_dicom_id = o.studies.get_tags(cls.both_labels_study_id)["StudyInstanceUID"]
+        cls.both_labels_series_dicom_id = o.series.get_tags(cls.both_labels_series_id)["SeriesInstanceUID"]
+        cls.both_labels_instance_dicom_id = o.instances.get_tags(cls.both_labels_instance_id)["SOPInstanceUID"]
+        o.studies.add_label(cls.both_labels_study_id, "label_a")
+        o.studies.add_label(cls.both_labels_study_id, "label_b")
+        o.series.add_label(cls.both_labels_series_id, "label_a")
+        o.series.add_label(cls.both_labels_series_id, "label_b")
+
 
     def assert_is_forbidden(self, api_call):
         with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
@@ -145,14 +157,15 @@ class TestAuthorization(OrthancTestCase):
         instances_ids = o.series.get_instances_ids(series_ids[0])
         o.instances.get_tags(instances_ids[0])
 
-        # make sure labels filtering still works
-        self.assertEqual(3, len(o.studies.find(query={},
-                                               labels=[],
-                                               labels_constraint='Any')))
+        if o.is_plugin_version_at_least("authorization", 0, 9, 0):
+            # make sure labels filtering still works
+            self.assertEqual(4, len(o.studies.find(query={},
+                                                labels=[],
+                                                labels_constraint='Any')))
 
-        self.assertEqual(2, len(o.studies.find(query={},
-                                               labels=['label_a', 'label_b'],
-                                               labels_constraint='Any')))
+            self.assertEqual(3, len(o.studies.find(query={},
+                                                labels=['label_a', 'label_b'],
+                                                labels_constraint='Any')))
 
         self.assertEqual(2, len(o.studies.find(query={},
                                                labels=['label_a'],
@@ -192,19 +205,24 @@ class TestAuthorization(OrthancTestCase):
         # make sure we can not access series and instances of the label_b studies
         self.assert_is_forbidden(lambda: o.studies.get_series_ids(self.label_b_study_id))
 
-        # make sure tools/find only returns the label_a studies
-        studies = o.studies.find(query={},
-                                 labels=[],
-                                 labels_constraint='Any')
-        self.assertEqual(1, len(studies))
-        self.assertEqual(self.label_a_study_id, studies[0].orthanc_id)
+        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 0):
+            # make sure tools/find only returns the label_a studies
+            studies = o.studies.find(query={},
+                                    labels=[],
+                                    labels_constraint='Any')
+            studies_orthanc_ids = [x.orthanc_id for x in studies]
+            self.assertEqual(2, len(studies_orthanc_ids))
+            self.assertIn(self.label_a_study_id, studies_orthanc_ids)
+            self.assertIn(self.both_labels_study_id, studies_orthanc_ids)
 
-        # if searching Any of label_a & label_b, return only label_a
-        studies = o.studies.find(query={},
-                                 labels=['label_a', 'label_b'],
-                                 labels_constraint='Any')
-        self.assertEqual(1, len(studies))
-        self.assertEqual(self.label_a_study_id, studies[0].orthanc_id)
+            # if searching Any of label_a & label_b, return only label_a
+            studies = o.studies.find(query={},
+                                    labels=['label_a', 'label_b'],
+                                    labels_constraint='Any')
+            studies_orthanc_ids = [x.orthanc_id for x in studies]
+            self.assertEqual(2, len(studies_orthanc_ids))
+            self.assertIn(self.label_a_study_id, studies_orthanc_ids)
+            self.assertIn(self.both_labels_study_id, studies_orthanc_ids)
 
         # if searching Any of label_b, expect a Forbidden access
         self.assert_is_forbidden(lambda: o.studies.find(query={},
@@ -271,6 +289,31 @@ class TestAuthorization(OrthancTestCase):
             i = o_admin.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
             i = o_admin.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
             i = o_admin.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series?includefield=00080021%2C00080031%2C0008103E%2C00200011")
+
+        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 0):
+            # the user_a shall only see the label_a in the returned labels
+            studies = o.post(endpoint="/tools/find", json={"Level": "Study", "Query": {}, "Labels": [], "LabelsConstraint": "Any", "Expand": True}).json()
+            self.assertEqual(2, len(studies))
+            self.assertEqual(1, len(studies[0]["Labels"]))
+            self.assertEqual("label_a", studies[0]["Labels"][0])
+            self.assertEqual(1, len(studies[1]["Labels"]))
+            self.assertEqual("label_a", studies[1]["Labels"][0])
+
+            r = o.get(endpoint=f"/studies/{self.both_labels_study_id}").json()
+            self.assertEqual(1, len(r["Labels"]))
+            self.assertEqual("label_a", r["Labels"][0])
+
+            r = o.get(endpoint=f"/studies/{self.both_labels_study_id}/series?expand").json()
+            self.assertEqual(1, len(r[0]["Labels"]))
+            self.assertEqual("label_a", r[0]["Labels"][0])
+
+            r = o.get(endpoint=f"/studies/{self.both_labels_study_id}/labels").json()
+            self.assertEqual(1, len(r))
+            self.assertEqual("label_a", r[0])
+
+            r = o.get(endpoint=f"/series/{self.both_labels_series_id}/study").json()
+            self.assertEqual(1, len(r["Labels"]))
+            self.assertEqual("label_a", r["Labels"][0])
 
 
     def test_uploader_a(self):
