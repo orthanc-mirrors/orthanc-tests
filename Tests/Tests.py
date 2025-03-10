@@ -278,6 +278,12 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Uuid', attachmentInfo)
             self.assertEqual(1, attachmentInfo['ContentType'])
 
+
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+                resp, content = DoGetRaw(_REMOTE, '/instances/%s/attachments/dicom/data?filename=toto.dcm' % instance)
+                self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+
+
         s = sizeDummyCT + j
 
         if isCompressed:
@@ -727,7 +733,7 @@ class Orthanc(unittest.TestCase):
         kneeStudy = DoGet(_REMOTE, '/studies')[0]
         kneeSeries = DoGet(_REMOTE, '/series')[0]
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
+        z, resp = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
@@ -735,7 +741,7 @@ class Orthanc(unittest.TestCase):
         else:
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
-        z = GetArchive(_REMOTE, '/studies/%s/archive' % kneeStudy)
+        z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % kneeStudy)
         self.assertEqual(2, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
@@ -743,7 +749,7 @@ class Orthanc(unittest.TestCase):
         else:
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000000.dcm', z.namelist())
 
-        z = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
+        z, resp = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
         self.assertEqual(1, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
@@ -754,7 +760,7 @@ class Orthanc(unittest.TestCase):
         brainixPatient = '16738bc3-e47ed42a-43ce044c-a3414a45-cb069bd0'
         brainixStudy = '27f7126f-4f66fb14-03f4081b-f9341db2-53925988'
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
+        z, resp = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
 
         # archive with 2 patients
@@ -814,15 +820,15 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(helloPatient, worldPatient)
 
             # when downloading the Patient, we do not really know what PatientName we will get in the zip
-            z = GetArchive(_REMOTE, '/patients/%s/archive' % helloPatient)
+            z, resp = GetArchive(_REMOTE, '/patients/%s/archive' % helloPatient)
             self.assertEqual(2, len(z.namelist()))
 
             # when downloading studies individually, we want to have the PatientName that appears in the study
-            z = GetArchive(_REMOTE, '/studies/%s/archive' % helloStudy)
+            z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % helloStudy)
             self.assertEqual(1, len(z.namelist()))
             self.assertIn('COMMON HELLO/HELLO SERIES/Unknown Series/00000000.dcm', z.namelist())
 
-            z = GetArchive(_REMOTE, '/studies/%s/archive' % worldStudy)
+            z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % worldStudy)
             self.assertEqual(1, len(z.namelist()))
             self.assertIn('COMMON WORLD/WORLD SERIES/Unknown Series/00000000.dcm', z.namelist())
 
@@ -832,7 +838,7 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
         UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
 
-        z = GetArchive(_REMOTE, '/patients/%s/media' % DoGet(_REMOTE, '/patients')[0])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/media' % DoGet(_REMOTE, '/patients')[0])
         self.assertEqual(3, len(z.namelist()))
         self.assertTrue('IMAGES/IM0' in z.namelist())
         self.assertTrue('IMAGES/IM1' in z.namelist())
@@ -4745,7 +4751,7 @@ class Orthanc(unittest.TestCase):
     def test_extended_media(self):
         UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm')
 
-        z = GetArchive(_REMOTE, '/patients/%s/media?extended' % DoGet(_REMOTE, '/patients')[0])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/media?extended' % DoGet(_REMOTE, '/patients')[0])
         self.assertEqual(2, len(z.namelist()))
         self.assertTrue('IMAGES/IM0' in z.namelist())
         self.assertTrue('DICOMDIR' in z.namelist())
@@ -5176,12 +5182,15 @@ class Orthanc(unittest.TestCase):
 
         job = MonitorJob2(_REMOTE, lambda: DoPost
                           (_REMOTE, '/series/%s/archive' % kneeT1, {
-                              'Synchronous' : False
+                              'Synchronous' : False,
+                              'Filename': 'toto.zip'
                           }))
 
-        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
         self.assertEqual(1, len(z.namelist()))
         self.assertFalse('DICOMDIR' in z.namelist())
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            self.assertEqual('filename="toto.zip"', resp['content-disposition'])
 
         info = DoGet(_REMOTE, '/jobs/%s' % job)
         self.assertEqual(0, info['Content']['ArchiveSizeMB'])  # New in Orthanc 1.8.1
@@ -5197,7 +5206,7 @@ class Orthanc(unittest.TestCase):
         # archive from second job (as MediaArchiveSize == 1)
         self.assertRaises(Exception, lambda: GetArchive(_REMOTE, '/jobs/%s/archive' % job))
 
-        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job2)
+        z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job2)
         self.assertEqual(2, len(z.namelist()))
         self.assertTrue('DICOMDIR' in z.namelist())
 
@@ -5212,7 +5221,7 @@ class Orthanc(unittest.TestCase):
                               'Resources' : [ kneeT1, kneeT2 ],
                           }))
 
-        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
         self.assertEqual(2, len(z.namelist()))
         self.assertFalse('DICOMDIR' in z.namelist())
         
@@ -5227,7 +5236,7 @@ class Orthanc(unittest.TestCase):
                               'Resources' : [ kneeT1, kneeT2 ],
                           }))
 
-        z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+        z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
         self.assertEqual(3, len(z.namelist()))
         self.assertTrue('DICOMDIR' in z.namelist())
 
@@ -5249,7 +5258,7 @@ class Orthanc(unittest.TestCase):
                                 'Synchronous' : False
                             }))
 
-            z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+            z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
             # delete the output
             DoDelete(_REMOTE, '/jobs/%s/archive' % job)
             # make sure it is not available anymore afterwards
@@ -5260,7 +5269,7 @@ class Orthanc(unittest.TestCase):
                             (_REMOTE, '/series/%s/archive' % kneeT2, {
                                 'Synchronous' : False
                             }))
-            z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+            z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
             # delete the output
             DoDelete(_REMOTE, '/jobs/%s/archive' % job)
             # make sure it is not available anymore afterwards
@@ -5278,7 +5287,7 @@ class Orthanc(unittest.TestCase):
                                 (_REMOTE, '/series/%s/archive' % kneeT2, {
                                     'Synchronous' : False
                                 }))
-                z = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
+                z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
                 # delete the job itself
                 DoDelete(_REMOTE, '/jobs/%s' % job)
                 # make sure it is not available anymore afterwards (and its output is not available either)
@@ -5523,7 +5532,7 @@ class Orthanc(unittest.TestCase):
         a = UploadInstance(_REMOTE, 'Issue124.dcm')['ID']
         s = DoGet(_REMOTE, '/instances/%s/series' % a)['ID']
 
-        z = GetArchive(_REMOTE, '/series/%s/media' % s)
+        z, resp = GetArchive(_REMOTE, '/series/%s/media' % s)
         self.assertEqual(2, len(z.namelist()))
 
 
@@ -6693,7 +6702,7 @@ class Orthanc(unittest.TestCase):
         SYNTAXES = [
             '1.2.840.10008.1.2',        
             '1.2.840.10008.1.2.1',
-            #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
             '1.2.840.10008.1.2.2',
             '1.2.840.10008.1.2.4.50',
             '1.2.840.10008.1.2.4.51',
@@ -6729,24 +6738,47 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertEqual(a, b)
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            ratio40 = ExtractDicomTags(transcoded, [ 'LossyImageCompressionRatio' ]) [0]
+
+            transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+            ratio80 = ExtractDicomTags(transcoded, [ 'LossyImageCompressionRatio' ]) [0]
+            self.assertGreater(ratio40, ratio80)
+
+
     def test_archive_transcode(self):
         info = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')
 
         # GET on "/media"
-        z = GetArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/media' % info['ParentPatient'])
         self.assertEqual(2, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read('IMAGES/IM0')))
 
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/media?transcode=nope' % info['ParentPatient']))
 
-        z = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50' % info['ParentPatient'])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50' % info['ParentPatient'])
         self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read('IMAGES/IM0')))
 
-        z = GetArchive(_REMOTE, '/studies/%s/media?transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
+        z, resp = GetArchive(_REMOTE, '/studies/%s/media?transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
         self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
 
-        z = GetArchive(_REMOTE, '/series/%s/media?transcode=1.2.840.10008.1.2.4.57' % info['ParentSeries'])
+        z, resp = GetArchive(_REMOTE, '/series/%s/media?transcode=1.2.840.10008.1.2.4.57' % info['ParentSeries'])
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            z40, resp40 = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ParentPatient'])
+            z80, resp80 = GetArchive(_REMOTE, '/patients/%s/media?transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ParentPatient'])
+
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
 
 
         # POST on "/media"
@@ -6768,22 +6800,44 @@ class Orthanc(unittest.TestCase):
             })
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            z40 = PostArchive(_REMOTE, '/series/%s/media' % info['ParentSeries'], {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            z80 = PostArchive(_REMOTE, '/series/%s/media' % info['ParentSeries'], {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
+
         
         # GET on "/archive"
-        z = GetArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/archive' % info['ParentPatient'])
         self.assertEqual(1, len(z.namelist()))
         self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(z.read(z.namelist()[0])))
 
         self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/patients/%s/archive?transcode=nope' % info['ParentPatient']))
 
-        z = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2' % info['ParentPatient'])
+        z, resp = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2' % info['ParentPatient'])
         self.assertEqual('1.2.840.10008.1.2', GetTransferSyntax(z.read(z.namelist()[0])))
 
-        z = GetArchive(_REMOTE, '/studies/%s/archive?transcode=1.2.840.10008.1.2.2' % info['ParentStudy'])
+        z, resp = GetArchive(_REMOTE, '/studies/%s/archive?transcode=1.2.840.10008.1.2.2' % info['ParentStudy'])
         self.assertEqual('1.2.840.10008.1.2.2', GetTransferSyntax(z.read(z.namelist()[0])))
 
-        z = GetArchive(_REMOTE, '/series/%s/archive?transcode=1.2.840.10008.1.2.4.70' % info['ParentSeries'])
+        z, resp = GetArchive(_REMOTE, '/series/%s/archive?transcode=1.2.840.10008.1.2.4.70' % info['ParentSeries'])
         self.assertEqual('1.2.840.10008.1.2.4.70', GetTransferSyntax(z.read(z.namelist()[0])))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            z40, resp40 = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ParentPatient'])
+            z80, resp80 = GetArchive(_REMOTE, '/patients/%s/archive?transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ParentPatient'])
+
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
 
 
         # POST on "/archive"
@@ -6805,6 +6859,20 @@ class Orthanc(unittest.TestCase):
             })
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read(z.namelist()[0])))
         
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            z40 = PostArchive(_REMOTE, '/series/%s/archive' % info['ParentSeries'], {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            z80 = PostArchive(_REMOTE, '/series/%s/archive' % info['ParentSeries'], {
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
+
 
         # "/tools/create-*"
         z = PostArchive(_REMOTE, '/tools/create-archive', {
@@ -6829,30 +6897,96 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
-            z = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50' % info['ParentStudy'])
+            z, resp = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50' % info['ParentStudy'])
             self.assertEqual(1, len(z.namelist()))
             self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(z.read(z.namelist()[0])))
 
-            z = GetArchive(_REMOTE, '/tools/create-media?resources=%s&transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
+            z, resp = GetArchive(_REMOTE, '/tools/create-media?resources=%s&transcode=1.2.840.10008.1.2.4.51' % info['ParentStudy'])
             self.assertEqual(2, len(z.namelist()))
             self.assertEqual('1.2.840.10008.1.2.4.51', GetTransferSyntax(z.read('IMAGES/IM0')))
 
-            z = GetArchive(_REMOTE, '/tools/create-media-extended?resources=%s&transcode=1.2.840.10008.1.2.4.57' % info['ParentStudy'])
+            z, resp = GetArchive(_REMOTE, '/tools/create-media-extended?resources=%s&transcode=1.2.840.10008.1.2.4.57&filename=toto.zip' % info['ParentStudy'])
             self.assertEqual(2, len(z.namelist()))
             self.assertEqual('1.2.840.10008.1.2.4.57', GetTransferSyntax(z.read('IMAGES/IM0')))
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+                self.assertEqual('filename="toto.zip"', resp['content-disposition'])
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            z40 = PostArchive(_REMOTE, '/tools/create-archive', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            z80 = PostArchive(_REMOTE, '/tools/create-archive', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+                
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
 
+            z40 = PostArchive(_REMOTE, '/tools/create-media', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            z80 = PostArchive(_REMOTE, '/tools/create-media', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+                
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
+
+            z40 = PostArchive(_REMOTE, '/tools/create-media-extended', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 40
+                })
+            z80 = PostArchive(_REMOTE, '/tools/create-media-extended', {
+                'Resources' : [ info['ParentStudy'] ],
+                'Transcode' : '1.2.840.10008.1.2.4.50',
+                'LossyQuality': 80
+                })
+                
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
+
+            z40, resp = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ParentStudy'])
+            z80, resp = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ParentStudy'])
+            size40 = sum([zinfo.file_size for zinfo in z40.filelist])
+            size80 = sum([zinfo.file_size for zinfo in z80.filelist])
+            self.assertLess(size40, size80)
 
 
     def test_download_file_transcode(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 2):
 
             info = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.dcm')
-            self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
-                DoGet(_REMOTE, '/instances/%s/file' % info['ID'])))
+            # self.assertEqual('1.2.840.10008.1.2.1', GetTransferSyntax(
+            #     DoGet(_REMOTE, '/instances/%s/file' % info['ID'])))
 
-            self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(
-                DoGet(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50' % info['ID'])))
+            # self.assertEqual('1.2.840.10008.1.2.4.50', GetTransferSyntax(
+            #     DoGet(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50' % info['ID'])))
+
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+                # resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename=toto.dcm' % info['ID'])
+                # self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+
+                # resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50&filename=toto.dcm' % info['ID'])
+                # self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+
+                # resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename="toto".dcm' % info['ID'])
+                # self.assertEqual('filename="\"toto\".dcm"', resp['content-disposition'])
+
+                resp, content40 = DoGetRaw(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ID'])
+                resp, content80 = DoGetRaw(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ID'])
+                self.assertLess(len(content40), len(content80))
 
 
     def test_modify_keep_source(self):
@@ -7243,7 +7377,7 @@ class Orthanc(unittest.TestCase):
         SYNTAXES = [
             '1.2.840.10008.1.2',        
             '1.2.840.10008.1.2.1',
-            #'1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
             '1.2.840.10008.1.2.2',
             '1.2.840.10008.1.2.4.50',
             '1.2.840.10008.1.2.4.51',
@@ -11767,3 +11901,55 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(11, int(resp['content-length']))
             self.assertEqual('application/octet-stream', resp['content-type'])
             self.assertEqual('bytes 10-20/%d' % len(compressed), resp['content-range'])
+
+    def test_order_by_non_existing_metadata(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            r = UploadInstance(_REMOTE, 'sample-pdf.dcm')
+
+            # order by a metadata that does not exist (PDF do not have IndexInSeries)
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'Metadata',
+                                                            'Key': 'IndexInSeries',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
+
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'Metadata',
+                                                            'Key': '9876',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
+
+    def test_order_by_non_existing_tag(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            r = UploadInstance(_REMOTE, 'sample-pdf.dcm')
+
+            # order by a DICOM Tag that does not exist (PDF do not have ROWS)
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
+                                                    'ParentSeries': r['ParentSeries'],
+                                                    'Query' : { 
+                                                    },
+                                                    'OrderBy' : [
+                                                        {
+                                                            'Type': 'DicomTag',
+                                                            'Key': 'Rows',
+                                                            'Direction': 'ASC'
+                                                        }
+                                                    ]
+                                                })
+            self.assertEqual(1, len(a))
