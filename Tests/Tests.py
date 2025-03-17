@@ -11953,3 +11953,20 @@ class Orthanc(unittest.TestCase):
                                                     ]
                                                 })
             self.assertEqual(1, len(a))
+
+    def test_deflated_invalid_size(self):  # https://discourse.orthanc-server.org/t/transcoding-to-deflated-transfer-syntax-fails/5489
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+            instanceId = '6582b1c0-292ad5ab-ba0f088f-f7a1766f-9a29a54f'
+
+            r = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm')
+            attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
+            self.assertEqual(instanceId, r['ID'])
+            self.assertEqual(181071, int(attachments['UncompressedSize']))
+
+            DoDelete(_REMOTE, '/instances/' + instanceId)
+
+            subprocess.check_call([ FindExecutable('storescu'), '-xd', # propose deflated
+                                _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm') ])
+            attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
+            self.assertEqual(181071, int(attachments['UncompressedSize']))
