@@ -11955,7 +11955,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(a))
 
     def test_deflated_invalid_size(self):  # https://discourse.orthanc-server.org/t/transcoding-to-deflated-transfer-syntax-fails/5489
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
             instanceId = '6582b1c0-292ad5ab-ba0f088f-f7a1766f-9a29a54f'
 
             r = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm')
