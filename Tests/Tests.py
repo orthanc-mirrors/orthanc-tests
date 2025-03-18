@@ -6710,7 +6710,7 @@ class Orthanc(unittest.TestCase):
         ]
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
-            SYNTAXES.push('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+            SYNTAXES.append('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
 
 
         if HasGdcmPlugin(_REMOTE):
@@ -7388,7 +7388,7 @@ class Orthanc(unittest.TestCase):
         ]
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
-            SYNTAXES.push('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+            SYNTAXES.append('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
 
 
 
