@@ -11976,4 +11976,5 @@ class Orthanc(unittest.TestCase):
                                 _REMOTE['Server'], str(_REMOTE['DicomPort']),
                                 GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm') ])
             attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
-            self.assertEqual(181071, int(attachments['UncompressedSize']))
+            self.assertLessEqual(181071, int(attachments['UncompressedSize']))
+            self.assertGreaterEqual(181073, int(attachments['UncompressedSize']))  # there might be some padding added
