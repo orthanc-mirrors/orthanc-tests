@@ -71,6 +71,8 @@ class TestPgUpgrades(unittest.TestCase):
         subprocess.run(["docker", "compose", "stop", "orthanc-pg-15-under-tests"], check=True)
         time.sleep(2)
 
+    
+    # test a full upgrade from a very old version, and a downgrade to the previous version (where we run the integration tests)
     def test_upgrades_downgrades_with_pg_15(self):
 
         # remove everything including the DB from previous tests
@@ -144,10 +146,11 @@ class TestPgUpgrades(unittest.TestCase):
         o.wait_started()
 
         # time.sleep(10000)
-        subprocess.run(["docker", "compose", "up", "orthanc-tests"], check=True)
+        subprocess.run(["docker", "compose", "up", "orthanc-tests", "--exit-code-from", "orthanc-tests"], check=True)
 
 
 
+    # make sure we can still start a new Orthanc with an Old PG server
     def test_latest_orthanc_with_pg_9(self):
 
         # remove everything including the DB from previous tests
