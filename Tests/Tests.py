@@ -2562,30 +2562,30 @@ class Orthanc(unittest.TestCase):
         a = ExtractDicomTags(Anonymize(u, { 'PatientName' : 'toto' }), tags)
         for i in range(4):
             self.assertNotEqual(ids[i], a[i])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'SOPInstanceUID' : 'instance' }), tags)
         self.assertEqual('instance', a[3])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'SeriesInstanceUID' : 'series' }), tags)
         self.assertEqual('series', a[2])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'StudyInstanceUID' : 'study' }), tags)
         self.assertEqual('study', a[1])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient' }), tags)
         self.assertEqual('patient', a[0])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient',
                                             'StudyInstanceUID' : 'study',
                                             'SeriesInstanceUID' : 'series',
                                             'SOPInstanceUID' : 'instance' }), tags)
         self.assertEqual('patient', a[0])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
 
@@ -8363,6 +8363,7 @@ class Orthanc(unittest.TestCase):
         tags2021b = GetTags(study, { 'DicomVersion' : '2021b' })
         tags2023b = GetTags(study, { 'DicomVersion' : '2023b' })
         tagsDefault = GetTags(study, {})
+        tagsReplace = GetTags(study, { 'Replace' : { 'StationName': 'tutu' }})
 
         orthancVersion = DoGet(_REMOTE, '/system') ['Version']
         if orthancVersion.startswith('mainline-'):  # happens in unstable orthancteam/orthanc images
@@ -8372,6 +8373,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Orthanc %s - PS 3.15-2017c Table E.1-1 Basic Profile' % orthancVersion, tags2017c['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2021b Table E.1-1 Basic Profile' % orthancVersion, tags2021b['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2023b Table E.1-1 Basic Profile' % orthancVersion, tags2023b['0012,0063'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            self.assertEqual('Orthanc %s' % orthancVersion, tagsReplace['0012,0063'])
+
         self.assertEqual(tagsDefault['0012,0063'], tags2023b['0012,0063'])
 
         self.assertEqual(len(tags2021b), len(tags2023b))
