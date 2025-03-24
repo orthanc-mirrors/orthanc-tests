@@ -341,6 +341,16 @@ class TestAuthorization(OrthancTestCase):
             o.upload_files_dicom_web(paths = [here / "../../Database/Beaufix/IM-0001-0001.dcm"])
             o_admin.instances.delete(orthanc_ids=instances_ids)
 
+        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 1):
+
+            # uploader-a shall not be able to upload a study through DICOMWeb using /dicom-web/studies/<StudyInstanceUID of label_b>
+            self.assert_is_forbidden(lambda: o.upload_files_dicom_web(paths = [here / "../../Database/Knix/Loc/IM-0001-0002.dcm"], endpoint=f"/dicom-web/studies/{self.label_b_study_dicom_id}"))
+
+            # uploader-a shall be able to upload a study through DICOMWeb using /dicom-web/studies/<StudyInstanceUID of label_a>
+            o.upload_files_dicom_web(paths = [here / "../../Database/Knix/Loc/IM-0001-0002.dcm"], endpoint=f"/dicom-web/studies/{self.label_a_study_dicom_id}")
+
+            # note that, uploader-a is allowed to upload to /dicom-web/studies without checking any labels :-()
+            o.upload_files_dicom_web(paths = [here / "../../Database/Knix/Loc/IM-0001-0002.dcm"], endpoint=f"/dicom-web/studies")
 
     def test_resource_token(self):
 
