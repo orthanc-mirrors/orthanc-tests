@@ -11982,3 +11982,79 @@ class Orthanc(unittest.TestCase):
             attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
             self.assertLessEqual(181071, int(attachments['UncompressedSize']))
             self.assertGreaterEqual(181073, int(attachments['UncompressedSize']))  # there might be some padding added
+
+    def test_embed_jpeg(self):
+        if not IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            return
+
+        with open(GetDatabasePath('Lena.jpg'), 'rb') as f:
+            jpeg = f.read()
+
+        i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+            'Content' : 'data:image/jpeg;base64,%s' % base64.b64encode(jpeg).decode(),
+            'Encapsulate' : True,
+            'Tags' : {
+                'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.7',
+            }
+        })) ['ID']
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual(tags['BitsAllocated'], '8')
+        self.assertEqual(tags['BitsStored'], '8')
+        self.assertEqual(tags['Columns'], '512')
+        self.assertEqual(tags['HighBit'], '7')
+        self.assertEqual(tags['PhotometricInterpretation'], 'YBR_FULL_422')
+        self.assertEqual(tags['PixelData'], None)
+        self.assertEqual(tags['PixelRepresentation'], '0')
+        self.assertEqual(tags['PlanarConfiguration'], '0')
+        self.assertEqual(tags['Rows'], '512')
+        self.assertEqual(tags['SOPClassUID'], '1.2.840.10008.5.1.4.1.1.7')
+        self.assertEqual(tags['SamplesPerPixel'], '3')
+        self.assertEqual(tags['SpecificCharacterSet'], 'ISO_IR 100')
+        pixelData = DoGet(_REMOTE, '/instances/%s/content/7fe0,0010' % i)
+        self.assertEqual(len(pixelData), 2)
+        self.assertEqual(pixelData[0], '0')
+        self.assertEqual(pixelData[1], '1')
+        resp, embedded = DoGetRaw(_REMOTE, '/instances/%s/content/7fe0,0010/1' % i)
+        self.assertEqual('200', resp['status'])
+        self.assertEqual(len(embedded), len(jpeg))
+        self.assertEqual(embedded, jpeg)
+
+        b = io.BytesIO()
+        UncompressImage(jpeg).convert('L').save(b, format = 'jpeg')
+
+        b.seek(0)
+        grayscale = b.read()
+
+        if len(grayscale) % 2 != 0:
+            grayscale = grayscale + '\0'   # Add padding to OW boundaries (2 bytes)
+
+        i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+            'Content' : 'data:image/jpeg;base64,%s' % base64.b64encode(grayscale).decode(),
+            'Encapsulate' : True,
+            'Tags' : {
+                'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.7',
+            }
+        })) ['ID']
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual(tags['BitsAllocated'], '8')
+        self.assertEqual(tags['BitsStored'], '8')
+        self.assertEqual(tags['Columns'], '512')
+        self.assertEqual(tags['HighBit'], '7')
+        self.assertEqual(tags['PhotometricInterpretation'], 'MONOCHROME2')
+        self.assertEqual(tags['PixelData'], None)
+        self.assertEqual(tags['PixelRepresentation'], '0')
+        self.assertFalse('PlanarConfiguration' in tags)
+        self.assertEqual(tags['Rows'], '512')
+        self.assertEqual(tags['SOPClassUID'], '1.2.840.10008.5.1.4.1.1.7')
+        self.assertEqual(tags['SamplesPerPixel'], '1')
+        self.assertEqual(tags['SpecificCharacterSet'], 'ISO_IR 100')
+        pixelData = DoGet(_REMOTE, '/instances/%s/content/7fe0,0010' % i)
+        self.assertEqual(len(pixelData), 2)
+        self.assertEqual(pixelData[0], '0')
+        self.assertEqual(pixelData[1], '1')
+        resp, embedded = DoGetRaw(_REMOTE, '/instances/%s/content/7fe0,0010/1' % i)
+        self.assertEqual('200', resp['status'])
+        self.assertEqual(len(embedded), len(grayscale))
+        self.assertEqual(embedded, grayscale)
