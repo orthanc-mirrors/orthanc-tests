@@ -2562,30 +2562,30 @@ class Orthanc(unittest.TestCase):
         a = ExtractDicomTags(Anonymize(u, { 'PatientName' : 'toto' }), tags)
         for i in range(4):
             self.assertNotEqual(ids[i], a[i])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'SOPInstanceUID' : 'instance' }), tags)
         self.assertEqual('instance', a[3])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'SeriesInstanceUID' : 'series' }), tags)
         self.assertEqual('series', a[2])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'StudyInstanceUID' : 'study' }), tags)
         self.assertEqual('study', a[1])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient' }), tags)
         self.assertEqual('patient', a[0])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         a = ExtractDicomTags(Anonymize(u, { 'PatientID' : 'patient',
                                             'StudyInstanceUID' : 'study',
                                             'SeriesInstanceUID' : 'series',
                                             'SOPInstanceUID' : 'instance' }), tags)
         self.assertEqual('patient', a[0])
-        self.assertFalse(a[4].startswith('Orthanc'))
+        self.assertNotIn('PS 3.15', a[4])
 
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
 
@@ -6702,13 +6702,16 @@ class Orthanc(unittest.TestCase):
         SYNTAXES = [
             '1.2.840.10008.1.2',        
             '1.2.840.10008.1.2.1',
-            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
             '1.2.840.10008.1.2.2',
             '1.2.840.10008.1.2.4.50',
             '1.2.840.10008.1.2.4.51',
             '1.2.840.10008.1.2.4.57',
             '1.2.840.10008.1.2.4.70',
         ]
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            SYNTAXES.append('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+
 
         if HasGdcmPlugin(_REMOTE):
             SYNTAXES = SYNTAXES + [
@@ -7377,13 +7380,17 @@ class Orthanc(unittest.TestCase):
         SYNTAXES = [
             '1.2.840.10008.1.2',        
             '1.2.840.10008.1.2.1',
-            '1.2.840.10008.1.2.1.99',  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
             '1.2.840.10008.1.2.2',
             '1.2.840.10008.1.2.4.50',
             '1.2.840.10008.1.2.4.51',
             '1.2.840.10008.1.2.4.57',
             '1.2.840.10008.1.2.4.70',
         ]
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            SYNTAXES.append('1.2.840.10008.1.2.1.99')  # Deflated Explicit VR Little Endian (cannot be decoded in debug mode if Orthanc is statically linked against DCMTK 3.6.5)
+
+
 
         if HasGdcmPlugin(_REMOTE):
             SYNTAXES = SYNTAXES + [
@@ -8356,6 +8363,7 @@ class Orthanc(unittest.TestCase):
         tags2021b = GetTags(study, { 'DicomVersion' : '2021b' })
         tags2023b = GetTags(study, { 'DicomVersion' : '2023b' })
         tagsDefault = GetTags(study, {})
+        tagsReplace = GetTags(study, { 'Replace' : { 'StationName': 'tutu' }})
 
         orthancVersion = DoGet(_REMOTE, '/system') ['Version']
         if orthancVersion.startswith('mainline-'):  # happens in unstable orthancteam/orthanc images
@@ -8365,6 +8373,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Orthanc %s - PS 3.15-2017c Table E.1-1 Basic Profile' % orthancVersion, tags2017c['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2021b Table E.1-1 Basic Profile' % orthancVersion, tags2021b['0012,0063'])
         self.assertEqual('Orthanc %s - PS 3.15-2023b Table E.1-1 Basic Profile' % orthancVersion, tags2023b['0012,0063'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            self.assertEqual('Orthanc %s' % orthancVersion, tagsReplace['0012,0063'])
+
         self.assertEqual(tagsDefault['0012,0063'], tags2023b['0012,0063'])
 
         self.assertEqual(len(tags2021b), len(tags2023b))
@@ -11953,3 +11964,97 @@ class Orthanc(unittest.TestCase):
                                                     ]
                                                 })
             self.assertEqual(1, len(a))
+
+    def test_deflated_invalid_size(self):  # https://discourse.orthanc-server.org/t/transcoding-to-deflated-transfer-syntax-fails/5489
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            instanceId = '6582b1c0-292ad5ab-ba0f088f-f7a1766f-9a29a54f'
+
+            r = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm')
+            attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
+            self.assertEqual(instanceId, r['ID'])
+            self.assertEqual(181071, int(attachments['UncompressedSize']))
+
+            DoDelete(_REMOTE, '/instances/' + instanceId)
+
+            subprocess.check_call([ FindExecutable('storescu'), '-xd', # propose deflated
+                                _REMOTE['Server'], str(_REMOTE['DicomPort']),
+                                GetDatabasePath('TransferSyntaxes/1.2.840.10008.1.2.1.99.dcm') ])
+            attachments = DoGet(_REMOTE, '/instances/' + instanceId + '/attachments/dicom/info/')
+            self.assertLessEqual(181071, int(attachments['UncompressedSize']))
+            self.assertGreaterEqual(181073, int(attachments['UncompressedSize']))  # there might be some padding added
+
+    def test_embed_jpeg(self):
+        if not IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+            return
+
+        with open(GetDatabasePath('Lena.jpg'), 'rb') as f:
+            jpeg = f.read()
+
+        i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+            'Content' : 'data:image/jpeg;base64,%s' % base64.b64encode(jpeg).decode(),
+            'Encapsulate' : True,
+            'Tags' : {
+                'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.7',
+            }
+        })) ['ID']
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual(tags['BitsAllocated'], '8')
+        self.assertEqual(tags['BitsStored'], '8')
+        self.assertEqual(tags['Columns'], '512')
+        self.assertEqual(tags['HighBit'], '7')
+        self.assertEqual(tags['PhotometricInterpretation'], 'YBR_FULL_422')
+        self.assertEqual(tags['PixelData'], None)
+        self.assertEqual(tags['PixelRepresentation'], '0')
+        self.assertEqual(tags['PlanarConfiguration'], '0')
+        self.assertEqual(tags['Rows'], '512')
+        self.assertEqual(tags['SOPClassUID'], '1.2.840.10008.5.1.4.1.1.7')
+        self.assertEqual(tags['SamplesPerPixel'], '3')
+        self.assertEqual(tags['SpecificCharacterSet'], 'ISO_IR 100')
+        pixelData = DoGet(_REMOTE, '/instances/%s/content/7fe0,0010' % i)
+        self.assertEqual(len(pixelData), 2)
+        self.assertEqual(pixelData[0], '0')
+        self.assertEqual(pixelData[1], '1')
+        resp, embedded = DoGetRaw(_REMOTE, '/instances/%s/content/7fe0,0010/1' % i)
+        self.assertEqual('200', resp['status'])
+        self.assertEqual(len(embedded), len(jpeg))
+        self.assertEqual(embedded, jpeg)
+
+        b = io.BytesIO()
+        UncompressImage(jpeg).convert('L').save(b, format = 'jpeg')
+
+        b.seek(0)
+        grayscale = b.read()
+
+        if len(grayscale) % 2 != 0:
+            grayscale = grayscale + '\0'   # Add padding to OW boundaries (2 bytes)
+
+        i = DoPost(_REMOTE, '/tools/create-dicom', json.dumps({
+            'Content' : 'data:image/jpeg;base64,%s' % base64.b64encode(grayscale).decode(),
+            'Encapsulate' : True,
+            'Tags' : {
+                'SOPClassUID' : '1.2.840.10008.5.1.4.1.1.7',
+            }
+        })) ['ID']
+
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % i)
+        self.assertEqual(tags['BitsAllocated'], '8')
+        self.assertEqual(tags['BitsStored'], '8')
+        self.assertEqual(tags['Columns'], '512')
+        self.assertEqual(tags['HighBit'], '7')
+        self.assertEqual(tags['PhotometricInterpretation'], 'MONOCHROME2')
+        self.assertEqual(tags['PixelData'], None)
+        self.assertEqual(tags['PixelRepresentation'], '0')
+        self.assertFalse('PlanarConfiguration' in tags)
+        self.assertEqual(tags['Rows'], '512')
+        self.assertEqual(tags['SOPClassUID'], '1.2.840.10008.5.1.4.1.1.7')
+        self.assertEqual(tags['SamplesPerPixel'], '1')
+        self.assertEqual(tags['SpecificCharacterSet'], 'ISO_IR 100')
+        pixelData = DoGet(_REMOTE, '/instances/%s/content/7fe0,0010' % i)
+        self.assertEqual(len(pixelData), 2)
+        self.assertEqual(pixelData[0], '0')
+        self.assertEqual(pixelData[1], '1')
+        resp, embedded = DoGetRaw(_REMOTE, '/instances/%s/content/7fe0,0010/1' % i)
+        self.assertEqual('200', resp['status'])
+        self.assertEqual(len(embedded), len(grayscale))
+        self.assertEqual(embedded, grayscale)
