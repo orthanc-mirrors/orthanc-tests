@@ -99,6 +99,7 @@ class TestAuthorization(OrthancTestCase):
         cls.label_a_instance_id = o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")[0]
         cls.label_a_study_id = o.instances.get_parent_study_id(cls.label_a_instance_id)
         cls.label_a_series_id = o.instances.get_parent_series_id(cls.label_a_instance_id)
+        cls.label_a_patient_dicom_id = o.studies.get_tags(cls.label_a_study_id)["PatientID"]
         cls.label_a_study_dicom_id = o.studies.get_tags(cls.label_a_study_id)["StudyInstanceUID"]
         cls.label_a_series_dicom_id = o.series.get_tags(cls.label_a_series_id)["SeriesInstanceUID"]
         cls.label_a_instance_dicom_id = o.instances.get_tags(cls.label_a_instance_id)["SOPInstanceUID"]
@@ -107,6 +108,7 @@ class TestAuthorization(OrthancTestCase):
         cls.label_b_instance_id = o.upload_file(here / "../../Database/Brainix/Epi/IM-0001-0001.dcm")[0]
         cls.label_b_study_id = o.instances.get_parent_study_id(cls.label_b_instance_id)
         cls.label_b_series_id = o.instances.get_parent_series_id(cls.label_b_instance_id)
+        cls.label_b_patient_dicom_id = o.studies.get_tags(cls.label_b_study_id)["PatientID"]
         cls.label_b_study_dicom_id = o.studies.get_tags(cls.label_b_study_id)["StudyInstanceUID"]
         cls.label_b_series_dicom_id = o.series.get_tags(cls.label_b_series_id)["SeriesInstanceUID"]
         cls.label_b_instance_dicom_id = o.instances.get_tags(cls.label_b_instance_id)["SOPInstanceUID"]
@@ -118,6 +120,7 @@ class TestAuthorization(OrthancTestCase):
         cls.no_label_instance_id = o.upload_file(here / "../../Database/Comunix/Pet/IM-0001-0001.dcm")[0]
         cls.no_label_study_id = o.instances.get_parent_study_id(cls.no_label_instance_id)
         cls.no_label_series_id = o.instances.get_parent_series_id(cls.no_label_instance_id)
+        cls.no_label_patient_dicom_id = o.studies.get_tags(cls.no_label_study_id)["PatientID"]
         cls.no_label_study_dicom_id = o.studies.get_tags(cls.no_label_study_id)["StudyInstanceUID"]
         cls.no_label_series_dicom_id = o.series.get_tags(cls.no_label_series_id)["SeriesInstanceUID"]
         cls.no_label_instance_dicom_id = o.instances.get_tags(cls.no_label_instance_id)["SOPInstanceUID"]
@@ -314,6 +317,15 @@ class TestAuthorization(OrthancTestCase):
             r = o.get(endpoint=f"/series/{self.both_labels_series_id}/study").json()
             self.assertEqual(1, len(r["Labels"]))
             self.assertEqual("label_a", r["Labels"][0])
+
+        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 2):
+            i = o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_a_study_dicom_id}")
+            
+            # this one is forbidden because we specify the study (and the study is forbidden)
+            self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_b_study_dicom_id}"))
+            
+            # this one is empty because no studies are specified
+            self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
 
 
     def test_uploader_a(self):
