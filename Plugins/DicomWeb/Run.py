@@ -189,7 +189,10 @@ class Orthanc(unittest.TestCase):
         a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
         self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
 
-        self.assertEqual(4, len(a))
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0):
+            self.assertEqual(3, len(a))  # DICOM_TAG_FAILED_SOP_SEQUENCE has been removed in 1.19
+        else:
+            self.assertEqual(4, len(a))
 
         # Specific character set
         self.assertTrue('00080005' in a)
@@ -198,8 +201,11 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(a['00081190']['Value'][0].endswith('studies/2.16.840.1.113669.632.20.1211.10000098591'))
         self.assertEqual('UR', a['00081190']['vr'])
         
-        self.assertFalse('Value' in a['00081198'])  # No error => empty sequence
-        self.assertEqual('SQ', a['00081198']['vr'])
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0):
+            self.assertNotIn('00081198', a)  # No errors => the DICOM_TAG_FAILED_SOP_SEQUENCE shall not be present
+        else:
+            self.assertFalse('Value' in a['00081198'])  # No error => empty sequence
+            self.assertEqual('SQ', a['00081198']['vr'])
 
         self.assertEqual(1, len(a['00081199']['Value']))  # 1 success
         self.assertEqual('SQ', a['00081199']['vr'])
@@ -235,6 +241,16 @@ class Orthanc(unittest.TestCase):
         parts = re.findall(r'^Content-Length:\s*(\d+)\s*', b, re.IGNORECASE | re.MULTILINE)
         self.assertEqual(1, len(parts))
         self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
+
+    def test_stow_like_dcm4chee(self):
+        # https://discourse.orthanc-server.org/t/orthanc-dicomweb-stowrs-server-request-response-compatibility/5763
+
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'), 'application/dicom;transfer-syntax=1.2.840.10008.1.2.1')
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+
+        self.assertNotIn('00081198', a)  # No errors => the DICOM_TAG_FAILED_SOP_SEQUENCE shall not be present
+
 
         
     def test_server_get(self):
@@ -708,19 +724,24 @@ class Orthanc(unittest.TestCase):
 
         
     def test_stow_errors(self):
-        def CheckSequences(a):
-            self.assertEqual(3, len(a))
+        def CheckSequences(a, expectFailedSopSequence):
+            if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0) and not expectFailedSopSequence:
+                self.assertEqual(2, len(a))
+                self.assertNotIn('00081198', a)
+            else:
+                self.assertEqual(3, len(a))
+                self.assertTrue('00081198' in a)
+                self.assertEqual('SQ', a['00081198']['vr'])
+
             self.assertTrue('00080005' in a)
-            self.assertTrue('00081198' in a)
             self.assertTrue('00081199' in a)
             self.assertEqual('CS', a['00080005']['vr'])
-            self.assertEqual('SQ', a['00081198']['vr'])
             self.assertEqual('SQ', a['00081199']['vr'])
         
         # Pushing an instance to a study that is not its parent
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies/nope', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
         self.assertEqual(409, status)
-        CheckSequences(a)
+        CheckSequences(a, True)
 
         self.assertFalse('Value' in a['00081199'])  # No success instance
         
@@ -735,23 +756,21 @@ class Orthanc(unittest.TestCase):
         # Pushing an instance with missing tags
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dcm'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, False) # No failed instance, as tags are missing
 
-        self.assertFalse('Value' in a['00081198'])  # No failed instance, as tags are missing
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
         # Pushing a file that is not in the DICOM format
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dump'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, False) # No failed instance, as non-DICOM
 
-        self.assertFalse('Value' in a['00081198'])  # No failed instance, as non-DICOM
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
         # Pushing a DICOM instance with only SOP class and instance UID
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue196.dcm'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, True)
 
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
