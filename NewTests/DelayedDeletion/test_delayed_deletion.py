@@ -24,7 +24,8 @@ class TestDelayedDeletion(OrthancTestCase):
                 "DelayedDeletion": {
                     "Enable": True,
                     "ThrottleDelayMs": 200
-                }
+                },
+                "DatabaseServerIdentifier": "delayed-test"
             }
 
         config_path = cls.generate_configuration(
@@ -99,19 +100,18 @@ class TestDelayedDeletion(OrthancTestCase):
 
     def test_resumes_pending_deletion(self):
 
-        plugin_status = self.o.get_json("plugins/delayed-deletion/status")
-        pprint.pprint(plugin_status)
+        # plugin_status = self.o.get_json("plugins/delayed-deletion/status")
+        # pprint.pprint(plugin_status)
         
         completed = False
         while not completed:
             print('-------------- waiting for DelayedDeletion to finish processing')
             time.sleep(1)
             plugin_status = self.o.get_json("plugins/delayed-deletion/status")
-            pprint.pprint(plugin_status)
+            # pprint.pprint(plugin_status)
             completed = plugin_status["FilesPendingDeletion"] == 0
 
         self.assertTrue(completed)
-        time.sleep(10)  # in CI on Github, it seems we need some time for the files to be deleted !
         files_count_after_delayed_deletion_is_complete = len(glob.glob(os.path.join(self.get_storage_path("DelayedDeletion"), "**"), recursive=True))
         self.assertGreater(10, files_count_after_delayed_deletion_is_complete)  # only the sqlite files shall remain (and . and ..)
 
