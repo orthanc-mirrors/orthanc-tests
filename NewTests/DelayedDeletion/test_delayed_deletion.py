@@ -106,6 +106,7 @@ class TestDelayedDeletion(OrthancTestCase):
             completed = plugin_status["FilesPendingDeletion"] == 0
 
         self.assertTrue(completed)
+        time.sleep(3)  # in CI on Github, it seems we need some time for the files to be deleted !
         files_count_after_delayed_deletion_is_complete = len(glob.glob(os.path.join(self.get_storage_path("DelayedDeletion"), "**"), recursive=True))
         self.assertGreater(10, files_count_after_delayed_deletion_is_complete)  # only the sqlite files shall remain (and . and ..)
 
