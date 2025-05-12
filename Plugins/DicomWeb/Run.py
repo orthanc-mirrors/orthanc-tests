@@ -1215,6 +1215,39 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(len(a), len(c))
         self.assertEqual(a, c)
 
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 20, 0):
+            # test with 2 instances: https://discourse.orthanc-server.org/t/thumbnail-orthanc-stone-viewer-issue/5827/3
+            i = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm') ['ID']
+            UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0002.dcm') ['ID']
+
+            study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+            series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
+            instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
+
+            a = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/series/%s/instances/%s/rendered' % (study, series, instance)
+            })
+            
+            im = UncompressImage(a)
+            self.assertEqual("L", im.mode)
+            self.assertEqual(256, im.size[0])
+            self.assertEqual(256, im.size[1])
+
+            b = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/series/%s/rendered' % (study, series)
+            })
+            
+            self.assertEqual(len(a), len(b))
+            self.assertEqual(a, b)
+
+            c = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/rendered' % study
+            })
+            
+            self.assertEqual(len(a), len(c))
+            self.assertEqual(a, c)
+
+
 
     def test_multiple_mime_accept_wado_rs(self):
         # "Multiple MIME type Accept Headers for Wado-RS"
