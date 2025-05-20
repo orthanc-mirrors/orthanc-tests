@@ -8,6 +8,7 @@ from orthanc_tools import OrthancTestDbPopulator
 
 import pathlib
 import glob
+import pprint
 here = pathlib.Path(__file__).parent.resolve()
 
 
@@ -23,7 +24,8 @@ class TestDelayedDeletion(OrthancTestCase):
                 "DelayedDeletion": {
                     "Enable": True,
                     "ThrottleDelayMs": 200
-                }
+                },
+                "DatabaseServerIdentifier": "delayed-test"
             }
 
         config_path = cls.generate_configuration(
@@ -98,11 +100,15 @@ class TestDelayedDeletion(OrthancTestCase):
 
     def test_resumes_pending_deletion(self):
 
+        # plugin_status = self.o.get_json("plugins/delayed-deletion/status")
+        # pprint.pprint(plugin_status)
+        
         completed = False
         while not completed:
             print('-------------- waiting for DelayedDeletion to finish processing')
             time.sleep(1)
             plugin_status = self.o.get_json("plugins/delayed-deletion/status")
+            # pprint.pprint(plugin_status)
             completed = plugin_status["FilesPendingDeletion"] == 0
 
         self.assertTrue(completed)
