@@ -538,6 +538,32 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
 
+    def test_delete_cascade_with_multiple_instances(self):
+        # make sure deleting the last instance of a study deletes the series, study and patient
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))  # make sure orthanc is empty when starting the test
+        a = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')
+        b = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        DoDelete(_REMOTE, '/instances/%s' % b['ID'])        
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        DoDelete(_REMOTE, '/instances/%s' % a['ID'])        
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
     def test_multiframe(self):
         i = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
         self.assertEqual(76, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
