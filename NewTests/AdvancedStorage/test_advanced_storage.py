@@ -99,7 +99,9 @@ class TestAdvancedStorage(OrthancTestCase):
                 },
                 db_config_key : db_config_content
             },
-            plugins=Helpers.plugins
+            plugins=Helpers.plugins,
+            docker_network=network_name,
+            enable_verbose=True
         )
 
         # upload a study and keep track of data before housekeeper runs
@@ -165,7 +167,8 @@ class TestAdvancedStorage(OrthancTestCase):
                 storage_name=cls._storage_name,
                 config=config,
                 plugins=Helpers.plugins,
-                docker_network=network_name
+                docker_network=network_name,
+                enable_verbose=True
             )
 
         cls.o = OrthancApiClient(cls.o._root_url)

@@ -207,7 +207,7 @@ class OrthancTestCase(unittest.TestCase):
             subprocess.run(["docker", "network", "create", network])
 
     @classmethod
-    def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None):
+    def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None, enable_verbose: bool = False):
         if config_name and storage_name and config:
             # generate the configuration file
             config_path = cls.generate_configuration(
@@ -231,7 +231,8 @@ class OrthancTestCase(unittest.TestCase):
                 storage_name=storage_name,
                 config_name=config_name,
                 config_path=config_path,
-                network=docker_network
+                network=docker_network,
+                enable_verbose=enable_verbose
             )
         else:
             raise RuntimeError("Invalid configuration, can not launch Orthanc")
