@@ -78,3 +78,21 @@ def validate_authorization(request: TokenValidationRequest):
 
     logging.info("validate token: " + response.json())
     return response
+
+@app.post("/tokens/decode")
+def decode_token(request: TokenDecoderRequest):
+
+    logging.info("decoding token: " + request.json())
+    response = TokenDecoderResponse(resources=[])
+
+    if request.token_value == "token-a-study" or request.token_value == "token-both-studies":
+        response.resources.append(OrthancResource(level=Levels.STUDY,
+                                                    orthanc_id="b9c08539-26f93bde-c81ab0d7-bffaf2cb-a4d0bdd0",
+                                                    dicom_uid="1.2.840.113619.2.176.2025.1499492.7391.1171285944.390"))
+    if request.token_value == "token-b-study" or request.token_value == "token-both-studies":
+        response.resources.append(OrthancResource(level=Levels.STUDY,
+                                                    orthanc_id="27f7126f-4f66fb14-03f4081b-f9341db2-53925988",
+                                                    dicom_uid="2.16.840.1.113669.632.20.1211.10000357775"))
+
+    logging.info("decoded token: " + response.json())
+    return response
