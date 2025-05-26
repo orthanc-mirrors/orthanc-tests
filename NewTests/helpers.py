@@ -8,6 +8,7 @@ import shutil
 import glob
 import time
 from threading import Thread
+from enum import StrEnum
 
 
 import pathlib
@@ -45,6 +46,11 @@ def wait_container_healthy(container_name):
         time.sleep(1)
 
 
+class DB(StrEnum):
+    SQLITE = 'sqlite'
+    PG = 'pg'
+    UNSPECIFIED = 'unspecified'
+
 
 class Helpers:
 
@@ -54,10 +60,12 @@ class Helpers:
     orthanc_under_tests_exe: str = None
     orthanc_previous_version_exe: str = None
     orthanc_under_tests_docker_image: str = None
+    db: DB = DB.UNSPECIFIED
     skip_preparation: bool = False
     break_after_preparation: bool = False
     break_before_preparation: bool = False
     plugins: typing.List[str] = []
+
 
     @classmethod
     def get_orthanc_url(cls):
@@ -167,12 +175,15 @@ class OrthancTestCase(unittest.TestCase):
         if Helpers.is_exe():
 
             # clear the directory but keep it !
-            for root, dirs, files in os.walk(storage_path):
-                for f in files:
-                    os.unlink(os.path.join(root, f))
-                for d in dirs:
-                    shutil.rmtree(os.path.join(root, d))
-                    shutil.rmtree(storage_path, ignore_errors=True)
+            shutil.rmtree(storage_path, ignore_errors=True)
+            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
+
+            # for root, dirs, files in os.walk(storage_path):
+            #     for f in files:
+            #         os.unlink(os.path.join(root, f))
+            #     for d in dirs:
+            #         shutil.rmtree(os.path.join(root, d))
+            #         shutil.rmtree(storage_path, ignore_errors=True)
         else:
             cmd = [
                     "docker", "run", "--rm", 

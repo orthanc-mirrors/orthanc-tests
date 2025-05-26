@@ -221,3 +221,21 @@ with Docker:
 
 python3 NewTests/main.py --pattern=CGet.test_cget.TestCGet.* \
                          --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:2025.01.20
+
+AdvancedStorage:
+--------------
+
+Run the AdvancedStorage tests with your locally build version and break before execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=AdvancedStorage.test_advanced_storage.TestAdvancedStorage.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc-bis/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --plugin=/home/alain/o/build/orthanc-dicomweb/libOrthancDicomWeb.so \
+                         --plugin=/home/alain/o/build/advanced-storage/libAdvancedStorage.so \
+                         --break_before_preparation
+
+with Docker:
+
+python3 NewTests/main.py --pattern=AdvancedStorage.test_advanced_storage.TestAdvancedStorage.* \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
+                         --orthanc_under_tests_http_port=8043
