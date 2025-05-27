@@ -62,6 +62,24 @@ class TestAdvancedStorage(OrthancTestCase):
 
         cls.clear_storage(storage_name=cls._storage_name)
 
+        # the path seen by the test
+        cls.base_test_storage_path = cls.get_storage_path(storage_name=cls._storage_name) + '/'
+
+        # the path seen by orthanc
+        if Helpers.is_docker():
+            cls.base_orthanc_storage_path = "/var/lib/orthanc/db/"
+        else:
+            cls.base_orthanc_storage_path = cls.base_test_storage_path
+
+        shutil.rmtree(cls.base_test_storage_path + 'indexed-files-a', ignore_errors=True)
+        shutil.rmtree(cls.base_test_storage_path + 'indexed-files-b', ignore_errors=True)
+        shutil.rmtree(cls.base_test_storage_path + 'adopt-files', ignore_errors=True)
+
+        pathlib.Path(cls.base_test_storage_path + 'indexed-files-a').mkdir(parents=True, exist_ok=True)
+        pathlib.Path(cls.base_test_storage_path + 'indexed-files-b').mkdir(parents=True, exist_ok=True)
+        pathlib.Path(cls.base_test_storage_path + 'adopt-files').mkdir(parents=True, exist_ok=True)
+
+
         print(f'-------------- preparing {test_name} tests')
 
         if Helpers.is_docker():
@@ -115,23 +133,6 @@ class TestAdvancedStorage(OrthancTestCase):
 
         cls.kill_orthanc()
         time.sleep(3)
-
-        # the path seen by the test
-        cls.base_test_storage_path = cls.get_storage_path(storage_name=cls._storage_name) + '/'
-
-        # the path seen by orthanc
-        if Helpers.is_docker():
-            cls.base_orthanc_storage_path = "/var/lib/orthanc/db/"
-        else:
-            cls.base_orthanc_storage_path = cls.base_test_storage_path
-
-        shutil.rmtree(cls.base_test_storage_path + 'indexed-files-a', ignore_errors=True)
-        shutil.rmtree(cls.base_test_storage_path + 'indexed-files-b', ignore_errors=True)
-        shutil.rmtree(cls.base_test_storage_path + 'adopt-files', ignore_errors=True)
-
-        pathlib.Path(cls.base_test_storage_path + 'indexed-files-a').mkdir(parents=True, exist_ok=True)
-        pathlib.Path(cls.base_test_storage_path + 'indexed-files-b').mkdir(parents=True, exist_ok=True)
-        pathlib.Path(cls.base_test_storage_path + 'adopt-files').mkdir(parents=True, exist_ok=True)
 
         config = { 
             db_config_key : db_config_content,
