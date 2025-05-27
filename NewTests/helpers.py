@@ -190,10 +190,12 @@ class OrthancTestCase(unittest.TestCase):
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", "storage-cleanup",
                     "debian:12-slim",
-                    "rm", "-rf", "/var/lib/orthanc/db/*"
+                    "bash", "-c", "rm -rf /var/lib/orthanc/db/*"
                 ]
-
             subprocess.run(cmd, check=True)
+            
+            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
+
 
     @classmethod
     def is_storage_empty(cls, storage_name: str):
