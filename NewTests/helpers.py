@@ -185,6 +185,9 @@ class OrthancTestCase(unittest.TestCase):
             #         shutil.rmtree(os.path.join(root, d))
             #         shutil.rmtree(storage_path, ignore_errors=True)
         else:
+            # create the directory with user ownership before docker creates it 
+            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
+
             # clear the directory (but you need to be root from the container !)
             cmd = [
                     "docker", "run", "--rm", 
@@ -194,9 +197,6 @@ class OrthancTestCase(unittest.TestCase):
                     "bash", "-c", "rm -rf /var/lib/orthanc/db/*"
                 ]
             subprocess.run(cmd, check=True)
-
-            # create the directory with user ownership            
-            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
 
 
     @classmethod
