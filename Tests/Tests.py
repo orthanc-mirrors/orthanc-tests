@@ -907,9 +907,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
         DoPut(_REMOTE, '/patients/%s/protected' % a, '1', 'text/plain')
         self.assertEqual(1, DoGet(_REMOTE, '/patients/%s/protected' % a))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            p = DoGet(_REMOTE, '/patients/%s' % a)
+            self.assertIn('IsProtected', p)
+            self.assertTrue(p['IsProtected'])
+
         DoPut(_REMOTE, '/patients/%s/protected' % a, '0', 'text/plain')
         self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            p = DoGet(_REMOTE, '/patients/%s' % a)
+            self.assertIn('IsProtected', p)
+            self.assertFalse(p['IsProtected'])
 
     def test_raw_tags(self):
         i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
@@ -11519,6 +11529,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11542,6 +11553,7 @@ class Orthanc(unittest.TestCase):
             self.assertNotIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11564,6 +11576,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Status', a[0])
             self.assertIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
@@ -11585,6 +11598,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Labels', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
                                                     'Query' : { 
@@ -11615,6 +11629,18 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Type', a[0])          # the Type is always in the response
             self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
             self.assertIn('SOPClassUID', a[0]['RequestedTags'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Patients',
+                                                    'Query' : { 
+                                                    },
+                                                    'ResponseContent' : ['IsProtected']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('IsProtected', a[0])
+
 
 
     def test_extended_find_full(self):
