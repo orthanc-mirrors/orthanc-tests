@@ -10882,13 +10882,21 @@ class Orthanc(unittest.TestCase):
 
         a = DoGet(_REMOTE, '/patients?expand')
         self.assertEqual(1, len(a))
-        self.assertEqual(7, len(a[0]))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(8, len(a[0]))
+            self.assertTrue('IsProtected' in a[0])
+        else:
+            self.assertEqual(7, len(a[0]))
         CheckPatientContent(a[0])
         self.assertFalse('RequestedTags' in a[0])
 
         a = DoGet(_REMOTE, '/patients?expand&requestedTags=%s' % requestedTags)
         self.assertEqual(1, len(a))
-        self.assertEqual(8, len(a[0]))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(9, len(a[0]))
+            self.assertTrue('IsProtected' in a[0])
+        else:
+            self.assertEqual(8, len(a[0]))
         CheckPatientContent(a[0])
         CheckRequestedTags(a[0])
 
@@ -10929,12 +10937,20 @@ class Orthanc(unittest.TestCase):
         CheckRequestedTags(a[0])
 
         a = DoGet(_REMOTE, '/patients/%s' % u['ParentPatient'])
-        self.assertEqual(7, len(a))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(8, len(a))
+            self.assertTrue('IsProtected' in a)
+        else:
+            self.assertEqual(7, len(a))
         CheckPatientContent(a)
         self.assertFalse('RequestedTags' in a)
 
         a = DoGet(_REMOTE, '/patients/%s?requestedTags=%s' % (u['ParentPatient'], requestedTags))
-        self.assertEqual(8, len(a))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(9, len(a))
+            self.assertTrue('IsProtected' in a)
+        else:
+            self.assertEqual(8, len(a))
         CheckPatientContent(a)
         CheckRequestedTags(a)
 
