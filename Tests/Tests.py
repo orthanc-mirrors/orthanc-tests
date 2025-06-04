@@ -1351,7 +1351,11 @@ class Orthanc(unittest.TestCase):
         series = DoGet(_REMOTE, '/series')[0]
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -1427,7 +1431,11 @@ class Orthanc(unittest.TestCase):
             self.assertFalse('etag' in headers)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(4, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -1455,7 +1463,11 @@ class Orthanc(unittest.TestCase):
             DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -9104,7 +9116,11 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Patient', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
         self.assertTrue('Metadata' in a[0])
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(a[0]['Metadata']))
+            self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
+            self.assertTrue('PatientRecyclingOrder' in a[0]['Metadata'])
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(a[0]['Metadata']))
             self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
         else:
