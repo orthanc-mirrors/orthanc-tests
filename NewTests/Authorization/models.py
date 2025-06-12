@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 from enum import Enum
 from datetime import datetime
@@ -31,6 +31,7 @@ class TokenType(str, Enum):
     MEDDREAM_VIEWER_PUBLICATION = 'meddream-viewer-publication'  # a link to open the MedDream viewer valid for a long period
     STONE_VIEWER_PUBLICATION = 'stone-viewer-publication'  # a link to open the Stone viewer valid for a long period
     OHIF_VIEWER_PUBLICATION = 'ohif-viewer-publication'  # a link to open the OHIF viewer valid for a long period
+    VOLVIEW_VIEWER_PUBLICATION = 'volview-viewer-publication'  # a link to open the VolView viewer valid for a long period
 
     MEDDREAM_INSTANT_LINK = 'meddream-instant-link'  # a direct link to MedDream viewer that is valid only a few minutes to open the viewer directly
 
@@ -80,7 +81,6 @@ class TokenValidationRequest(BaseModel):
     level: Optional[Levels]
     method: Methods
     uri: Optional[str] = None
-#     labels: Optional[List[str]]
 
 
 class TokenValidationResponse(BaseModel):
@@ -97,7 +97,7 @@ class TokenDecoderResponse(BaseModel):
     token_type: Optional[TokenType] = Field(alias="token-type", default=None)
     error_code: Optional[DecoderErrorCodes] = Field(alias="error-code", default=None)
     redirect_url: Optional[str] = Field(alias="redirect-url", default=None)
-
+    resources: List[OrthancResource]
 
 class UserProfileRequest(BaseModel):
     token_key: Optional[str] = Field(alias="token-key", default=None)
@@ -118,16 +118,30 @@ class UserPermissions(str, Enum):
     SETTINGS = 'settings'
     API_VIEW = 'api-view'
     EDIT_LABELS = 'edit-labels'
+    ADMIN_PERMISSIONS = 'admin-permissions'
 
     SHARE = 'share'
 
 
-class UserProfileResponse(BaseModel):
-    name: str
+class RolePermissions(BaseModel):
     authorized_labels: List[str] = Field(alias="authorized-labels", default_factory=list)
     permissions: List[UserPermissions] = Field(default_factory=list)
+
+    class Config:
+        use_enum_values = True
+        populate_by_name = True  # allow creating object from dict (used when deserializing the permission file)
+
+
+class UserProfileResponse(RolePermissions):
+    name: str
+    # authorized_labels: List[str] = Field(alias="authorized-labels", default_factory=list)
+    # permissions: List[UserPermissions] = Field(default_factory=list)
     validity: int
 
     class Config:
         use_enum_values = True
         populate_by_name = True
+
+class RolesConfigurationModel(BaseModel):
+    roles: Dict[str, RolePermissions]                                                # role/permissions mapping
+    available_labels: List[str] = Field(alias="available-labels", default_factory=list)  # if empty, everyone can create additionnal labels, if not, they can only add/remove the listed labels

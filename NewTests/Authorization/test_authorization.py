@@ -371,9 +371,11 @@ class TestAuthorization(OrthancTestCase):
         # with a resource token, we can access only the given resource, not generic resources or resources from other studies
 
         # generic resources are forbidden
+        # note: even tools/find is still forbidden in 0.9.3 (but not /dicom-web/studies -> see below)
         self.assert_is_forbidden(lambda: o.studies.find(query={"PatientName": "KNIX"},  # tools/find is forbidden with a resource token
                                                         labels=['label_b'],
                                                         labels_constraint='Any'))
+
         self.assert_is_forbidden(lambda: o.get_all_labels())
         self.assert_is_forbidden(lambda: o.studies.get_all_ids())
         self.assert_is_forbidden(lambda: o.patients.get_all_ids())
@@ -414,6 +416,12 @@ class TestAuthorization(OrthancTestCase):
         o.get_json(f"dicom-web/studies?0020000D={self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/series?0020000D={self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/instances?0020000D={self.label_a_study_dicom_id}")
+
+        if o.is_plugin_version_at_least("authorization", 0, 9, 3):
+            # equivalent to the prior studies request in OHIF
+            self.assertEqual(1, len(o.get_json(f"dicom-web/studies?PatientID={self.label_a_patient_dicom_id}")))
+            self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
+
 
         if self.o.is_orthanc_version_at_least(1, 12, 2):
             o.get_binary(f"tools/create-archive?resources={self.label_a_study_id}")
