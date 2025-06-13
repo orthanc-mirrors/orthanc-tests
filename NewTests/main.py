@@ -29,6 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--skip_preparation', action='store_true', help="if this is a multi stage tests with preparations, skip the preparation")
     parser.add_argument('--break_after_preparation', action='store_true', help="if this is a multi stage tests with preparations, pause after the preparation (such that you can start your own orthanc-under-tests in your debugger)")
     parser.add_argument('--break_before_preparation', action='store_true', help="if this is a multi stage tests with preparations, pause before the preparation (such that you can start your own orthanc-under-tests in your debugger)")
+    parser.add_argument('--db', type=str, default='unspecified', help="the DB engine to use")
     parser.add_argument('-p', '--plugin', dest='plugins', action='append', type=str, help='path to a plugin to add to configuration')
 
     args = parser.parse_args()
@@ -40,6 +41,7 @@ if __name__ == '__main__':
     Helpers.orthanc_under_tests_http_port = args.orthanc_under_tests_http_port
     Helpers.orthanc_under_tests_dicom_port = args.orthanc_under_tests_dicom_port
     Helpers.plugins = args.plugins
+    Helpers.db = args.db
 
     Helpers.orthanc_under_tests_exe = args.orthanc_under_tests_exe
     Helpers.orthanc_under_tests_docker_image = args.orthanc_under_tests_docker_image
