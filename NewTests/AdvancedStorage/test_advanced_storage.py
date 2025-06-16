@@ -199,7 +199,7 @@ class TestAdvancedStorage(OrthancTestCase):
             self.assertTrue(info0['Path'].startswith(self.get_storage_path(self._storage_name)))
         # pprint.pprint(info0)
         self.assertFalse(info0['Path'].endswith('.dcm'))
-        self.assertFalse(info0['IsAdopted'])
+        self.assertTrue(info0['IsOwnedByOrthanc'])
         self.assertFalse('IsIndexed' in info0 and info0['IsIndexed'])
 
         info1 = self.o.get_json(endpoint=f"/instances/{self.instances_ids_before[1]}/attachments/dicom/info")
@@ -249,7 +249,7 @@ class TestAdvancedStorage(OrthancTestCase):
         # self.assertTrue(os.path.exists(info['Path']))
         self.assertTrue(self.check_file_exists(info['Path']))
         self.assertTrue(info['Path'].endswith(".dcm"))
-        self.assertFalse(info['IsAdopted'])
+        self.assertTrue(info['IsOwnedByOrthanc'])
         self.assertFalse(info['IsIndexed'])
         self.assertEqual("b", info['StorageId'])
 
@@ -262,8 +262,6 @@ class TestAdvancedStorage(OrthancTestCase):
         OrthancHelpers.wait_until(lambda: self.has_no_more_pending_deletion_files(), timeout=10, polling_interval=1)
 
     def test_move_storage(self):
-
-
         # upload a single file
         uploaded_instances_ids = self.o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")
 
@@ -314,16 +312,35 @@ class TestAdvancedStorage(OrthancTestCase):
 
         shutil.copy(here / "../../Database/Beaufix/IM-0001-0001.dcm", self.base_test_storage_path + "adopt-files/")
         shutil.copy(here / "../../Database/Beaufix/IM-0001-0002.dcm", self.base_test_storage_path + "adopt-files/")
-
+        shutil.copy(here / "../../Database/Brainix/Epi/IM-0001-0003.dcm", self.base_test_storage_path + "adopt-files/")
+        shutil.copy(here / "../../Database/Brainix/Epi/IM-0001-0004.dcm", self.base_test_storage_path + "adopt-files/")
+        shutil.copy(here / "../../Database/Brainix/Epi/IM-0001-0005.dcm", self.base_test_storage_path + "adopt-files/")
 
         # adopt a file
         r1 = self.o.post(endpoint="/plugins/advanced-storage/adopt-instance",
                         json={
-                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0001.dcm"
+                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0001.dcm",
+                            "TakeOwnership": False
                         }).json()
         r2 = self.o.post(endpoint="/plugins/advanced-storage/adopt-instance",
                         json={
-                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0002.dcm"
+                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0002.dcm",
+                            "TakeOwnership": False
+                        }).json()
+        r3 = self.o.post(endpoint="/plugins/advanced-storage/adopt-instance",
+                        json={
+                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0003.dcm",
+                            "TakeOwnership": True
+                        }).json()
+        r4 = self.o.post(endpoint="/plugins/advanced-storage/adopt-instance",
+                        json={
+                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0004.dcm",
+                            "TakeOwnership": True
+                        }).json()
+        r5 = self.o.post(endpoint="/plugins/advanced-storage/adopt-instance",
+                        json={
+                            "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0005.dcm",
+                            "TakeOwnership": True
                         }).json()
 
         # pprint.pprint(r1)
@@ -332,7 +349,7 @@ class TestAdvancedStorage(OrthancTestCase):
         info1 = self.o.get_json(endpoint=f"/instances/{r1['InstanceId']}/attachments/dicom/info")
         self.assertNotIn('storage-b', info1['Path'])
         self.assertNotIn('StorageId', info1)
-        self.assertTrue(info1['IsAdopted'])
+        self.assertFalse(info1['IsOwnedByOrthanc'])
         self.assertFalse(info1['IsIndexed'])
         # self.assertTrue(os.path.exists(info1['Path']))
         self.assertTrue(self.check_file_exists(info1['Path']))
@@ -340,7 +357,7 @@ class TestAdvancedStorage(OrthancTestCase):
 
         info2 = self.o.get_json(endpoint=f"/instances/{r2['InstanceId']}/attachments/dicom/info")
 
-        # try to move an adopted file -> it should fail
+        # try to move an adopted file that does not belong to Orthanc -> it should fail
         with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
             self.o.post(endpoint="/plugins/advanced-storage/move-storage",
                         json={
@@ -348,13 +365,13 @@ class TestAdvancedStorage(OrthancTestCase):
                             'TargetStorageId' : 'a'
                         })
 
-        # delete an adopted file -> the file shall not be removed
+        # delete an adopted file that does not belong to Orthanc -> the file shall not be removed
         self.o.instances.delete(orthanc_id=r1['InstanceId'])
         self.assertNotIn(r1['InstanceId'], self.o.instances.get_all_ids())
         # self.assertTrue(os.path.exists(info1['Path']))
         self.assertTrue(self.check_file_exists(info1['Path']))
 
-        # abandon an adopted file -> the file shall not be removed (it shall be equivalent to a delete)
+        # abandon an adopted file that does not belong to Orthanc -> the file shall not be removed (it shall be equivalent to a delete)
         self.o.post(endpoint="/plugins/advanced-storage/abandon-instance",
                     json={
                         "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0002.dcm"
@@ -362,6 +379,48 @@ class TestAdvancedStorage(OrthancTestCase):
         self.assertNotIn(r2['InstanceId'], self.o.instances.get_all_ids())
         # self.assertTrue(os.path.exists(info2['Path']))
         self.assertTrue(self.check_file_exists(info2['Path']))
+
+        info4 = self.o.get_json(endpoint=f"/instances/{r4['InstanceId']}/attachments/dicom/info")
+        self.assertTrue(info4['IsOwnedByOrthanc'])
+        self.assertFalse(info4['IsIndexed'])  # the file is not considered as indexed since it is owned by Orthanc
+        # abandon an adopted file that belongs to Orthanc -> the file shall be deleted
+        self.o.post(endpoint="/plugins/advanced-storage/abandon-instance",
+                    json={
+                        "Path": self.base_orthanc_storage_path + "adopt-files/IM-0001-0004.dcm"
+                    })
+        self.wait_until_no_more_pending_deletion_files()
+        self.assertFalse(self.check_file_exists(info4['Path']))
+
+        # delete an adopted file that belongs to Orthanc -> the file shall be removed
+        info5 = self.o.get_json(endpoint=f"/instances/{r5['InstanceId']}/attachments/dicom/info")
+        self.o.instances.delete(orthanc_id=r5['InstanceId'])
+        self.assertNotIn(r5['InstanceId'], self.o.instances.get_all_ids())
+        self.wait_until_no_more_pending_deletion_files()
+        self.assertFalse(self.check_file_exists(info5['Path']))
+
+        # try to move an adopted file that belongs to Orthanc -> it should not work.
+        with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
+            self.o.post(endpoint="/plugins/advanced-storage/move-storage",
+                        json={
+                            'Resources': [r3['InstanceId']],
+                            'TargetStorageId' : 'a'
+                        })
+
+        # try to reconstruct an adopted file that belongs to Orthanc -> it shall move the file to the Orthanc Storage
+        self.o.post(endpoint=f"/instances/{r3['InstanceId']}/reconstruct",
+                    json={
+                        'ReconstructFiles': True
+                    })
+
+        info3 = self.o.get_json(endpoint=f"/instances/{r3['InstanceId']}/attachments/dicom/info")
+        self.assertIn('5Yp0E', info3['Path'])
+        self.assertEqual('b', info3['StorageId'])
+        self.assertTrue(self.check_file_exists(info3['Path']))
+
+        # after the reconstruction, the file is not considered as adopted anymore
+        self.assertTrue(info3['IsOwnedByOrthanc'])
+        self.assertFalse(info3['IsIndexed'])
+
 
     def test_indexer(self):
         # add 2 files to the 2 indexed folders
@@ -379,8 +438,8 @@ class TestAdvancedStorage(OrthancTestCase):
         info1 = self.o.get_json(endpoint=f"/instances/{instances_ids[0]}/attachments/dicom/info")
         info2 = self.o.get_json(endpoint=f"/instances/{instances_ids[1]}/attachments/dicom/info")
 
-        self.assertTrue(info1['IsIndexed'])
-        self.assertTrue(info1['IsAdopted'])
+        self.assertFalse(info1['IsOwnedByOrthanc'])
+        self.assertFalse(info1['IsOwnedByOrthanc'])
 
         # remove one of the file from the indexed folders -> it shall disappear from Orthanc
         os.remove(self.base_test_storage_path + "indexed-files-b/IM-0001-0001.dcm")
