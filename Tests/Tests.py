@@ -12142,3 +12142,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('200', resp['status'])
         self.assertEqual(len(embedded), len(grayscale))
         self.assertEqual(embedded, grayscale)
+
+
+    @unittest.skip("Currently does not work with orthancteam/orthanc images")  # TODO
+    def test_encodings_iso_ir13(self):
+        # from https://discourse.orthanc-server.org/t/issue-with-special-characters-when-scans-where-uploaded-with-specificcharacterset-dicom-tag-value-as-iso-ir-13/5962
+        instanceId = UploadInstance(_REMOTE, 'Encodings/ISO_IR13.dcm')['ID']
+        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
+        self.assertEqual('ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
+
