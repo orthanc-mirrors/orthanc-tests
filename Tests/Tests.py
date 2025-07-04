@@ -12151,3 +12151,48 @@ class Orthanc(unittest.TestCase):
         tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
         self.assertEqual('ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
 
+
+    def test_jobs_user_data(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+            job = DoPost(_REMOTE, '/studies/%s/modify' % u['ParentStudy'],
+                                json.dumps({
+                                    "Replace": {"PatientName": "toto"},
+                                    "UserData": { "user-data": "titi"
+                                                },
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('titi', jobDetails['UserData']['user-data'])
+
+            job = DoPost(_REMOTE, '/tools/create-archive',
+                                json.dumps({
+                                    "Resources": [u['ParentStudy']],
+                                    "UserData": "simple-string",
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/move', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+                    }
+                ]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/store', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [u['ParentStudy']]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
