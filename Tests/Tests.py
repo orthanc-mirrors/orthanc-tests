@@ -12129,8 +12129,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_encodings_iso_ir13(self):
-        # from https://discourse.orthanc-server.org/t/issue-with-special-characters-when-scans-where-uploaded-with-specificcharacterset-dicom-tag-value-as-iso-ir-13/5962
-        instanceId = UploadInstance(_REMOTE, 'Encodings/ISO_IR13.dcm')['ID']
-        tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
-        self.assertEqual('ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9):
+            # from https://discourse.orthanc-server.org/t/issue-with-special-characters-when-scans-where-uploaded-with-specificcharacterset-dicom-tag-value-as-iso-ir-13/5962
+            instanceId = UploadInstance(_REMOTE, 'Encodings/ISO_IR13.dcm')['ID']
+            tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
+            self.assertEqual('ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
 
