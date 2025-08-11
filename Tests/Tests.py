@@ -1352,10 +1352,14 @@ class Orthanc(unittest.TestCase):
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            self.assertEqual(2, len(m))
+            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
+                self.assertEqual(3, len(m))
+            else:
+                self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(1, len(m))
+
         self.assertTrue('LastUpdate' in m)
 
         # The lines below failed on Orthanc <= 1.8.2
@@ -1428,7 +1432,10 @@ class Orthanc(unittest.TestCase):
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            self.assertEqual(3, len(m))
+            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
+                self.assertEqual(4, len(m))
+            else:
+                self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(2, len(m))
@@ -1456,7 +1463,10 @@ class Orthanc(unittest.TestCase):
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            self.assertEqual(2, len(m))
+            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
+                self.assertEqual(3, len(m))
+            else:
+                self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(1, len(m))
@@ -9105,11 +9115,15 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
         self.assertTrue('Metadata' in a[0])
         if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            self.assertEqual(2, len(a[0]['Metadata']))
+            if 'PatientRecyclingOrder' in a[0]['Metadata']:  # New in Orthanc 1.12.9 (used only by DB plugins)
+                self.assertEqual(3, len(a[0]['Metadata']))
+            else:
+                self.assertEqual(2, len(a[0]['Metadata']))
             self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
         else:
             self.assertEqual(1, len(a[0]['Metadata']))
-            self.assertTrue('LastUpdate' in a[0]['Metadata'])
+
+        self.assertTrue('LastUpdate' in a[0]['Metadata'])
 
         for level in [ 'Instance', 'Series', 'Study', 'Patient' ]:
             a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, brainix ],
