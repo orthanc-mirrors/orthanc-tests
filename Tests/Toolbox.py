@@ -479,6 +479,10 @@ def HasGdcmPlugin(orthanc):
     plugins = DoGet(orthanc, '/plugins')
     return ('gdcm' in plugins)
 
+def HasPostgresIndexPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('postgresql-index' in plugins)
+
 
 def _GetMaxImageDifference(im1, im2):
     h = ImageChops.difference(im1, im2).histogram()
