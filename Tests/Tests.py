@@ -1351,11 +1351,12 @@ class Orthanc(unittest.TestCase):
         series = DoGet(_REMOTE, '/series')[0]
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
-                self.assertEqual(3, len(m))
-            else:
-                self.assertEqual(2, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(1, len(m))
@@ -1431,11 +1432,12 @@ class Orthanc(unittest.TestCase):
             self.assertFalse('etag' in headers)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
-                self.assertEqual(4, len(m))
-            else:
-                self.assertEqual(3, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(4, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(2, len(m))
@@ -1462,11 +1464,12 @@ class Orthanc(unittest.TestCase):
             DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            if 'PatientRecyclingOrder' in m:  # New in Orthanc 1.12.9 (used only by DB plugins)
-                self.assertEqual(3, len(m))
-            else:
-                self.assertEqual(2, len(m))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(1, len(m))
@@ -9114,11 +9117,12 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Patient', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
         self.assertTrue('Metadata' in a[0])
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
-            if 'PatientRecyclingOrder' in a[0]['Metadata']:  # New in Orthanc 1.12.9 (used only by DB plugins)
-                self.assertEqual(3, len(a[0]['Metadata']))
-            else:
-                self.assertEqual(2, len(a[0]['Metadata']))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(a[0]['Metadata']))
+            self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
+            self.assertTrue('PatientRecyclingOrder' in a[0]['Metadata'])
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+            self.assertEqual(2, len(a[0]['Metadata']))
             self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
         else:
             self.assertEqual(1, len(a[0]['Metadata']))
@@ -12149,3 +12153,48 @@ class Orthanc(unittest.TestCase):
             tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
             self.assertEqual('ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
 
+
+    def test_jobs_user_data(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+            job = DoPost(_REMOTE, '/studies/%s/modify' % u['ParentStudy'],
+                                json.dumps({
+                                    "Replace": {"PatientName": "toto"},
+                                    "UserData": { "user-data": "titi"
+                                                },
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('titi', jobDetails['UserData']['user-data'])
+
+            job = DoPost(_REMOTE, '/tools/create-archive',
+                                json.dumps({
+                                    "Resources": [u['ParentStudy']],
+                                    "UserData": "simple-string",
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/move', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+                    }
+                ]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/store', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [u['ParentStudy']]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
