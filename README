@@ -125,12 +125,12 @@ computer as is, or (b) use Docker to have the best reproducibility.
 
 # python ./Tests/Run.py
 
-To run a single test with by fixing the Orthanc 0.8.6 executable path:
-# python2 ./Tests/Run.py --force --orthanc /home/alain/Releases/Orthanc-0.8.6/Build/Orthanc Orthanc.test_peer_store_straight
+To run a single test with by fixing the Orthanc 1.12.5 executable path:
+# python2.7 ./Tests/Run.py --force --orthanc /home/alain/Releases/Orthanc-1.12.5 Orthanc.test_peer_store_straight
 
-To run a plugin test (no need for Orthanc 0.8.6)
-# python2 ./Plugins/DicomWeb/Run.py --force
-# python2 ./Plugins/DicomWeb/Run.py --force Orthanc.test_forwarded_headers
+To run a plugin test (no need for another Orthanc)
+# python ./Plugins/DicomWeb/Run.py --force
+# python ./Plugins/DicomWeb/Run.py --force Orthanc.test_forwarded_headers
 
 Use the flag "--help" to get the full list of arguments. These
 arguments will notably allow you to specify the network parameters
