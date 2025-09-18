@@ -19,7 +19,7 @@ import glob
 here = pathlib.Path(__file__).parent.resolve()
 
 
-class TestAdvancedStorage(OrthancTestCase):
+class TestAdvancedStorageDefaultNamingScheme(OrthancTestCase):
 
     @classmethod
     def terminate(cls):
@@ -141,8 +141,6 @@ class TestAdvancedStorage(OrthancTestCase):
             "MaximumStorageCacheSize": 0,  # disable the cache to force reading from disk everytime
             "AdvancedStorage": {
                 "Enable": True,
-                "NamingScheme": "{split(StudyDate)}/{StudyInstanceUID} - {PatientID}/{SeriesInstanceUID}/{pad6(InstanceNumber)} - {UUID}{.ext}",
-                "MaxPathLength": 512,
                 "MultipleStorages": {
                     "Storages" : {
                         "a" : cls.base_orthanc_storage_path + "storage-a",
@@ -194,66 +192,6 @@ class TestAdvancedStorage(OrthancTestCase):
         if Helpers.is_docker():
             orthanc_path = orthanc_path.replace("/var/lib/orthanc/db", self.get_storage_path(self._storage_name))
         return os.path.exists(orthanc_path)
-
-    def test_can_read_files_saved_without_plugin(self):
-        info0 = self.o.get_json(endpoint=f"/instances/{self.instances_ids_before[0]}/attachments/dicom/info")
-        if not Helpers.is_docker():
-            self.assertTrue(info0['Path'].startswith(self.get_storage_path(self._storage_name)))
-        # pprint.pprint(info0)
-        self.assertFalse(info0['Path'].endswith('.dcm'))
-        self.assertTrue(info0['IsOwnedByOrthanc'])
-        self.assertFalse('IsIndexed' in info0 and info0['IsIndexed'])
-
-        info1 = self.o.get_json(endpoint=f"/instances/{self.instances_ids_before[1]}/attachments/dicom/info")
-
-        # check if we can move the first instance
-        # move it to storage A
-        self.o.post(endpoint="/plugins/advanced-storage/move-storage",
-                    json={
-                        'Resources': [self.instances_ids_before[0]],
-                        'TargetStorageId' : 'a'
-                    })
-        
-        # check its path after the move
-        info_after_move = self.o.get_json(endpoint=f"/instances/{self.instances_ids_before[0]}/attachments/dicom/info")
-        self.assertIn('storage-a', info_after_move['Path'])
-        self.assertEqual("a", info_after_move['StorageId'])
-        # self.assertTrue(os.path.exists(info_after_move['Path']))
-        self.assertTrue(self.check_file_exists(info_after_move['Path']))
-
-        self.wait_until_no_more_pending_deletion_files()
-        # self.assertFalse(os.path.exists(info0['Path']))
-        self.assertFalse(self.check_file_exists(info0['Path']))
-
-        # now delete the instance 0 (the one that has been moved) 
-        self.o.instances.delete(orthanc_id=self.instances_ids_before[0])
-        
-        self.wait_until_no_more_pending_deletion_files()
-        # self.assertFalse(os.path.exists(info_after_move['Path']))
-        self.assertFalse(self.check_file_exists(info_after_move['Path']))
-
-        # now delete the instance 1 (that has NOT been moved) 
-        self.o.instances.delete(orthanc_id=self.instances_ids_before[1])
-        
-        self.wait_until_no_more_pending_deletion_files()
-        # self.assertFalse(os.path.exists(info1['Path']))
-        self.assertFalse(self.check_file_exists(info1['Path']))
-
-
-    def test_basic(self):
-        # upload a single file
-        uploaded_instances_ids = self.o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")
-
-        # check its path
-        info = self.o.get_json(endpoint=f"/instances/{uploaded_instances_ids[0]}/attachments/dicom/info")
-        
-        self.assertIn('storage-b/2007/01/01/1.2.840.113619.2.176.2025.1499492.7391.1171285944.390 - ozp00SjY2xG/1.2.840.113619.2.176.2025.1499492.7391.1171285944.388/000001 - ', info['Path'])
-        # self.assertTrue(os.path.exists(info['Path']))
-        self.assertTrue(self.check_file_exists(info['Path']))
-        self.assertTrue(info['Path'].endswith(".dcm"))
-        self.assertTrue(info['IsOwnedByOrthanc'])
-        self.assertFalse(info['IsIndexed'])
-        self.assertEqual("b", info['StorageId'])
 
     def has_no_more_pending_deletion_files(self):
         status = self.o.get_json("/plugins/advanced-storage/status")
@@ -415,7 +353,7 @@ class TestAdvancedStorage(OrthancTestCase):
                     })
 
         info3 = self.o.get_json(endpoint=f"/instances/{r3['InstanceId']}/attachments/dicom/info")
-        self.assertIn('5Yp0E', info3['Path'])
+        self.assertIn('storage-b', info3['Path'])
         self.assertEqual('b', info3['StorageId'])
         self.assertTrue(self.check_file_exists(info3['Path']))
 
