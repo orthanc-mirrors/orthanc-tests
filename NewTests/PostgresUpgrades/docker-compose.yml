@@ -17,7 +17,7 @@ services:
 
   # Orthanc previous version
   orthanc-pg-15-previous-revision:
-    image: orthancteam/orthanc:25.5.1
+    image: orthancteam/orthanc:25.9.0
     container_name: orthanc-pg-15-previous-revision
     depends_on: [pg-15]
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
 
   # Orthanc previous version to run the integration tests
   orthanc-pg-15-previous-revision-for-integ-tests:
-    image: orthancteam/orthanc:25.5.1
+    image: orthancteam/orthanc:25.9.0
     container_name: orthanc-pg-15-previous-revision-for-integ-tests
     depends_on: [pg-15]
     restart: unless-stopped
