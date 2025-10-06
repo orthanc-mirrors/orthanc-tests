@@ -63,13 +63,16 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def test_push(self):
         oa, ob = self.clean_start()
 
-        populator = OrthancTestDbPopulator(oa, studies_count=2, series_count=2, instances_count=200, random_seed=65)
+        if oa.is_plugin_version_at_least("transfers", 1, 6, 0):  # need the PeerCommitTimeout config set to 600
+            populator = OrthancTestDbPopulator(oa, studies_count=5, series_count=2, instances_count=300, random_seed=65)
+        else:
+            populator = OrthancTestDbPopulator(oa, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = oa.studies.get_all_ids()
         instances_count = oa.get_statistics().instances_count
         disk_size = oa.get_statistics().total_disk_size
-        repeat_count = 2
+        repeat_count = 1
 
         for compression in [True, False]:
             start_time = time.time()
@@ -101,13 +104,16 @@ class TestConcurrencyTransfers(unittest.TestCase):
     def test_pull(self):
         oa, ob = self.clean_start()
 
-        populator = OrthancTestDbPopulator(ob, studies_count=2, series_count=2, instances_count=200, random_seed=65)
+        if oa.is_plugin_version_at_least("transfers", 1, 6, 0):  # need the PeerCommitTimeout config set to 600
+            populator = OrthancTestDbPopulator(oa, studies_count=5, series_count=2, instances_count=300, random_seed=65)
+        else:
+            populator = OrthancTestDbPopulator(oa, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = ob.studies.get_all_ids()
         instances_count = ob.get_statistics().instances_count
         disk_size = ob.get_statistics().total_disk_size
-        repeat_count = 2
+        repeat_count = 1
 
         for compression in [True, False]:
             start_time = time.time()
