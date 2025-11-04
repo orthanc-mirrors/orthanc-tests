@@ -4,7 +4,7 @@ import os
 import threading
 from helpers import OrthancTestCase, Helpers
 
-from orthanc_api_client import OrthancApiClient, ChangeType
+from orthanc_api_client import OrthancApiClient, ChangeType, HttpError
 from orthanc_api_client import helpers as OrthancHelpers
 
 import pathlib
@@ -67,3 +67,15 @@ class TestCGet(OrthancTestCase):
 
         oa.modalities.get_study(from_modality='b', dicom_id='2.16.840.1.113669.632.20.1211.10000357775')
         self.assertEqual(len(instances_ids), len(oa.instances.get_all_ids()))       
+
+    def test_cget_not_found(self):
+
+        oa, ob = self.clean_start()
+
+        instances_ids = ob.upload_folder( here / "../../Database/Brainix")
+
+        if oa.is_orthanc_version_at_least(1, 12, 10):
+            with self.assertRaises(HttpError) as ex:
+                oa.modalities.get_study(from_modality='b', dicom_id='5.6.7')
+            self.assertEqual(0xc000, ex.exception.dimse_error_status)
+            self.assertEqual(0, len(oa.instances.get_all_ids()))       

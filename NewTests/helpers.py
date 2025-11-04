@@ -8,6 +8,7 @@ import shutil
 import glob
 import time
 from threading import Thread
+from enum import StrEnum
 
 
 import pathlib
@@ -45,6 +46,11 @@ def wait_container_healthy(container_name):
         time.sleep(1)
 
 
+class DB(StrEnum):
+    SQLITE = 'sqlite'
+    PG = 'pg'
+    UNSPECIFIED = 'unspecified'
+
 
 class Helpers:
 
@@ -54,10 +60,12 @@ class Helpers:
     orthanc_under_tests_exe: str = None
     orthanc_previous_version_exe: str = None
     orthanc_under_tests_docker_image: str = None
+    db: DB = DB.UNSPECIFIED
     skip_preparation: bool = False
     break_after_preparation: bool = False
     break_before_preparation: bool = False
     plugins: typing.List[str] = []
+
 
     @classmethod
     def get_orthanc_url(cls):
@@ -167,22 +175,29 @@ class OrthancTestCase(unittest.TestCase):
         if Helpers.is_exe():
 
             # clear the directory but keep it !
-            for root, dirs, files in os.walk(storage_path):
-                for f in files:
-                    os.unlink(os.path.join(root, f))
-                for d in dirs:
-                    shutil.rmtree(os.path.join(root, d))
-                    shutil.rmtree(storage_path, ignore_errors=True)
+            shutil.rmtree(storage_path, ignore_errors=True)
+            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
+
+            # for root, dirs, files in os.walk(storage_path):
+            #     for f in files:
+            #         os.unlink(os.path.join(root, f))
+            #     for d in dirs:
+            #         shutil.rmtree(os.path.join(root, d))
+            #         shutil.rmtree(storage_path, ignore_errors=True)
         else:
+            # create the directory with user ownership before docker creates it 
+            pathlib.Path(storage_path).mkdir(parents=True, exist_ok=True)
+
+            # clear the directory (but you need to be root from the container !)
             cmd = [
                     "docker", "run", "--rm", 
                     "-v", f"{storage_path}:/var/lib/orthanc/db/",
                     "--name", "storage-cleanup",
                     "debian:12-slim",
-                    "rm", "-rf", "/var/lib/orthanc/db/*"
+                    "bash", "-c", "rm -rf /var/lib/orthanc/db/*"
                 ]
-
             subprocess.run(cmd, check=True)
+
 
     @classmethod
     def is_storage_empty(cls, storage_name: str):
@@ -196,7 +211,7 @@ class OrthancTestCase(unittest.TestCase):
             subprocess.run(["docker", "network", "create", network])
 
     @classmethod
-    def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None):
+    def launch_orthanc_to_prepare_db(cls, config_name: str = None, config: object = None, config_path: str = None, storage_name: str = None, plugins = [], docker_network: str = None, enable_verbose: bool = False):
         if config_name and storage_name and config:
             # generate the configuration file
             config_path = cls.generate_configuration(
@@ -220,7 +235,8 @@ class OrthancTestCase(unittest.TestCase):
                 storage_name=storage_name,
                 config_name=config_name,
                 config_path=config_path,
-                network=docker_network
+                network=docker_network,
+                enable_verbose=enable_verbose
             )
         else:
             raise RuntimeError("Invalid configuration, can not launch Orthanc")

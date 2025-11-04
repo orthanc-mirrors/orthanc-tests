@@ -538,6 +538,32 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
 
 
+    def test_delete_cascade_with_multiple_instances(self):
+        # make sure deleting the last instance of a study deletes the series, study and patient
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))  # make sure orthanc is empty when starting the test
+        a = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0001.dcm')
+        b = UploadInstance(_REMOTE, 'Knix/Loc/IM-0001-0002.dcm')
+
+        self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        DoDelete(_REMOTE, '/instances/%s' % b['ID'])        
+
+        self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
+
+        DoDelete(_REMOTE, '/instances/%s' % a['ID'])        
+
+        self.assertEqual(0, len(DoGet(_REMOTE, '/instances')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/studies')))
+        self.assertEqual(0, len(DoGet(_REMOTE, '/patients')))
+
     def test_multiframe(self):
         i = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
         self.assertEqual(76, len(DoGet(_REMOTE, '/instances/%s/frames' % i)))
@@ -881,9 +907,19 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
         DoPut(_REMOTE, '/patients/%s/protected' % a, '1', 'text/plain')
         self.assertEqual(1, DoGet(_REMOTE, '/patients/%s/protected' % a))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            p = DoGet(_REMOTE, '/patients/%s' % a)
+            self.assertIn('IsProtected', p)
+            self.assertTrue(p['IsProtected'])
+
         DoPut(_REMOTE, '/patients/%s/protected' % a, '0', 'text/plain')
         self.assertEqual(0, DoGet(_REMOTE, '/patients/%s/protected' % a))
 
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            p = DoGet(_REMOTE, '/patients/%s' % a)
+            self.assertIn('IsProtected', p)
+            self.assertFalse(p['IsProtected'])
 
     def test_raw_tags(self):
         i = UploadInstance(_REMOTE, 'PrivateTags.dcm')['ID']
@@ -989,6 +1025,78 @@ class Orthanc(unittest.TestCase):
 
                 self.assertEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % i).strip())
                 self.assertNotEqual('Jodogne', DoGet(_REMOTE, '/instances/%s/content/0010-0010' % j).strip())
+
+
+    def change_patient_id_case_in_patient_keep_source_false(self):
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        # original PatientID is 5Yp0E, only change the casing of one letter
+        originPatient = DoGet(_REMOTE, '/patients')[0]
+        newPatient = DoPost(_REMOTE, '/patients/%s/modify' % originPatient,
+                            json.dumps({
+                                "Replace": { "PatientID": "5YP0E"},
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": False
+                            }), 'application/json')['ID']
+
+        self.assertNotEqual(originPatient, newPatient)
+        allStudies = DoGet(_REMOTE, '/studies?expand')
+        self.assertEqual(1, len(allStudies))
+        self.assertEqual('5YP0E', allStudies[0]['PatientMainDicomTags']['PatientID'])
+
+
+    def change_patient_id_case_in_patient_keep_source_true(self):
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        # original PatientID is 5Yp0E, only change the casing of one letter
+        originPatient = DoGet(_REMOTE, '/patients')[0]
+        newPatient = DoPost(_REMOTE, '/patients/%s/modify' % originPatient,
+                            json.dumps({
+                                "Replace": { "PatientID": "5YP0E"},
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')['ID']
+
+        self.assertNotEqual(originPatient, newPatient)
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
+
+
+    def change_patient_id_case_in_study_keep_source_false(self):
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        # original PatientID is 5Yp0E, only change the casing of one letter
+        originStudy = DoGet(_REMOTE, '/studies')[0]
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % originStudy,
+                            json.dumps({
+                                "Replace": { "PatientID": "5YP0E"},
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": False
+                            }), 'application/json')['ID']
+
+        self.assertNotEqual(originStudy, newStudy)
+        allStudies = DoGet(_REMOTE, '/studies?expand')
+        self.assertEqual(1, len(allStudies))
+        self.assertEqual('5YP0E', allStudies[0]['PatientMainDicomTags']['PatientID'])
+
+
+    def change_patient_id_case_in_study_keep_source_true(self):
+        UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+
+        # original PatientID is 5Yp0E, only change the casing of one letter
+        originStudy = DoGet(_REMOTE, '/studies')[0]
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % originStudy,
+                            json.dumps({
+                                "Replace": { "PatientID": "5YP0E"},
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')['ID']
+
+        self.assertNotEqual(originStudy, newStudy)
+        self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
 
 
     def test_anonymize_series(self):
@@ -1315,11 +1423,16 @@ class Orthanc(unittest.TestCase):
         series = DoGet(_REMOTE, '/series')[0]
 
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
             self.assertEqual(1, len(m))
+
         self.assertTrue('LastUpdate' in m)
 
         # The lines below failed on Orthanc <= 1.8.2
@@ -1391,7 +1504,11 @@ class Orthanc(unittest.TestCase):
             self.assertFalse('etag' in headers)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(4, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(3, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -1419,7 +1536,11 @@ class Orthanc(unittest.TestCase):
             DoDelete(_REMOTE, '/patients/%s/metadata/5555' % p)
             
         m = DoGet(_REMOTE, '/patients/%s/metadata' % p)
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(m))
+            self.assertTrue('MainDicomTagsSignature' in m)
+            self.assertTrue('PatientRecyclingOrder' in m)
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(m))
             self.assertTrue('MainDicomTagsSignature' in m)
         else:
@@ -1616,56 +1737,56 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0010,0010' ])
-        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(patientNames))
         self.assertTrue('Test Patient BG ' in patientNames)
         self.assertTrue('Anonymized' in patientNames)
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0010,0010=*' ])
-        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(patientNames))
         self.assertTrue('Test Patient BG ' in patientNames)
         self.assertTrue('Anonymized' in patientNames)
 
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021' ])
-        series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
+        series = re.findall(r'\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(2, len(series))
         self.assertTrue('20070208' in series)
         self.assertTrue('19980312' in series)
         
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,0021', '-k', 'Modality=MR\\XA' ])
-        series = re.findall('\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
+        series = re.findall(r'\(0008,0021\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
         self.assertTrue('19980312' in series)
         
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=Anonymized' ])
-        series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
+        series = re.findall(r'\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
 
         # Test the "CaseSentitivePN" flag (false by default)
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'PatientName=anonymized' ])
-        series = re.findall('\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
+        series = re.findall(r'\(0010,0010\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(series))
 
         # Test range search (buggy if Orthanc <= 0.9.6)
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=19980312-' ])
-        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        studies = re.findall(r'\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(2, len(studies))
         self.assertTrue('20070208' in studies)
         self.assertTrue('19980312' in studies)
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=19980312-19980312' ])
-        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        studies = re.findall(r'\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(studies))
         self.assertTrue('19980312' in studies)
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyDate=-19980312' ])
-        studies = re.findall('\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
+        studies = re.findall(r'\(0008,0020\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(1, len(studies))
         self.assertTrue('19980312' in studies)
 
         # Test that "Retrieve AE Title (0008,0054)" is present, which
         # was *not* the case in Orthanc <= 1.7.2
         i = CallFindScu([ '-k', '0008,0052=INSTANCE' ])
-        instances = re.findall('\(0008,0054\).*?\[\s*(.*?)\s*\]', i)
+        instances = re.findall(r'\(0008,0054\).*?\[\s*(.*?)\s*\]', i)
         self.assertEqual(2, len(instances))
         self.assertEqual('ORTHANC', instances[0].strip())
         self.assertEqual('ORTHANC', instances[1].strip())
@@ -1680,14 +1801,14 @@ class Orthanc(unittest.TestCase):
 
         # Test returning sequence values (only since Orthanc 0.9.5)
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
-        sequences = re.findall('\(0008,2112\)', i)
+        sequences = re.findall(r'\(0008,2112\)', i)
         self.assertEqual(1, len(sequences))
 
         # Test returning a non-main DICOM tag,
         # "SecondaryCaptureDeviceID" (0018,1010), whose value is
         # "MEDPC" in "ColorTestImageJ.dcm"
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0018,1010' ])
-        tags = re.findall('\(0018,1010\).*MEDPC', i)
+        tags = re.findall(r'\(0018,1010\).*MEDPC', i)
         self.assertEqual(1, len(tags))
 
         
@@ -1699,7 +1820,7 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')
 
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0018,1010=MEDPC' ])
-        sequences = re.findall('\(0018,1010\)', i)
+        sequences = re.findall(r'\(0018,1010\)', i)
         self.assertEqual(1, len(sequences))
 
         
@@ -2713,6 +2834,32 @@ class Orthanc(unittest.TestCase):
         DropOrthanc(_REMOTE)
         a = DoPost(_REMOTE, '/tools/lookup', '3113719P')
         self.assertEqual(0, len(a))
+
+
+    def test_lookup_find_case_sensitivity(self):
+        UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+        a = DoPost(_REMOTE, '/tools/lookup', 'ozp00SjY2xG')
+        self.assertEqual(1, len(a))
+
+        # the lookup is actually case insensitive (because it looks only in the DicomIdentifiers table that contains only uppercase values)
+        a = DoPost(_REMOTE, '/tools/lookup', 'OZP00SjY2xG')
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientID' : 'ozp00SjY2xG' }})
+        self.assertEqual(1, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : True,
+                                             'Query' : { 'PatientID' : 'OZP00SjY2xG' }})
+        self.assertEqual(0, len(a))
+
+        a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
+                                             'CaseSensitive' : False,
+                                             'Query' : { 'PatientID' : 'OZP00SjY2xG' }})
+        self.assertEqual(1, len(a))
 
 
     def test_autorouting(self):
@@ -3759,45 +3906,45 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0002.dcm')
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedStudies' ])
-        s = re.findall('\(0020,1200\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1200\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         self.assertTrue('1 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedSeries' ])
-        s = re.findall('\(0020,1202\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1202\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         self.assertTrue('2 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', 'NumberOfPatientRelatedInstances' ])
-        s = re.findall('\(0020,1204\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1204\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         self.assertTrue('3 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'NumberOfStudyRelatedSeries' ])
-        s = re.findall('\(0020,1206\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1206\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         self.assertTrue('2 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'NumberOfStudyRelatedInstances' ])
-        s = re.findall('\(0020,1208\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1208\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         self.assertTrue('3 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', 'NumberOfSeriesRelatedInstances' ])
-        s = re.findall('\(0020,1209\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0020,1209\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(s))
         self.assertTrue('1 ' in s)
         self.assertTrue('2 ' in s)
 
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'ModalitiesInStudy' ])
-        s = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0008,0061\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         t = map(lambda x: x.strip(), s[0].split('\\'))
         self.assertTrue('PT' in t)
         self.assertTrue('CT' in t)
 
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'SOPClassesInStudy' ])
-        s = re.findall('\(0008,0062\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0008,0062\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(s))
         t = map(lambda x: x.strip('\x00'), s[0].split('\\'))
         self.assertTrue('1.2.840.10008.5.1.4.1.1.2' in t)
@@ -4198,11 +4345,11 @@ class Orthanc(unittest.TestCase):
                               '-k', 'SpecificCharacterSet',  
                               '-k', 'PatientName' ])
 
-            characterSet = re.findall('\(0008,0005\).*?\[(.*?)\]', i)
+            characterSet = re.findall(r'\(0008,0005\).*?\[(.*?)\]', i)
             self.assertEqual(1, len(characterSet))
             self.assertEqual(ENCODINGS[name][0], characterSet[0].strip())
 
-            patientName = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+            patientName = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
             self.assertEqual(1, len(patientName))
 
             expected = TEST.encode(ENCODINGS[name][1], 'ignore')
@@ -4224,15 +4371,15 @@ class Orthanc(unittest.TestCase):
                                   '-k', 'PatientName' ])
                 i = i.decode(ENCODINGS[master][1])
 
-                characterSet = re.findall('\(0008,0005\).*?\[(.*?)\]', i)
+                characterSet = re.findall(r'\(0008,0005\).*?\[(.*?)\]', i)
                 self.assertEqual(1, len(characterSet))
                 self.assertEqual(ENCODINGS[master][0], characterSet[0].strip())
 
-                patientId = re.findall('\(0010,0020\).*?\[(.*?)\]', i)
+                patientId = re.findall(r'\(0010,0020\).*?\[(.*?)\]', i)
                 self.assertEqual(1, len(patientId))
                 self.assertEqual(ENCODINGS[name][1], patientId[0].strip())
 
-                patientName = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+                patientName = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
                 self.assertEqual(1, len(patientName))
 
                 tmp = ENCODINGS[name][1]
@@ -4659,7 +4806,7 @@ class Orthanc(unittest.TestCase):
             a = CallFindScu([ '-k', '0008,0005=ISO_IR 192',  # Use UTF-8
                               '-k', '0008,0052=PATIENT',
                               '-k', 'PatientName=%s' % name ])
-            patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', a)
+            patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', a)
             self.assertEqual(expected, len(patientNames))
 
             a = DoPost(_REMOTE, '/tools/find', { 'Level' : 'Patient',
@@ -5539,13 +5686,13 @@ class Orthanc(unittest.TestCase):
     def test_invalid_findscp(self):
         UploadInstance(_REMOTE, 'DummyCT.dcm')
         findscu = CallFindScu([ '-S', '-k', '8,52=IMAGE', '-k', '8,16', '-k', '2,2' ])
-        self.assertEqual(0, len(re.findall('\(0002,0002\)', findscu)))
+        self.assertEqual(0, len(re.findall(r'\(0002,0002\)', findscu)))
 
 
     def test_bitbucket_issue_90(self):
         def CountDicomResults(sex):
             a = CallFindScu([ '-S', '-k', '8,52=STUDY', '-k', sex ])
-            return len(re.findall('\(0010,0040\)', a))
+            return len(re.findall(r'\(0010,0040\)', a))
 
         def CountRestResults(sex):
             a = DoPost(_REMOTE, '/tools/find',
@@ -5707,18 +5854,18 @@ class Orthanc(unittest.TestCase):
         i = CallFindScu([ '-k', '0008,0052=IMAGES', '-k', 'PatientName', '-k', 'Rows', '-k', 'Columns' ])
 
         # We have 2 instances...
-        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(patientNames))
         self.assertEqual('KNIX', patientNames[0])
         self.assertEqual('KNIX', patientNames[1])
 
-        columns = re.findall('\(0028,0011\) US ([0-9]+)', i)
+        columns = re.findall(r'\(0028,0011\) US ([0-9]+)', i)
         self.assertEqual(2, len(columns))
         self.assertEqual('512', columns[0])
         self.assertEqual('512', columns[1])
         
         # ...but only 1 value for the "Rows" tag
-        rows = re.findall('\(0028,0010\) US ([0-9]+)', i)
+        rows = re.findall(r'\(0028,0010\) US ([0-9]+)', i)
         self.assertEqual(1, len(rows))
         self.assertEqual('512', rows[0])
 
@@ -5798,7 +5945,7 @@ class Orthanc(unittest.TestCase):
     def test_bitbucket_issue_136(self):
         UploadInstance(_REMOTE, 'Issue137.dcm')
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0010,0010', '-k', '0028,0010', '-k', '0040,0275' ])
-        patientNames = re.findall('\(0010,0010\).*?\[(.*?)\]', i)
+        patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(patientNames))
         self.assertEqual('John Doe', patientNames[0])
 
@@ -6443,7 +6590,7 @@ class Orthanc(unittest.TestCase):
         i = CallFindScu([ '-k', 'QueryRetrieveLevel=SERIES',
                           '-k', 'StudyInstanceUID=%s' % study,
                           '-k', 'SeriesInstanceUID=%s\\%s' % (series1, series2) ])
-        series = re.findall('\(0020,000e\).*?\[(.*?)\]', i)
+        series = re.findall(r'\(0020,000e\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(series))
         self.assertTrue(series1 in series)
         self.assertTrue(series2 in series)
@@ -7490,14 +7637,14 @@ class Orthanc(unittest.TestCase):
         study = '1.3.46.670589.7.5.8.80001255161.20000323.151537.1'
         
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', 'StudyInstanceUID' ])
-        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        result = re.findall(r'\(0020,000d\).*?\[(.*?)\]', i)
         self.assertEqual(2, len(result))
 
         # The "StudyInstanceUID" is set as a list of 5 times the same
         # study, leading to a string of 249 characters
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k',
                           'StudyInstanceUID=%s\\%s\\%s\\%s\\%s' % (( study, ) * 5) ])
-        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        result = re.findall(r'\(0020,000d\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(result))
         
         # The "StudyInstanceUID" is set as a list of 6 times the same
@@ -7509,7 +7656,7 @@ class Orthanc(unittest.TestCase):
         # studies (i.e. 2). This issue was fixed in Orthanc 1.7.3.
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k',
                           'StudyInstanceUID=%s\\%s\\%s\\%s\\%s\\%s' % (( study, ) * 6) ])
-        result = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+        result = re.findall(r'\(0020,000d\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(result))
 
 
@@ -7641,7 +7788,7 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Comunix/Pet/IM-0001-0001.dcm')
 
         i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=' ])
-        modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        modalitiesInStudy = re.findall(r'\(0008,0061\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(modalitiesInStudy))
         self.assertEqual('CT\\PT ', modalitiesInStudy[0])
         
@@ -7659,7 +7806,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(expected, len(a))
 
             i = CallFindScu([ '-k', '0008,0052=STUDY', '-k', '0020,000d=', '-k', '0008,0061=%s' % i ])
-            studyInstanceUid = re.findall('\(0020,000d\).*?\[(.*?)\]', i)
+            studyInstanceUid = re.findall(r'\(0020,000d\).*?\[(.*?)\]', i)
             self.assertEqual(expected, len(studyInstanceUid))
         
 
@@ -9068,12 +9215,17 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('Patient', a[0]['Type'])
         self.assertEqual('KNEE', a[0]['MainDicomTags']['PatientName'])
         self.assertTrue('Metadata' in a[0])
-        if IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9) and HasPostgresIndexPlugin(_REMOTE):
+            self.assertEqual(3, len(a[0]['Metadata']))
+            self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
+            self.assertTrue('PatientRecyclingOrder' in a[0]['Metadata'])
+        elif IsOrthancVersionAbove(_REMOTE, 1, 11, 0):
             self.assertEqual(2, len(a[0]['Metadata']))
             self.assertTrue('MainDicomTagsSignature' in a[0]['Metadata'])
         else:
             self.assertEqual(1, len(a[0]['Metadata']))
-            self.assertTrue('LastUpdate' in a[0]['Metadata'])
+
+        self.assertTrue('LastUpdate' in a[0]['Metadata'])
 
         for level in [ 'Instance', 'Series', 'Study', 'Patient' ]:
             a = DoPost(_REMOTE, '/tools/bulk-content', { 'Resources' : [ knee1, brainix ],
@@ -10701,7 +10853,7 @@ class Orthanc(unittest.TestCase):
 
         i = CallFindScu([ '-k', '0008,0052=PATIENT', '-k', '0008,0000=22' ])  # GE like C-Find that includes group-length
         # print(i)
-        s = re.findall('\(0008,0000\).*?\[(.*?)\]', i)
+        s = re.findall(r'\(0008,0000\).*?\[(.*?)\]', i)
         self.assertEqual(0, len(s))
 
 
@@ -10846,13 +10998,21 @@ class Orthanc(unittest.TestCase):
 
         a = DoGet(_REMOTE, '/patients?expand')
         self.assertEqual(1, len(a))
-        self.assertEqual(7, len(a[0]))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(8, len(a[0]))
+            self.assertTrue('IsProtected' in a[0])
+        else:
+            self.assertEqual(7, len(a[0]))
         CheckPatientContent(a[0])
         self.assertFalse('RequestedTags' in a[0])
 
         a = DoGet(_REMOTE, '/patients?expand&requestedTags=%s' % requestedTags)
         self.assertEqual(1, len(a))
-        self.assertEqual(8, len(a[0]))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(9, len(a[0]))
+            self.assertTrue('IsProtected' in a[0])
+        else:
+            self.assertEqual(8, len(a[0]))
         CheckPatientContent(a[0])
         CheckRequestedTags(a[0])
 
@@ -10893,12 +11053,20 @@ class Orthanc(unittest.TestCase):
         CheckRequestedTags(a[0])
 
         a = DoGet(_REMOTE, '/patients/%s' % u['ParentPatient'])
-        self.assertEqual(7, len(a))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(8, len(a))
+            self.assertTrue('IsProtected' in a)
+        else:
+            self.assertEqual(7, len(a))
         CheckPatientContent(a)
         self.assertFalse('RequestedTags' in a)
 
         a = DoGet(_REMOTE, '/patients/%s?requestedTags=%s' % (u['ParentPatient'], requestedTags))
-        self.assertEqual(8, len(a))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            self.assertEqual(9, len(a))
+            self.assertTrue('IsProtected' in a)
+        else:
+            self.assertEqual(8, len(a))
         CheckPatientContent(a)
         CheckRequestedTags(a)
 
@@ -11045,20 +11213,20 @@ class Orthanc(unittest.TestCase):
 
         # without requesting PatientComments, we get the computed tags
         i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances' ])
-        modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+        modalitiesInStudy = re.findall(r'\(0008,0061\).*?\[(.*?)\]', i)
         self.assertEqual(1, len(modalitiesInStudy))
         self.assertEqual('CT', modalitiesInStudy[0])
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
             # when requesting PatientComments, with 1.12.4, we did not get the computed tags
             i = CallFindScu([ '-k', 'PatientID=WITH_COMMENTS',  '-k', 'QueryRetrieveLevel=Study', '-k', 'ModalitiesInStudy', '-k', 'NumberOfStudyRelatedSeries', '-k', 'NumberOfStudyRelatedInstances', '-k', 'PatientComments' ])
-            modalitiesInStudy = re.findall('\(0008,0061\).*?\[(.*?)\]', i)
+            modalitiesInStudy = re.findall(r'\(0008,0061\).*?\[(.*?)\]', i)
             self.assertEqual(1, len(modalitiesInStudy))
             self.assertEqual('CT', modalitiesInStudy[0])
-            numberOfStudyRelatedSeries = re.findall('\(0020,1206\).*?\[(.*?)\]', i)
+            numberOfStudyRelatedSeries = re.findall(r'\(0020,1206\).*?\[(.*?)\]', i)
             self.assertEqual(1, len(numberOfStudyRelatedSeries))
             self.assertEqual(1, int(numberOfStudyRelatedSeries[0]))
-            numberOfStudyRelatedInstances = re.findall('\(0020,1208\).*?\[(.*?)\]', i)
+            numberOfStudyRelatedInstances = re.findall(r'\(0020,1208\).*?\[(.*?)\]', i)
             self.assertEqual(1, len(numberOfStudyRelatedInstances))
             self.assertEqual(1, int(numberOfStudyRelatedInstances[0]))
 
@@ -11493,6 +11661,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11516,6 +11685,7 @@ class Orthanc(unittest.TestCase):
             self.assertNotIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Series',
@@ -11538,6 +11708,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Status', a[0])
             self.assertIn('IsStable', a[0])
             self.assertNotIn('Attachments', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
@@ -11559,6 +11730,7 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Labels', a[0])
             self.assertNotIn('Attachments', a[0])
             self.assertNotIn('Metadata', a[0])
+            self.assertNotIn('IsProtected', a[0])
 
             a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Instances',
                                                     'Query' : { 
@@ -11589,6 +11761,18 @@ class Orthanc(unittest.TestCase):
             self.assertIn('Type', a[0])          # the Type is always in the response
             self.assertIn('RequestedTags', a[0]) # the RequestedTags are always in the response as soon as you have requested them
             self.assertIn('SOPClassUID', a[0]['RequestedTags'])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 8):
+            a = DoPost(_REMOTE, '/tools/find', {    'Level' : 'Patients',
+                                                    'Query' : { 
+                                                    },
+                                                    'ResponseContent' : ['IsProtected']
+                                                    })
+
+            self.assertIn('ID', a[0])            # the ID is always in the response
+            self.assertIn('Type', a[0])          # the Type is always in the response
+            self.assertIn('IsProtected', a[0])
+
 
 
     def test_extended_find_full(self):
@@ -12058,3 +12242,57 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('200', resp['status'])
         self.assertEqual(len(embedded), len(grayscale))
         self.assertEqual(embedded, grayscale)
+
+
+    def test_encodings_iso_ir13(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9):
+            # from https://discourse.orthanc-server.org/t/issue-with-special-characters-when-scans-where-uploaded-with-specificcharacterset-dicom-tag-value-as-iso-ir-13/5962
+            instanceId = UploadInstance(_REMOTE, 'Encodings/ISO_IR13.dcm')['ID']
+            tags = DoGet(_REMOTE, '/instances/%s/tags?simplify' % instanceId)
+            self.assertEqual(r'ORIGINAL\PRIMARY\M\NORM\DIS2D\FM\FIL', tags['ImageType'])
+
+
+    def test_jobs_user_data(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 9):
+            u = UploadInstance(_REMOTE, 'DummyCT.dcm')
+
+            job = DoPost(_REMOTE, '/studies/%s/modify' % u['ParentStudy'],
+                                json.dumps({
+                                    "Replace": {"PatientName": "toto"},
+                                    "UserData": { "user-data": "titi"
+                                                },
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('titi', jobDetails['UserData']['user-data'])
+
+            job = DoPost(_REMOTE, '/tools/create-archive',
+                                json.dumps({
+                                    "Resources": [u['ParentStudy']],
+                                    "UserData": "simple-string",
+                                    "Asynchronous": True
+                                }))
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/move', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [
+                    { 
+                        'StudyInstanceUID' : '1.2.840.113619.2.176.2025.1499492.7391.1171285944.390'
+                    }
+                ]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])
+
+            job = DoPost(_REMOTE, '/modalities/orthanctest/store', { 
+                'Level' : 'Study',
+                'Asynchronous': True,
+                "UserData": "simple-string",
+                'Resources' : [u['ParentStudy']]})
+
+            jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
+            self.assertEqual('simple-string', jobDetails['UserData'])

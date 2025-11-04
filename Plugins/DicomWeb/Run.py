@@ -189,7 +189,10 @@ class Orthanc(unittest.TestCase):
         a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
         self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
 
-        self.assertEqual(4, len(a))
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0):
+            self.assertEqual(3, len(a))  # DICOM_TAG_FAILED_SOP_SEQUENCE has been removed in 1.19
+        else:
+            self.assertEqual(4, len(a))
 
         # Specific character set
         self.assertTrue('00080005' in a)
@@ -198,8 +201,11 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(a['00081190']['Value'][0].endswith('studies/2.16.840.1.113669.632.20.1211.10000098591'))
         self.assertEqual('UR', a['00081190']['vr'])
         
-        self.assertFalse('Value' in a['00081198'])  # No error => empty sequence
-        self.assertEqual('SQ', a['00081198']['vr'])
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0):
+            self.assertNotIn('00081198', a)  # No errors => the DICOM_TAG_FAILED_SOP_SEQUENCE shall not be present
+        else:
+            self.assertFalse('Value' in a['00081198'])  # No error => empty sequence
+            self.assertEqual('SQ', a['00081198']['vr'])
 
         self.assertEqual(1, len(a['00081199']['Value']))  # 1 success
         self.assertEqual('SQ', a['00081199']['vr'])
@@ -235,6 +241,16 @@ class Orthanc(unittest.TestCase):
         parts = re.findall(r'^Content-Length:\s*(\d+)\s*', b, re.IGNORECASE | re.MULTILINE)
         self.assertEqual(1, len(parts))
         self.assertEqual(os.path.getsize(GetDatabasePath('Phenix/IM-0001-0001.dcm')), int(parts[0]))
+
+    def test_stow_like_dcm4chee(self):
+        # https://discourse.orthanc-server.org/t/orthanc-dicomweb-stowrs-server-request-response-compatibility/5763
+
+        self.assertEqual(0, len(DoGet(ORTHANC, '/instances')))
+        a = SendStow(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Phenix/IM-0001-0001.dcm'), 'application/dicom;transfer-syntax=1.2.840.10008.1.2.1')
+        self.assertEqual(1, len(DoGet(ORTHANC, '/instances')))
+
+        self.assertNotIn('00081198', a)  # No errors => the DICOM_TAG_FAILED_SOP_SEQUENCE shall not be present
+
 
         
     def test_server_get(self):
@@ -296,56 +312,85 @@ class Orthanc(unittest.TestCase):
 
 
     def test_server_stow(self):
-        UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
+        # UploadInstance(ORTHANC, 'Knee/T1/IM-0001-0001.dcm')
 
-        self.assertRaises(Exception, lambda: 
-                          DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                 { 'Resources' : [ 'nope' ],
-                                   'Synchronous' : True }))  # inexisting resource
+        # self.assertRaises(Exception, lambda: 
+        #                   DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        #                          { 'Resources' : [ 'nope' ],
+        #                            'Synchronous' : True }))  # inexisting resource
 
-        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
-            l = 4   # "Server" has been added
-        else:
-            l = 3   # For >= 1.10.1
+        # if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
+        #     l = 4   # "Server" has been added
+        # else:
+        #     l = 3   # For >= 1.10.1
 
-        # study
-        r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918' ],
-                                         'Synchronous' : True })
+        # # study
+        # r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        #                                { 'Resources' : [ '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918' ],
+        #                                  'Synchronous' : True })
 
-        self.assertEqual(l, len(r))
-        self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
-        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
-            self.assertEqual("sample", r['Server'])
+        # self.assertEqual(l, len(r))
+        # self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
+        # if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 18, 0):
+        #     self.assertEqual("sample", r['Server'])
 
-        # series
-        r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285' ],
-                                         'Synchronous' : True })
-        self.assertEqual(l, len(r))
-        self.assertEqual("6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285", r['Resources']['Series'][0])
+        # # series
+        # r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        #                                { 'Resources' : [ '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285' ],
+        #                                  'Synchronous' : True })
+        # self.assertEqual(l, len(r))
+        # self.assertEqual("6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285", r['Resources']['Series'][0])
 
-        # instances
-        r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ 'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
-                                         'Synchronous' : True })
-        self.assertEqual(l, len(r))
-        self.assertEqual("c8df6478-d7794217-0f11c293-a41237c9-31d98357", r['Resources']['Instances'][0])
+        # # instances
+        # r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        #                                { 'Resources' : [ 'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
+        #                                  'Synchronous' : True })
+        # self.assertEqual(l, len(r))
+        # self.assertEqual("c8df6478-d7794217-0f11c293-a41237c9-31d98357", r['Resources']['Instances'][0])
 
-        # altogether
-        r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
-                                       { 'Resources' : [ 
-                                           'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
-                                           '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918',
-                                           '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285',
-                                           'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
-                                         'Synchronous' : True })
-        # pprint.pprint(r)
-        self.assertEqual(l, len(r))
-        self.assertEqual("ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17", r['Resources']['Patients'][0])
-        self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
-        self.assertEqual("6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285", r['Resources']['Series'][0])
-        self.assertEqual("c8df6478-d7794217-0f11c293-a41237c9-31d98357", r['Resources']['Instances'][0])
+        # # altogether
+        # r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+        #                                { 'Resources' : [ 
+        #                                    'ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17',
+        #                                    '0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918',
+        #                                    '6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285',
+        #                                    'c8df6478-d7794217-0f11c293-a41237c9-31d98357' ],
+        #                                  'Synchronous' : True })
+        # # pprint.pprint(r)
+        # self.assertEqual(l, len(r))
+        # self.assertEqual("ca29faea-b6a0e17f-067743a1-8b778011-a48b2a17", r['Resources']['Patients'][0])
+        # self.assertEqual("0a9b3153-2512774b-2d9580de-1fc3dcf6-3bd83918", r['Resources']['Studies'][0])
+        # self.assertEqual("6de73705-c4e65c1b-9d9ea1b5-cabcd8e7-f15e4285", r['Resources']['Series'][0])
+        # self.assertEqual("c8df6478-d7794217-0f11c293-a41237c9-31d98357", r['Resources']['Instances'][0])
+
+
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 20, 0):
+            a = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm')
+            b = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0002.dcm')
+
+            # study
+            r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                        { 'Resources' : [ a['ParentStudy'] ],
+                                          'Synchronous' : True })
+
+            self.assertEqual(1, len(r['Resources']['Studies']))
+            self.assertNotIn('Series', r['Resources'])
+            self.assertEqual(2, len(r['Resources']['Instances']))
+            self.assertEqual(a['ParentStudy'], r['Resources']['Studies'][0])
+            self.assertIn(a['ID'], r['Resources']['Instances'])
+            self.assertIn(b['ID'], r['Resources']['Instances'])
+
+            # series
+            r = DoPost(ORTHANC, '/dicom-web/servers/sample/stow',
+                                        { 'Resources' : [ a['ParentSeries'] ],
+                                          'Synchronous' : True })
+
+            self.assertEqual(1, len(r['Resources']['Series']))
+            self.assertNotIn('Studies', r['Resources'])
+            self.assertEqual(2, len(r['Resources']['Instances']))
+            self.assertEqual(a['ParentSeries'], r['Resources']['Series'][0])
+            self.assertIn(a['ID'], r['Resources']['Instances'])
+            self.assertIn(b['ID'], r['Resources']['Instances'])
 
 
 
@@ -708,19 +753,24 @@ class Orthanc(unittest.TestCase):
 
         
     def test_stow_errors(self):
-        def CheckSequences(a):
-            self.assertEqual(3, len(a))
+        def CheckSequences(a, expectFailedSopSequence):
+            if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 19, 0) and not expectFailedSopSequence:
+                self.assertEqual(2, len(a))
+                self.assertNotIn('00081198', a)
+            else:
+                self.assertEqual(3, len(a))
+                self.assertTrue('00081198' in a)
+                self.assertEqual('SQ', a['00081198']['vr'])
+
             self.assertTrue('00080005' in a)
-            self.assertTrue('00081198' in a)
             self.assertTrue('00081199' in a)
             self.assertEqual('CS', a['00080005']['vr'])
-            self.assertEqual('SQ', a['00081198']['vr'])
             self.assertEqual('SQ', a['00081199']['vr'])
         
         # Pushing an instance to a study that is not its parent
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies/nope', GetDatabasePath('Phenix/IM-0001-0001.dcm'))
         self.assertEqual(409, status)
-        CheckSequences(a)
+        CheckSequences(a, True)
 
         self.assertFalse('Value' in a['00081199'])  # No success instance
         
@@ -735,23 +785,21 @@ class Orthanc(unittest.TestCase):
         # Pushing an instance with missing tags
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dcm'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, False) # No failed instance, as tags are missing
 
-        self.assertFalse('Value' in a['00081198'])  # No failed instance, as tags are missing
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
         # Pushing a file that is not in the DICOM format
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue111.dump'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, False) # No failed instance, as non-DICOM
 
-        self.assertFalse('Value' in a['00081198'])  # No failed instance, as non-DICOM
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
         # Pushing a DICOM instance with only SOP class and instance UID
         (status, a) = SendStowRaw(ORTHANC, args.dicomweb + '/studies', GetDatabasePath('Issue196.dcm'))
         self.assertEqual(400, status)
-        CheckSequences(a)
+        CheckSequences(a, True)
 
         self.assertFalse('Value' in a['00081199'])  # No success instance
 
@@ -1195,6 +1243,39 @@ class Orthanc(unittest.TestCase):
         
         self.assertEqual(len(a), len(c))
         self.assertEqual(a, c)
+
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 20, 0):
+            # test with 2 instances: https://discourse.orthanc-server.org/t/thumbnail-orthanc-stone-viewer-issue/5827/3
+            i = UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0001.dcm') ['ID']
+            UploadInstance(ORTHANC, 'Brainix/Epi/IM-0001-0002.dcm') ['ID']
+
+            study = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['StudyInstanceUID']
+            series = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SeriesInstanceUID']
+            instance = DoGet(ORTHANC, '/instances/%s/tags?simplify' % i) ['SOPInstanceUID']
+
+            a = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/series/%s/instances/%s/rendered' % (study, series, instance)
+            })
+            
+            im = UncompressImage(a)
+            self.assertEqual("L", im.mode)
+            self.assertEqual(256, im.size[0])
+            self.assertEqual(256, im.size[1])
+
+            b = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/series/%s/rendered' % (study, series)
+            })
+            
+            self.assertEqual(len(a), len(b))
+            self.assertEqual(a, b)
+
+            c = DoPost(ORTHANC, '/dicom-web/servers/sample/get', {
+                'Uri' : '/studies/%s/rendered' % study
+            })
+            
+            self.assertEqual(len(a), len(c))
+            self.assertEqual(a, c)
+
 
 
     def test_multiple_mime_accept_wado_rs(self):

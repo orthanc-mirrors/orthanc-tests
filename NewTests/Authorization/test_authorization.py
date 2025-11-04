@@ -99,6 +99,7 @@ class TestAuthorization(OrthancTestCase):
         cls.label_a_instance_id = o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")[0]
         cls.label_a_study_id = o.instances.get_parent_study_id(cls.label_a_instance_id)
         cls.label_a_series_id = o.instances.get_parent_series_id(cls.label_a_instance_id)
+        cls.label_a_patient_dicom_id = o.studies.get_tags(cls.label_a_study_id)["PatientID"]
         cls.label_a_study_dicom_id = o.studies.get_tags(cls.label_a_study_id)["StudyInstanceUID"]
         cls.label_a_series_dicom_id = o.series.get_tags(cls.label_a_series_id)["SeriesInstanceUID"]
         cls.label_a_instance_dicom_id = o.instances.get_tags(cls.label_a_instance_id)["SOPInstanceUID"]
@@ -107,6 +108,7 @@ class TestAuthorization(OrthancTestCase):
         cls.label_b_instance_id = o.upload_file(here / "../../Database/Brainix/Epi/IM-0001-0001.dcm")[0]
         cls.label_b_study_id = o.instances.get_parent_study_id(cls.label_b_instance_id)
         cls.label_b_series_id = o.instances.get_parent_series_id(cls.label_b_instance_id)
+        cls.label_b_patient_dicom_id = o.studies.get_tags(cls.label_b_study_id)["PatientID"]
         cls.label_b_study_dicom_id = o.studies.get_tags(cls.label_b_study_id)["StudyInstanceUID"]
         cls.label_b_series_dicom_id = o.series.get_tags(cls.label_b_series_id)["SeriesInstanceUID"]
         cls.label_b_instance_dicom_id = o.instances.get_tags(cls.label_b_instance_id)["SOPInstanceUID"]
@@ -118,6 +120,7 @@ class TestAuthorization(OrthancTestCase):
         cls.no_label_instance_id = o.upload_file(here / "../../Database/Comunix/Pet/IM-0001-0001.dcm")[0]
         cls.no_label_study_id = o.instances.get_parent_study_id(cls.no_label_instance_id)
         cls.no_label_series_id = o.instances.get_parent_series_id(cls.no_label_instance_id)
+        cls.no_label_patient_dicom_id = o.studies.get_tags(cls.no_label_study_id)["PatientID"]
         cls.no_label_study_dicom_id = o.studies.get_tags(cls.no_label_study_id)["StudyInstanceUID"]
         cls.no_label_series_dicom_id = o.series.get_tags(cls.no_label_series_id)["SeriesInstanceUID"]
         cls.no_label_instance_dicom_id = o.instances.get_tags(cls.no_label_instance_id)["SOPInstanceUID"]
@@ -315,6 +318,15 @@ class TestAuthorization(OrthancTestCase):
             self.assertEqual(1, len(r["Labels"]))
             self.assertEqual("label_a", r["Labels"][0])
 
+        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 2):
+            i = o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_a_study_dicom_id}")
+            
+            # this one is forbidden because we specify the study (and the study is forbidden)
+            self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_b_study_dicom_id}"))
+            
+            # this one is empty because no studies are specified
+            self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
+
 
     def test_uploader_a(self):
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
@@ -359,9 +371,11 @@ class TestAuthorization(OrthancTestCase):
         # with a resource token, we can access only the given resource, not generic resources or resources from other studies
 
         # generic resources are forbidden
+        # note: even tools/find is still forbidden in 0.9.3 (but not /dicom-web/studies -> see below)
         self.assert_is_forbidden(lambda: o.studies.find(query={"PatientName": "KNIX"},  # tools/find is forbidden with a resource token
                                                         labels=['label_b'],
                                                         labels_constraint='Any'))
+
         self.assert_is_forbidden(lambda: o.get_all_labels())
         self.assert_is_forbidden(lambda: o.studies.get_all_ids())
         self.assert_is_forbidden(lambda: o.patients.get_all_ids())
@@ -402,6 +416,12 @@ class TestAuthorization(OrthancTestCase):
         o.get_json(f"dicom-web/studies?0020000D={self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/series?0020000D={self.label_a_study_dicom_id}")
         o.get_json(f"dicom-web/instances?0020000D={self.label_a_study_dicom_id}")
+
+        if o.is_plugin_version_at_least("authorization", 0, 9, 3):
+            # equivalent to the prior studies request in OHIF
+            self.assertEqual(1, len(o.get_json(f"dicom-web/studies?PatientID={self.label_a_patient_dicom_id}")))
+            self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
+
 
         if self.o.is_orthanc_version_at_least(1, 12, 2):
             o.get_binary(f"tools/create-archive?resources={self.label_a_study_id}")

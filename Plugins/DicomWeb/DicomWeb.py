@@ -41,7 +41,7 @@ def _AttachPart(body, path, contentType, boundary):
         body += bytearray('\r\n', 'ascii')
 
 
-def SendStowRaw(orthanc, uri, dicom):
+def SendStowRaw(orthanc, uri, dicom, partsContentType='application/dicom'):
     # We do not use Python's "email" package, as it uses LF (\n) for line
     # endings instead of CRLF (\r\n) for binary messages, as required by
     # RFC 1341
@@ -54,9 +54,9 @@ def SendStowRaw(orthanc, uri, dicom):
 
     if isinstance(dicom, list):
         for i in range(dicom):
-            _AttachPart(body, dicom[i], 'application/dicom', boundary)
+            _AttachPart(body, dicom[i], partsContentType, boundary)
     else:
-        _AttachPart(body, dicom, 'application/dicom', boundary)
+        _AttachPart(body, dicom, partsContentType, boundary)
 
     # Closing boundary
     body += bytearray('--%s--' % boundary, 'ascii')
@@ -72,8 +72,8 @@ def SendStowRaw(orthanc, uri, dicom):
     return (response.status, DecodeJson(content))
 
 
-def SendStow(orthanc, uri, dicom):
-    (status, content) = SendStowRaw(orthanc, uri, dicom)
+def SendStow(orthanc, uri, dicom, partsContentType='application/dicom'):
+    (status, content) = SendStowRaw(orthanc, uri, dicom, partsContentType)
     if not (status in [ 200 ]):
         raise Exception('Bad status: %d' % status)
     else:
