@@ -440,7 +440,7 @@ class Orthanc(unittest.TestCase):
 
         
     def test_bitbucket_issue_53(self):
-        # DICOMWeb plugin support for "limit" and "offset" parameters in QIDO-RS
+        # DICOMweb plugin support for "limit" and "offset" parameters in QIDO-RS
         # https://orthanc.uclouvain.be/bugs/show_bug.cgi?id=53
         
         UploadInstance(ORTHANC, 'Brainix/Flair/IM-0001-0001.dcm')
