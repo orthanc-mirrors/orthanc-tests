@@ -63,7 +63,7 @@ class TestMaxStorageReject(OrthancTestCase):
         if self.o.get_system()["ApiVersion"] > 20:  # from Orthanc 1.12.1
             self.o.delete_all_content()
 
-            # make sure the 3rd patient does not make it into the storage (through the Rest API)
+            # make sure the 3rd patient does not make it into the storage (through the REST API)
             self.o.upload_file(here / "../../Database/Brainix/Flair/IM-0001-0001.dcm")
             self.o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")
             with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
