@@ -2607,7 +2607,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(DoGet(_REMOTE, '/series')))
             self.assertEqual(2, len(DoGet(_REMOTE, '/instances')))
 
-            DoPost(_REMOTE, '/queries/%s/answers/1/retrieve' % a, 'ORTHANC', 'application/json') # make sure the issue #36 is fixed (query/retrieve Rest API: /retrieve route shall accept application/json content type)
+            DoPost(_REMOTE, '/queries/%s/answers/1/retrieve' % a, 'ORTHANC', 'application/json') # make sure the issue #36 is fixed (query/retrieve REST API: /retrieve route shall accept application/json content type)
             self.assertEqual(1, len(DoGet(_REMOTE, '/patients')))
             self.assertEqual(1, len(DoGet(_REMOTE, '/studies')))
             self.assertEqual(2, len(DoGet(_REMOTE, '/series')))
