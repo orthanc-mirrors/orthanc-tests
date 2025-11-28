@@ -105,9 +105,9 @@ class TestConcurrencyTransfers(unittest.TestCase):
         oa, ob = self.clean_start()
 
         if oa.is_plugin_version_at_least("transfers", 1, 6, 0):  # need the PeerCommitTimeout config set to 600
-            populator = OrthancTestDbPopulator(oa, studies_count=5, series_count=2, instances_count=300, random_seed=65)
+            populator = OrthancTestDbPopulator(ob, studies_count=5, series_count=2, instances_count=300, random_seed=65)
         else:
-            populator = OrthancTestDbPopulator(oa, studies_count=2, series_count=2, instances_count=200, random_seed=65)
+            populator = OrthancTestDbPopulator(ob, studies_count=2, series_count=2, instances_count=200, random_seed=65)
         populator.execute()
 
         all_studies_ids = ob.studies.get_all_ids()
