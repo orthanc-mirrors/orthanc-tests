@@ -14,8 +14,17 @@ services:
       # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
       ORTHANC__HTTP_TIMEOUT: "60"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
-      # disable DICOMWEB to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
-      DICOM_WEB_PLUGIN_ENABLED: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
+      ORTHANC__DICOM_WEB: |
+        {
+          "EnableMetadataCache": false,
+          "WadoRsLoaderThreadsCount": 8,
+          "Servers": {
+            "a": [ "http://orthanc-pg-a:8042/dicom-web/"],
+            "b": [ "http://orthanc-pg-b:8042/dicom-web/"]
+          }
+        }
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-a",
@@ -48,7 +57,17 @@ services:
       # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
       ORTHANC__HTTP_TIMEOUT: "60"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
-      DICOM_WEB_PLUGIN_ENABLED: "false"
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+      # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
+      ORTHANC__DICOM_WEB: |
+        {
+          "EnableMetadataCache": false,
+          "WadoRsLoaderThreadsCount": 8,
+          "Servers": {
+            "a": [ "http://orthanc-pg-a:8042/dicom-web/"],
+            "b": [ "http://orthanc-pg-b:8042/dicom-web/"]
+          }
+        }
       ORTHANC__POSTGRESQL: |
         {
           "Host": "pg-b",
