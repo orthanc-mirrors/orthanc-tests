@@ -247,3 +247,22 @@ with Docker:
 python3 NewTests/main.py --pattern=AdvancedStorage.test_advanced_storage.TestAdvancedStorage.* \
                          --orthanc_under_tests_docker_image=orthancteam/orthanc:current \
                          --orthanc_under_tests_http_port=8043
+
+
+PixelsMasker:
+-------------
+
+Run the PixelsMasker tests with your locally build version and break before execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=PixelsMasker.test_pixels_masker.TestPixelsMasker.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --orthanc_under_tests_http_port=8043 \
+                         --db=sqlite \
+                         --plugin=/home/alain/o/build/orthanc-pixels-masker/libOrthancPixelsMasker.so \
+                         --break_after_preparation
+
+with Docker:
+
+python3 NewTests/main.py --pattern=PixelsMasker.test_pixels_masker.TestPixelsMasker.* \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:master-unstable \
+                         --orthanc_under_tests_http_port=8043
