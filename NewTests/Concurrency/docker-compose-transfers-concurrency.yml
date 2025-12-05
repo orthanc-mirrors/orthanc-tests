@@ -13,6 +13,9 @@ services:
       TRANSFERS_PLUGIN_ENABLED: "true"
       # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
       ORTHANC__HTTP_TIMEOUT: "60"
+      # restore default that are modified by the default integration tests config
+      ORTHANC__LIMIT_FIND_INSTANCES: "0"
+      ORTHANC__LIMIT_FIND_RESULTS: "0"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       DICOM_WEB_PLUGIN_ENABLED: "true"
       # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
@@ -56,6 +59,9 @@ services:
       TRANSFERS_PLUGIN_ENABLED: "true"
       # increase this timeout for large transfers (it is configured at 2sec by the default integration tests config)
       ORTHANC__HTTP_TIMEOUT: "60"
+      # restore default that are modified by the default integration tests config
+      ORTHANC__LIMIT_FIND_INSTANCES: "0"
+      ORTHANC__LIMIT_FIND_RESULTS: "0"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
       DICOM_WEB_PLUGIN_ENABLED: "true"
       # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
@@ -98,6 +104,7 @@ services:
   pg-b:
     image: postgres:15
     container_name: pg-b
+    ports: ["5533:5432"]
     restart: unless-stopped
     volumes: 
       - "storage-pg-b:/var/lib/postgresql/data"
