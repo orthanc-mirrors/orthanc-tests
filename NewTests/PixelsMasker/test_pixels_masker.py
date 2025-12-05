@@ -89,7 +89,7 @@ class TestPixelsMasker(OrthancTestCase):
         self.assertEqual(22, len(self.o.studies.get_instances_ids(modified_study.orthanc_id)))
 
 
-        # compare instances
+        # compare instances, only the middle one should have been modified
         self.assertTrue(self.are_instances_identical(self.o.studies.get_series_ids(original_study_id)[0],
                                                      self.o.studies.get_series_ids(modified_study.orthanc_id)[0],
                                                      1))
