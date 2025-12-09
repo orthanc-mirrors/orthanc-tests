@@ -17,6 +17,7 @@ services:
       ORTHANC__LIMIT_FIND_INSTANCES: "0"
       ORTHANC__LIMIT_FIND_RESULTS: "0"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
+      ORTHANC__TRANSFERS__COMMIT_THREADS_COUNT: "8"
       DICOM_WEB_PLUGIN_ENABLED: "true"
       # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
       ORTHANC__DICOM_WEB: |
@@ -63,6 +64,7 @@ services:
       ORTHANC__LIMIT_FIND_INSTANCES: "0"
       ORTHANC__LIMIT_FIND_RESULTS: "0"
       ORTHANC__TRANSFERS__PEER_CONNECTIVITY_TIMEOUT: "10"
+      ORTHANC__TRANSFERS__COMMIT_THREADS_COUNT: "8"
       DICOM_WEB_PLUGIN_ENABLED: "true"
       # disable EnableMetadataCache to avoid the metadata cache to consume disk space after StableStudy -> difficult to compare disk sizes
       ORTHANC__DICOM_WEB: |
