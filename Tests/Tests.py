@@ -3046,7 +3046,7 @@ class Orthanc(unittest.TestCase):
 
         if IsOrthancVersionAbove(_REMOTE, 1, 9, 0):
             a = DoPut(_REMOTE, '/tools/accepted-transfer-syntaxes', '*', 'text/plain')
-            self.assertGreaterEqual(42, len(a))
+            self.assertLessEqual(42, len(a))  # 42 in 1.9.0, 45 from 1.12.10+
             DoPut(_REMOTE, '/tools/unknown-sop-class-accepted', 'true')
             self.assertEqual(1, DoGet(_REMOTE, '/tools/unknown-sop-class-accepted'))
         else:
