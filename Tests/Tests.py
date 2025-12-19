@@ -11849,111 +11849,107 @@ class Orthanc(unittest.TestCase):
         UploadInstance(_REMOTE, 'Encodings/Lena-ascii.dcm')
 
         self.assertEqual(14, len(DoGet(_REMOTE, '/series')))
+        self.assertEqual(11, len(DoGet(_REMOTE, '/studies')))
 
 
-        # knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
-        #                                         'Level' : 'Instances',
-        #                                         'Query' : { 
-        #                                             'PatientName' : 'KNIX'
-        #                                         },
-        #                                         'Expand': False
-        #                                         })
+        knixInstancesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False
+                                                })
 
-        # # pprint.pprint(knixInstancesNoLimit)
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-        #     self.assertEqual(20, len(knixInstancesNoLimit))
-        # else:
-        #     self.assertEqual(21, len(knixInstancesNoLimit))
+        # pprint.pprint(knixInstancesNoLimit)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            self.assertEqual(20, len(knixInstancesNoLimit))
 
-        # knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
-        #                                         'Level' : 'Instances',
-        #                                         'Query' : { 
-        #                                             'PatientName' : 'KNIX'
-        #                                         },
-        #                                         'Expand': False,
-        #                                         'Since': 5,
-        #                                         'Limit': 20
-        #                                         })
-        # # pprint.pprint(knixInstancesSince5Limit20)
-        
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
-        #     self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
-        #     # the first 5 from previous call shall not be in this answer
-        #     for i in range(0, 5):
-        #         self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
-        #     # the last 4 from last call shall not be in the first answer
-        #     for i in range(16, 20):
-        #         self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
+        knixInstancesSince5Limit20 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False,
+                                                'Since': 5,
+                                                'Limit': 20
+                                                })
+        # pprint.pprint(knixInstancesSince5Limit20)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5):
+            self.assertEqual(20, len(knixInstancesSince5Limit20))  # Orthanc actually returns LimitFindInstances + 1 resources
+            # the first 5 from previous call shall not be in this answer
+            for i in range(0, 5):
+                self.assertNotIn(knixInstancesNoLimit[i], knixInstancesSince5Limit20)
+            # the last 4 from last call shall not be in the first answer
+            for i in range(16, 20):
+                self.assertNotIn(knixInstancesSince5Limit20[i], knixInstancesNoLimit)
 
-        # # request more instances than LimitFindInstances
-        # knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
-        #                                         'Level' : 'Instances',
-        #                                         'Query' : { 
-        #                                             'PatientName' : 'KNIX'
-        #                                         },
-        #                                         'Expand': False,
-        #                                         'Since': 0,
-        #                                         'Limit': 23
-        #                                         })
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-        #     self.assertEqual(20, len(knixInstancesSince0Limit23))
+        # request more instances than LimitFindInstances
+        knixInstancesSince0Limit23 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Instances',
+                                                'Query' : { 
+                                                    'PatientName' : 'KNIX'
+                                                },
+                                                'Expand': False,
+                                                'Since': 0,
+                                                'Limit': 23
+                                                })
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            self.assertEqual(20, len(knixInstancesSince0Limit23))
 
-        # seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
-        #                                         'Level' : 'Series',
-        #                                         'Query' : { 
-        #                                             'PatientName' : '*'
-        #                                         },
-        #                                         'Expand': False
-        #                                         })
+        seriesNoLimit = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Series',
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'Expand': False
+                                                })
 
-        # # pprint.pprint(seriesNoLimit)
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-        #     self.assertEqual(10, len(seriesNoLimit))
-        # else:
-        #     self.assertEqual(11, len(seriesNoLimit))
+        # pprint.pprint(seriesNoLimit)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            self.assertEqual(10, len(seriesNoLimit))
 
-        # seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
-        #                                         'Level' : 'Series',
-        #                                         'Query' : { 
-        #                                             'PatientName' : '*'
-        #                                         },
-        #                                         'Expand': False,
-        #                                         'Since': 8,
-        #                                         'Limit': 6
-        #                                         })
+        seriesSince8Limit6 = DoPost(_REMOTE, '/tools/find', {    
+                                                'Level' : 'Series',
+                                                'Query' : { 
+                                                    'PatientName' : '*'
+                                                },
+                                                'Expand': False,
+                                                'Since': 8,
+                                                'Limit': 6
+                                                })
 
-        # # pprint.pprint(seriesSince8Limit6)
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE): # TODO: remove HasExtendedFind once find-refactoring branch has been merged and supported by all DB plugins !!!
-        #     self.assertEqual(6, len(seriesSince8Limit6))
+        # pprint.pprint(seriesSince8Limit6)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            self.assertEqual(6, len(seriesSince8Limit6))
 
-        #     # the first 7 from previous call shall not be in this answer
-        #     for i in range(0, 7):
-        #         self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
-        #     # the last 3 from last call shall not be in the first answer
-        #     for i in range(3, 5):
-        #         self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
+            # the first 7 from previous call shall not be in this answer
+            for i in range(0, 7):
+                self.assertNotIn(seriesNoLimit[i], seriesSince8Limit6)
+            # the last 3 from last call shall not be in the first answer
+            for i in range(3, 5):
+                self.assertNotIn(seriesSince8Limit6[i], seriesNoLimit)
 
-        # if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
-        #     # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
-        #     a = DoPost(_REMOTE, '/tools/find', {    
-        #                                             'Level' : 'Instances',
-        #                                             'Query' : { 
-        #                                                 'PhotometricInterpretation' : 'MONOCHROME*'
-        #                                             },
-        #                                             'Expand': True,
-        #                                             'OrderBy' : [
-        #                                                     {
-        #                                                         'Type': 'DicomTag',
-        #                                                         'Key': 'InstanceNumber',
-        #                                                         'Direction': 'ASC'
-        #                                                     }
-        #                                             ]})
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
+            # query by a tag that is not in the DB (there are 27 instances from Knix/Loc + 10 instances from other series that satisfies this criteria)
+            a = DoPost(_REMOTE, '/tools/find', {    
+                                                    'Level' : 'Instances',
+                                                    'Query' : { 
+                                                        'PhotometricInterpretation' : 'MONOCHROME*'
+                                                    },
+                                                    'Expand': True,
+                                                    'OrderBy' : [
+                                                            {
+                                                                'Type': 'DicomTag',
+                                                                'Key': 'InstanceNumber',
+                                                                'Direction': 'ASC'
+                                                            }
+                                                    ]})
 
-        #     # pprint.pprint(a)
+            pprint.pprint(a)
         #     # print(len(a))
         #     # TODO: we should have something in the response that notifies us that the response is not "complete"
         #     # TODO: we should receive an error if we try to use "since" in this kind of search ?
-        #     self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
+            self.assertEqual(17, len(a))   # the fast DB filtering returns 20 instances -> only 17 of them meet the criteria but this is not really correct !!!
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 5) and HasExtendedFind(_REMOTE):
             # make sur an error is returned when using Since or Limit when querying a tag that is not in DB
