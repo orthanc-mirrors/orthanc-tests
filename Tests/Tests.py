@@ -11945,7 +11945,7 @@ class Orthanc(unittest.TestCase):
                                                             }
                                                     ]})
 
-            pprint.pprint(a)
+            # pprint.pprint(a)
         #     # print(len(a))
         #     # TODO: we should have something in the response that notifies us that the response is not "complete"
         #     # TODO: we should receive an error if we try to use "since" in this kind of search ?
@@ -11989,6 +11989,35 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('20050927', a[0]['MainDicomTags']['StudyDate'])
             self.assertEqual('20061201', a[1]['MainDicomTags']['StudyDate'])
             self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
+
+        # check LimitFindResults applies to both findscu and /tools/find
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+
+            allSeries = DoPost(_REMOTE, '/tools/find', {    
+                                            'Level' : 'Series',
+                                            'Query' : { 
+                                                'PatientName' : ''
+                                            },
+                                            'Expand': False
+                                            })
+            self.assertEqual(10, len(allSeries)) # because LimitFindResults is 10
+
+            i = CallFindScu([ '-k', 'QueryRetrieveLevel=Series', '-k', '0010,0010' ])
+            patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
+            self.assertEqual(10, len(patientNames)) # because LimitFindResults is 10
+
+            allInstances = DoPost(_REMOTE, '/tools/find', {    
+                                            'Level' : 'Instance',
+                                            'Query' : { 
+                                                'PatientName' : ''
+                                            },
+                                            'Expand': False
+                                            })
+            self.assertEqual(20, len(allInstances)) # because LimitFindInstances is 20
+
+            i = CallFindScu([ '-k', 'QueryRetrieveLevel=Instance', '-k', '0010,0010' ])
+            patientNames = re.findall(r'\(0010,0010\).*?\[(.*?)\]', i)
+            self.assertEqual(20, len(patientNames)) # because LimitFindResults is 20
 
 
     def test_attachment_range(self):
