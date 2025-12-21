@@ -11991,7 +11991,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('20070101', a[2]['MainDicomTags']['StudyDate'])
 
         # check LimitFindResults applies to both findscu and /tools/find
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and HasExtendedFind(_REMOTE):
 
             allSeries = DoPost(_REMOTE, '/tools/find', {    
                                             'Level' : 'Series',
