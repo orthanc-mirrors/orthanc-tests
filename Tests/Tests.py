@@ -7139,6 +7139,20 @@ class Orthanc(unittest.TestCase):
                 self.assertLess(len(content40), len(content80))
 
 
+    def test_content_disposition(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+
+            info = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.dcm')
+
+            resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename="toto".dcm' % info['ID'])
+            self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+
+            resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename=toto.dcm"\r\nSet-Cookie:evil=1' % info['ID'])
+
+            self.assertNotIn('set-cookie', resp)
+            self.assertEqual('filename="toto.dcmSet-Cookie:evil=1"', resp['content-disposition'])
+
+
     def test_modify_keep_source(self):
         # https://groups.google.com/d/msg/orthanc-users/CgU-Wg8vDio/BY5ZWcDEAgAJ
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')
