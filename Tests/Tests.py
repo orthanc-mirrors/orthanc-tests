@@ -7535,6 +7535,35 @@ class Orthanc(unittest.TestCase):
                 # the previous patient shall not exist anymore
                 self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/%s/%s' % ('patients', originalKneePatientId)))
 
+
+    def test_rename_patient_almost_same_ids(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+
+            DropOrthanc(_REMOTE)
+            brainix = UploadInstance(_REMOTE, 'Brainix/Epi/IM-0001-0001.dcm')  # PatientID = 5Yp0E
+            comunix = UploadInstance(_REMOTE, 'Comunix/Ct/IM-0001-0001.dcm')  # PatientID = fYET5.0
+
+            # This failed prior to 1.12.11 because '_' and '%' are removed when looking in the DICOM identifiers table.
+            # Now, Orthanc uses the MainDicomTags table if the search string contains '_' or '%'
+            r = DoPost(_REMOTE, '/tools/lookup', '_5Yp0E')
+            self.assertEqual(0, len(r))
+
+            # tools/find always performed correctly
+            r = DoPost(_REMOTE, '/tools/find', {
+                    'Query' : {'PatientID': '_5Yp0E'},
+                    'Level': 'Study'
+                    })
+            self.assertEqual(0, len(r))
+
+            # This failed prior to 1.12.11 because '_5Yp0E' and '5Yp0E' were considered as the same patient
+            DoPost(_REMOTE, '/studies/%s/modify' % comunix['ParentStudy'], {
+                    'Replace' : {'PatientName': "TOTO", 'PatientID': '_5Yp0E'},
+                    'Force': True,
+                    'Keep' : ['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID']
+                    })
+
+
+
     def test_store_peer_transcoding(self):
         i = UploadInstance(_REMOTE, 'KarstenHilbertRF.dcm')['ID']
 
