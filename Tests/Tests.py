@@ -7148,6 +7148,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
 
             resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename=toto.dcm"\r\nSet-Cookie:evil=1' % info['ID'])
+            pprint.pprint(resp)
 
             self.assertNotIn('set-cookie', resp)
             self.assertEqual('filename="toto.dcmSet-Cookie:evil=1"', resp['content-disposition'])
