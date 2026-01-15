@@ -10409,7 +10409,10 @@ class Orthanc(unittest.TestCase):
             # The instance has label "a"
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
-            self.assertEqual(1, len(Execute([], 'None')))
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11): # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
+                self.assertEqual(0, len(Execute([], 'None')))
+            else:
+                self.assertEqual(1, len(Execute([], 'None')))
             self.assertEqual(1, len(Execute([ 'a' ], 'All')))
             self.assertEqual(1, len(Execute([ 'a' ], 'Any')))
             self.assertEqual(0, len(Execute([ 'a' ], 'None')))
@@ -10465,7 +10468,10 @@ class Orthanc(unittest.TestCase):
             # The instance has labels "a" and "b"
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
-            self.assertEqual(1, len(Execute([], 'None')))
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11): # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
+                self.assertEqual(0, len(Execute([], 'None')))
+            else:
+                self.assertEqual(1, len(Execute([], 'None')))
             self.assertEqual(1, len(Execute([ 'a' ], 'All')))
             self.assertEqual(1, len(Execute([ 'a' ], 'Any')))
             self.assertEqual(0, len(Execute([ 'a' ], 'None')))
@@ -10486,7 +10492,10 @@ class Orthanc(unittest.TestCase):
             # The instance has label "b"
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
-            self.assertEqual(1, len(Execute([], 'None')))
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11): # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
+                self.assertEqual(0, len(Execute([], 'None')))
+            else:
+                self.assertEqual(1, len(Execute([], 'None')))
             self.assertEqual(0, len(Execute([ 'a' ], 'All')))
             self.assertEqual(0, len(Execute([ 'a' ], 'Any')))
             self.assertEqual(1, len(Execute([ 'a' ], 'None')))
