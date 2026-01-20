@@ -2308,7 +2308,10 @@ class Orthanc(unittest.TestCase):
                       'StudyDate': '20080819'
                   }}
         CheckFind(query, 1)
-        CheckCount(query, 1, True) # tools/count does not support CaseSensitive
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 1, False) # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 1, True) # tools/count does not support CaseSensitive
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : False,
@@ -2339,7 +2342,10 @@ class Orthanc(unittest.TestCase):
                       'PatientSex': '0000'
                   }}
         CheckFind(query, 1)
-        CheckCount(query, 1, True) # tools/count-resources does not support CaseSensitive
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 1, False) # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 1, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2349,9 +2355,14 @@ class Orthanc(unittest.TestCase):
                       'PatientSex': '0000'
                   },
                   'Since': 1}
+
         if HasExtendedFind(_REMOTE): # usage of 'Since' is not reliable without ExtendedFind
-            CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since'
-            CheckCount(query, 0, True) # tools/count-resources does not support CaseSensitive
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+                CheckFind(query, 0, False)  # 'CaseSensitive' can be combined with 'Since' from 1.12.11
+                CheckCount(query, 1, False) # Since is ignored in tools/count-resources
+            else:
+                CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since'
+                CheckCount(query, 0, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2371,7 +2382,10 @@ class Orthanc(unittest.TestCase):
                       'PatientSex': '0000'
                   },
                   'Since': 1}
-        CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since' when searching for lower case (because the DicomIdentifiers are stored in UPPERCASE)
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckFind(query, 0, False)  # 'CaseSensitive' can be combined with 'Since' from 1.12.11
+        else:
+            CheckFind(query, 0, True)  # 'CaseSensitive' can not be combined with 'Since' when searching for lower case (because the DicomIdentifiers are stored in UPPERCASE)
 
         query = { 'Level' : 'Series',
                   'CaseSensitive' : True,
@@ -2379,7 +2393,10 @@ class Orthanc(unittest.TestCase):
                       'StudyInstanceUID' : '2.16.840.1.113669.632.20.121711.10000160881'
                   }}
         CheckFind(query, 2)
-        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 2, False)  # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Instance',
                   'CaseSensitive' : True,
@@ -2388,7 +2405,10 @@ class Orthanc(unittest.TestCase):
                       'SeriesInstanceUID': '1.3.46.670589.11.17521.5.0.3124.2008081908564160709'
                   }}
         CheckFind(query, 3)
-        CheckCount(query, 3, True) # tools/count-resources does not support CaseSensitive
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 3, False)  # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 3, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Series',
                   'CaseSensitive' : True,
@@ -2397,7 +2417,10 @@ class Orthanc(unittest.TestCase):
                       'Modality': 'MR'
                   }}
         CheckFind(query, 2)
-        CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 2, False)  # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 2, True) # tools/count-resources does not support CaseSensitive
 
         query = { 'Level' : 'Study',
                   'CaseSensitive' : True,
@@ -2441,7 +2464,10 @@ class Orthanc(unittest.TestCase):
                   'CaseSensitive' : True,
                   'Query' : { 'PatientName' : '*n*' }}
         CheckFind(query, 0)
-        CheckCount(query, 0, True)   # "CaseSensitive" is not available in "/tools/count-resources"
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            CheckCount(query, 0, False)  # tools/count supports CaseSensitive from 1.12.11
+        else:
+            CheckCount(query, 0, True)   # "CaseSensitive" is not available in "/tools/count-resources"
 
         query = { 'Expand' : True,
                   'Level' : 'Patient',
