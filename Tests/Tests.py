@@ -9879,6 +9879,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_find_patient_name_with_brackets_and_star(self):
+        if HasSQLiteIndexPlugin(_REMOTE): # this plugin does not support escaping brackets and * now that we are using GLOB instead of LIKE
+            return
+
         u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
 
         modified = DoPost(_REMOTE, '/instances/%s/modify' % u, json.dumps({
@@ -9909,6 +9912,9 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(1, len(a))
 
     def test_find_patient_name_with_brackets_only(self):
+        if HasSQLiteIndexPlugin(_REMOTE): # this plugin does not support escaping brackets and * now that we are using GLOB instead of LIKE
+            return
+        
         u = UploadInstance(_REMOTE, 'Beaufix/IM-0001-0001.dcm')['ID']
 
         modified = DoPost(_REMOTE, '/instances/%s/modify' % u, json.dumps({
