@@ -794,7 +794,10 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainixPatient, kneePatient ]
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
         else:
@@ -811,7 +814,10 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainixStudy, kneeStudy ]
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
         else:
@@ -823,7 +829,10 @@ class Orthanc(unittest.TestCase):
             'Resources' : [ brainixPatient, kneeStudy ]
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 13):
+            self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
+            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
+        elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
         else:
@@ -852,11 +861,17 @@ class Orthanc(unittest.TestCase):
             # when downloading studies individually, we want to have the PatientName that appears in the study
             z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % helloStudy)
             self.assertEqual(1, len(z.namelist()))
-            self.assertIn('COMMON HELLO/HELLO SERIES/Unknown Series/00000000.dcm', z.namelist())
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+                self.assertIn('COMMON HELLO/HELLO^SERIES/Unknown Series/00000000.dcm', z.namelist())
+            else:
+                self.assertIn('COMMON HELLO/HELLO SERIES/Unknown Series/00000000.dcm', z.namelist())
 
             z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % worldStudy)
             self.assertEqual(1, len(z.namelist()))
-            self.assertIn('COMMON WORLD/WORLD SERIES/Unknown Series/00000000.dcm', z.namelist())
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+                self.assertIn('COMMON WORLD/WORLD^SERIES/Unknown Series/00000000.dcm', z.namelist())
+            else:
+                self.assertIn('COMMON WORLD/WORLD SERIES/Unknown Series/00000000.dcm', z.namelist())
 
 
 
