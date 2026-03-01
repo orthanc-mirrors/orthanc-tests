@@ -791,7 +791,8 @@ class Orthanc(unittest.TestCase):
 
         # archive with 2 patients
         z = PostArchive(_REMOTE, '/tools/create-archive', {
-            'Resources' : [ brainixPatient, kneePatient ]
+            'Resources' : [ brainixPatient, kneePatient ],
+            'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
@@ -811,7 +812,8 @@ class Orthanc(unittest.TestCase):
 
         # archive with 2 studies
         z = PostArchive(_REMOTE, '/tools/create-archive', {
-            'Resources' : [ brainixStudy, kneeStudy ]
+            'Resources' : [ brainixStudy, kneeStudy ],
+            'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
@@ -826,7 +828,8 @@ class Orthanc(unittest.TestCase):
 
         # archive with 1 patient & 1 study
         z = PostArchive(_REMOTE, '/tools/create-archive', {
-            'Resources' : [ brainixPatient, kneeStudy ]
+            'Resources' : [ brainixPatient, kneeStudy ],
+            'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 13):
@@ -12389,3 +12392,22 @@ class Orthanc(unittest.TestCase):
 
             jobDetails = DoGet(_REMOTE, '/jobs/%s' % job['ID'])
             self.assertEqual('simple-string', jobDetails['UserData'])
+
+
+    def test_archive_utf8(self):
+        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+
+        z = PostArchive(_REMOTE, '/tools/create-archive', {
+            'Resources' : [ brainix ],
+            'Utf8' : False,
+            })
+        self.assertEqual(1, len(z.namelist()))
+        self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            z = PostArchive(_REMOTE, '/tools/create-archive', {
+                'Resources' : [ brainix ],
+                'Utf8' : True,
+                })
+            self.assertEqual(1, len(z.namelist()))
+            self.assertIn(u'5Yp0E BRAINIX/0 IRM cérébrale, neuro-crâne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
