@@ -832,7 +832,7 @@ class Orthanc(unittest.TestCase):
             'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 13):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
