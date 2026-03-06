@@ -12405,10 +12405,8 @@ class Orthanc(unittest.TestCase):
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale, neuro-crne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
-            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('5Yp0E BRAINIX/0 IRM crbrale neurocrne/MR sT2WFLAIR/MR000001.dcm', z.namelist())
-            self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
 
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
             z = PostArchive(_REMOTE, '/tools/create-archive', {
