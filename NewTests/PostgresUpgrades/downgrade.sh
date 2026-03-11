@@ -9,10 +9,11 @@ wget https://orthanc.uclouvain.be/downloads/sources/orthanc-postgresql/OrthancPo
 # ex for an intermediate release (or if download from uclouvain is rejected)
 # wget https://public-files.orthanc.team/tmp-builds/hg-repos/orthanc-databases-81d837d7d20d.tar.gz --output-document /tmp/pg.tar.gz
 
-tar xvf /tmp/pg.tar.gz --strip-components=1
+mkdir -p /scripts/orthanc-databases/
 pushd /scripts/orthanc-databases/
+tar xvf /tmp/pg.tar.gz --strip-components=1
 
-psql -U postgres -f /scripts/orthanc-databases/PostgreSQL/Plugins/SQL/Downgrades/Rev10ToRev5.sql
+psql -U postgres -f /scripts/orthanc-databases/PostgreSQL/Plugins/SQL/Downgrades/Rev10ToRev6.sql
 
 # if you want to test a downgrade procedure, you may use this code ...
 # psql -U postgres -f downgrade.sql
