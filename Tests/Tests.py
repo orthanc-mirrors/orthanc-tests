@@ -12415,3 +12415,78 @@ class Orthanc(unittest.TestCase):
                 })
             self.assertEqual(1, len(z.namelist()))
             self.assertIn(u'5Yp0E BRAINIX/0 IRM cérébrale, neuro-crâne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
+
+
+    def test_of_od_array(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            instance = UploadInstance(_REMOTE, '2026-03-16-OF-OD.dcm') ['ID']
+
+            tags = DoGet(_REMOTE, '/instances/%s/tags' % instance)
+
+            of = tags['0066,0016']  # OF value representation
+            self.assertEqual('PointCoordinatesData', of['Name'])
+            self.assertEqual('String', of['Type'])
+            v = list(map(lambda s: float(s), of['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertAlmostEqual(10.1, v[0], places = 5)
+            self.assertAlmostEqual(20.2, v[1], places = 5)
+            self.assertAlmostEqual(30.3, v[2], places = 5)
+
+            od = tags['0070,150d']  # OD value representation (quite rare in DICOM)
+            self.assertEqual('VolumetricCurvePoints', od['Name'])
+            self.assertEqual('String', od['Type'])
+            v = list(map(lambda s: float(s), od['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertAlmostEqual(1.1, v[0])
+            self.assertAlmostEqual(2.2, v[1])
+            self.assertAlmostEqual(3.3, v[2])
+
+            # Test DICOMweb
+            tags = DoGet(_REMOTE, '/instances/%s/file' % instance, headers = {
+                'Accept': 'application/dicom+json',
+            })
+
+            of = tags['00660016']
+            self.assertEqual('OF', of['vr'])
+            self.assertEqual(3, len(of['Value']))
+            self.assertAlmostEqual(10.1, of['Value'][0], places = 5)
+            self.assertAlmostEqual(20.2, of['Value'][1], places = 5)
+            self.assertAlmostEqual(30.3, of['Value'][2], places = 5)
+
+            od = tags['0070150D']
+            self.assertEqual('OD', od['vr'])
+            self.assertEqual(3, len(od['Value']))
+            self.assertAlmostEqual(1.1, od['Value'][0])
+            self.assertAlmostEqual(2.2, od['Value'][1])
+            self.assertAlmostEqual(3.3, od['Value'][2])
+
+            # Test insertion of OF and OD tags
+            instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
+            modified = DoPost(_REMOTE, '/instances/%s/modify' % instance,
+                              json.dumps({
+                                  'Replace' : {
+                                      '0066,0016' : '101.1\\102.2\\103.3',
+                                      '0070,150d' : '110.1\\120.2\\130.3',
+                                  },
+                              }),
+                              'application/json')
+            j = DoPost(_REMOTE, '/instances', modified, 'application/dicom')['ID']
+            tags = DoGet(_REMOTE, '/instances/%s/tags' % j)
+
+            of = tags['0066,0016']
+            self.assertEqual('PointCoordinatesData', of['Name'])
+            self.assertEqual('String', of['Type'])
+            v = list(map(lambda s: float(s), of['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertAlmostEqual(101.1, v[0], places = 5)
+            self.assertAlmostEqual(102.2, v[1], places = 5)
+            self.assertAlmostEqual(103.3, v[2], places = 5)
+
+            od = tags['0070,150d']
+            self.assertEqual('VolumetricCurvePoints', od['Name'])
+            self.assertEqual('String', od['Type'])
+            v = list(map(lambda s: float(s), od['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertAlmostEqual(110.1, v[0])
+            self.assertAlmostEqual(120.2, v[1])
+            self.assertAlmostEqual(130.3, v[2])

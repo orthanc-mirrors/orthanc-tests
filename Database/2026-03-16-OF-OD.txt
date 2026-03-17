@@ -1,0 +1,19 @@
+The file "2026-03-16-OF-OD.dcm" was generated as follows:
+
+# python3 << EOF
+import struct
+
+od_values = [1.1, 2.2, 3.3]
+of_values = [10.1, 20.2, 30.3]
+
+with open("/tmp/od.bin", "wb") as f:
+    for v in od_values:
+        f.write(struct.pack("<d", v))  # little-endian double
+
+with open("/tmp/of.bin", "wb") as f:
+    for v in of_values:
+        f.write(struct.pack("<f", v))  # little-endian double
+EOF
+
+# cp DummyCT.dcm 2026-03-16-OF-OD.dcm
+# dcmodify --no-backup -gin -if "(0070,150D)=/tmp/od.bin" -if "(0066,0016)=/tmp/of.bin" 2026-03-16-OF-OD.dcm
