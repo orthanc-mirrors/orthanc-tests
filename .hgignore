@@ -14,3 +14,4 @@ NewTests/configurations/*.json
 Tests/*.crt
 Tests/*.key
 Tests/dicom-tls.json
+*.orig

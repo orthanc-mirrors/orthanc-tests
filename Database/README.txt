@@ -60,7 +60,7 @@ Other sources
 -------------
 
 Other images were publicly posted by external contributors to the
-Orthanc project, or were generated manually by the Orthanc team.
+Orthanc project, or were generated manually by the Orthanc core developers.
 
 
 -------

@@ -1951,6 +1951,37 @@ class Orthanc(unittest.TestCase):
         CheckBadRequest(uri, 'multipart/related;range=')
 
 
+    def test_of_od_array(self):
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 11):
+            UploadInstance(ORTHANC, '2026-03-16-OF-OD.dcm')
+            instances = DoGet(ORTHANC, '/dicom-web/instances')
+
+            self.assertEqual(1, len(instances))
+            studyInstanceUid = instances[0]['0020000D']['Value'][0]
+            seriesInstanceUid = instances[0]['0020000E']['Value'][0]
+            sopInstanceUid = instances[0]['00080018']['Value'][0]
+
+            metadata = DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/metadata' % (
+                studyInstanceUid, seriesInstanceUid, sopInstanceUid), headers = {
+                'Accept': 'application/dicom+json',
+            })
+            self.assertEqual(1, len(metadata))
+
+            of = metadata[0]['00660016']
+            self.assertEqual('OF', of['vr'])
+            self.assertEqual(3, len(of['Value']))
+            self.assertAlmostEqual(10.1, of['Value'][0], places = 5)
+            self.assertAlmostEqual(20.2, of['Value'][1], places = 5)
+            self.assertAlmostEqual(30.3, of['Value'][2], places = 5)
+
+            od = metadata[0]['0070150D']
+            self.assertEqual('OD', od['vr'])
+            self.assertEqual(3, len(od['Value']))
+            self.assertAlmostEqual(1.1, od['Value'][0])
+            self.assertAlmostEqual(2.2, od['Value'][1])
+            self.assertAlmostEqual(3.3, od['Value'][2])
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
