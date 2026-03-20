@@ -1951,9 +1951,9 @@ class Orthanc(unittest.TestCase):
         CheckBadRequest(uri, 'multipart/related;range=')
 
 
-    def test_of_od_array(self):
+    def test_od_of_ol_array(self):
         if IsOrthancVersionAbove(ORTHANC, 1, 12, 11):
-            UploadInstance(ORTHANC, '2026-03-16-OF-OD.dcm')
+            UploadInstance(ORTHANC, '2026-03-16-OD-OF-OL.dcm')
             instances = DoGet(ORTHANC, '/dicom-web/instances')
 
             self.assertEqual(1, len(instances))
@@ -1980,6 +1980,13 @@ class Orthanc(unittest.TestCase):
             self.assertAlmostEqual(1.1, od['Value'][0])
             self.assertAlmostEqual(2.2, od['Value'][1])
             self.assertAlmostEqual(3.3, od['Value'][2])
+
+            od = metadata[0]['00660041']
+            self.assertEqual('OL', od['vr'])
+            self.assertEqual(3, len(od['Value']))
+            self.assertEqual(42, od['Value'][0])
+            self.assertEqual(0, od['Value'][1])
+            self.assertEqual(15, od['Value'][2])
 
 
 try:

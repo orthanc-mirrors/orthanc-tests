@@ -12417,9 +12417,9 @@ class Orthanc(unittest.TestCase):
             self.assertIn(u'5Yp0E BRAINIX/0 IRM cérébrale, neuro-crâne/MR sT2W FLAIR/MR000001.dcm', z.namelist())
 
 
-    def test_of_od_array(self):
+    def test_od_of_ol_array(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
-            instance = UploadInstance(_REMOTE, '2026-03-16-OF-OD.dcm') ['ID']
+            instance = UploadInstance(_REMOTE, '2026-03-16-OD-OF-OL.dcm') ['ID']
 
             tags = DoGet(_REMOTE, '/instances/%s/tags' % instance)
 
@@ -12441,6 +12441,15 @@ class Orthanc(unittest.TestCase):
             self.assertAlmostEqual(2.2, v[1])
             self.assertAlmostEqual(3.3, v[2])
 
+            ol = tags['0066,0041']  # OL value representation
+            self.assertEqual('LongTrianglePointIndexList', ol['Name'])
+            self.assertEqual('String', ol['Type'])
+            v = list(map(lambda s: float(s), ol['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertEqual(42, v[0])
+            self.assertEqual(0, v[1])
+            self.assertEqual(15, v[2])
+
             # Test DICOMweb
             tags = DoGet(_REMOTE, '/instances/%s/file' % instance, headers = {
                 'Accept': 'application/dicom+json',
@@ -12460,13 +12469,21 @@ class Orthanc(unittest.TestCase):
             self.assertAlmostEqual(2.2, od['Value'][1])
             self.assertAlmostEqual(3.3, od['Value'][2])
 
-            # Test insertion of OF and OD tags
+            ol = tags['00660041']
+            self.assertEqual('OL', ol['vr'])
+            self.assertEqual(3, len(ol['Value']))
+            self.assertEqual(42, ol['Value'][0])
+            self.assertEqual(0, ol['Value'][1])
+            self.assertEqual(15, ol['Value'][2])
+
+            # Test insertion of OD, OF, and OL tags
             instance = UploadInstance(_REMOTE, 'DummyCT.dcm') ['ID']
             modified = DoPost(_REMOTE, '/instances/%s/modify' % instance,
                               json.dumps({
                                   'Replace' : {
                                       '0066,0016' : '101.1\\102.2\\103.3',
                                       '0070,150d' : '110.1\\120.2\\130.3',
+                                      '0066,0041' : '20\\30\\42',
                                   },
                               }),
                               'application/json')
@@ -12490,3 +12507,12 @@ class Orthanc(unittest.TestCase):
             self.assertAlmostEqual(110.1, v[0])
             self.assertAlmostEqual(120.2, v[1])
             self.assertAlmostEqual(130.3, v[2])
+
+            ol = tags['0066,0041']
+            self.assertEqual('LongTrianglePointIndexList', ol['Name'])
+            self.assertEqual('String', ol['Type'])
+            v = list(map(lambda s: float(s), ol['Value'].split('\\')))
+            self.assertEqual(3, len(v))
+            self.assertEqual(20, v[0])
+            self.assertEqual(30, v[1])
+            self.assertEqual(42, v[2])
