@@ -54,6 +54,20 @@ def get_user_profile(user_profile_request: UserProfileRequest):
                 authorized_labels=["label_a"],
                 validity=60
             )
+        elif user_profile_request.token_value == "token-deleter-a":
+            p = UserProfileResponse(
+                name="deleter-a",
+                permissions=["delete"],
+                authorized_labels=["label_a"],
+                validity=60
+            )
+        elif user_profile_request.token_value == "token-modifier-a":
+            p = UserProfileResponse(
+                name="modifier-a",
+                permissions=["modify", "view"],
+                authorized_labels=["label_a"],
+                validity=60
+            )
 
     return p        
 

@@ -58,7 +58,8 @@ class TestAuthorization(OrthancTestCase):
                 "DicomWeb": {
                     "Enable": True
                 },
-                "StableAge": 5000 # not to be disturbed by StableAge events while debugging
+                "StableAge": 5000, # not to be disturbed by StableAge events while debugging
+                "OverwriteInstances": True
             }
 
         config_path = cls.generate_configuration(
@@ -91,12 +92,17 @@ class TestAuthorization(OrthancTestCase):
                 docker_network="auth-test-network"
             )
 
+        cls.upload_and_label_all_studies()
+
+    @classmethod
+    def upload_and_label_all_studies(cls):
         o = OrthancApiClient(cls.o._root_url, headers={"user-token-key": "token-uploader"})
 
         o.delete_all_content()
 
         # upload a few studies and add labels
-        cls.label_a_instance_id = o.upload_file(here / "../../Database/Knix/Loc/IM-0001-0001.dcm")[0]
+        cls.label_a_study_path = here / "../../Database/Knix/Loc/IM-0001-0001.dcm"
+        cls.label_a_instance_id = o.upload_file(cls.label_a_study_path)[0]
         cls.label_a_study_id = o.instances.get_parent_study_id(cls.label_a_instance_id)
         cls.label_a_series_id = o.instances.get_parent_series_id(cls.label_a_instance_id)
         cls.label_a_patient_dicom_id = o.studies.get_tags(cls.label_a_study_id)["PatientID"]
@@ -105,7 +111,8 @@ class TestAuthorization(OrthancTestCase):
         cls.label_a_instance_dicom_id = o.instances.get_tags(cls.label_a_instance_id)["SOPInstanceUID"]
         o.studies.add_label(cls.label_a_study_id, "label_a")
 
-        cls.label_b_instance_id = o.upload_file(here / "../../Database/Brainix/Epi/IM-0001-0001.dcm")[0]
+        cls.label_b_study_path = here / "../../Database/Brainix/Epi/IM-0001-0001.dcm"
+        cls.label_b_instance_id = o.upload_file(cls.label_b_study_path)[0]
         cls.label_b_study_id = o.instances.get_parent_study_id(cls.label_b_instance_id)
         cls.label_b_series_id = o.instances.get_parent_series_id(cls.label_b_instance_id)
         cls.label_b_patient_dicom_id = o.studies.get_tags(cls.label_b_study_id)["PatientID"]
@@ -136,6 +143,18 @@ class TestAuthorization(OrthancTestCase):
         o.series.add_label(cls.both_labels_series_id, "label_a")
         o.series.add_label(cls.both_labels_series_id, "label_b")
 
+    @classmethod
+    def upload_and_label_study_a_and_b(cls):
+        o = OrthancApiClient(cls.o._root_url, headers={"user-token-key": "token-uploader"})
+
+        o.delete_all_content()
+
+        o.upload_file(cls.label_a_study_path)[0]
+        o.studies.add_label(cls.label_a_study_id, "label_a")
+
+        o.upload_file(cls.label_b_study_path)[0]
+        o.studies.add_label(cls.label_b_study_id, "label_b")
+
 
     def assert_is_forbidden(self, api_call):
         with self.assertRaises(orthanc_exceptions.HttpError) as ctx:
@@ -144,6 +163,7 @@ class TestAuthorization(OrthancTestCase):
 
 
     def test_admin_user(self):
+        self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
         
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
 
@@ -178,7 +198,8 @@ class TestAuthorization(OrthancTestCase):
         self.assertEqual(2, len(all_labels))
 
     def test_user_a(self):
-        
+        self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
+
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-a"})
 
@@ -329,6 +350,8 @@ class TestAuthorization(OrthancTestCase):
 
 
     def test_uploader_a(self):
+        self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
+
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-uploader-a"})
 
@@ -365,6 +388,7 @@ class TestAuthorization(OrthancTestCase):
             o.upload_files_dicom_web(paths = [here / "../../Database/Knix/Loc/IM-0001-0002.dcm"], endpoint=f"/dicom-web/studies")
 
     def test_resource_token(self):
+        self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
 
         o = OrthancApiClient(self.o._root_url, headers={"resource-token-key": "token-a-study"})
         
@@ -443,3 +467,103 @@ class TestAuthorization(OrthancTestCase):
             o.get_binary(f"tools/create-archive?resources={self.label_b_study_id},{self.label_a_instance_id}")
 
 
+    def test_delete(self):
+        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-deleter-a"})
+
+        # bulk-delete has been fixed in 0.10.3
+        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 3):
+            return
+
+        ## test at study level
+        # user a is allowed to delete study_a but not study_b
+        self.upload_and_label_study_a_and_b()
+        oa.studies.delete(self.label_a_study_id)
+        self.assertFalse(o_admin.studies.exists(self.label_a_study_id))
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.studies.delete(self.label_b_study_id))
+        self.assertTrue(o_admin.studies.exists(self.label_b_study_id))
+
+
+        # # user a is allowed to delete study_a but not study_b (with bulk-delete)
+        self.upload_and_label_study_a_and_b()
+        oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_a_study_id]})
+        self.assertFalse(o_admin.studies.exists(self.label_a_study_id))
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_b_study_id]}))
+        self.assertTrue(o_admin.studies.exists(self.label_b_study_id))
+
+        ## test at series level
+        # user a is allowed to delete study_a but not study_b
+        self.upload_and_label_study_a_and_b()
+        oa.series.delete(self.label_a_series_id)
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.series.delete(self.label_b_series_id))
+
+        # # user a is allowed to delete study_a but not study_b (with bulk-delete)
+        self.upload_and_label_study_a_and_b()
+        oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_a_series_id]})
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_b_series_id]}))
+
+        ## test at instance level
+        # user a is allowed to delete study_a but not study_b
+        self.upload_and_label_study_a_and_b()
+        oa.instances.delete(self.label_a_instance_id)
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.instances.delete(self.label_b_instance_id))
+
+        # # user a is allowed to delete study_a but not study_b (with bulk-delete)
+        self.upload_and_label_study_a_and_b()
+        oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_a_instance_id]})
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_b_instance_id]}))
+
+
+    def test_modify(self):
+        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-modifier-a"})
+
+        # bulk-modify has been implemented in 0.10.3
+        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 3):
+            return
+
+        # user a is allowed to modify study_a but not study_b
+        self.upload_and_label_study_a_and_b()
+        modified_study_id = oa.studies.modify(orthanc_id=self.label_a_study_id,
+                                              replace_tags={'StudyDescription': 'modified'},
+                                              keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                                              delete_original=False,
+                                              force=True)
+        modified_study = o_admin.studies.get(modified_study_id)
+        self.assertTrue('modified', modified_study.main_dicom_tags.get('StudyDescription'))
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.studies.modify(orthanc_id=self.label_b_study_id,
+                                              replace_tags={'StudyDescription': 'modified'},
+                                              keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                                              delete_original=False,
+                                              force=True))
+
+        # user a is allowed to modify study_a but not study_b (with bulk-modify)
+        self.upload_and_label_study_a_and_b()
+        _, __, modified_studies_id, ___ = oa.studies.modify_bulk(orthanc_ids=[self.label_a_study_id],
+                                                                 replace_tags={'StudyDescription': 'modified'},
+                                                                 keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                                                                 delete_original=False,
+                                                                 force=True)
+        modified_study = o_admin.studies.get(modified_studies_id[0])
+        self.assertTrue('modified', modified_study.main_dicom_tags.get('StudyDescription'))
+
+        self.upload_and_label_study_a_and_b()
+        self.assert_is_forbidden(lambda: oa.studies.modify_bulk(orthanc_ids=[self.label_b_study_id],
+                                                                replace_tags={'StudyDescription': 'modified'},
+                                                                keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
+                                                                delete_original=False,
+                                                                force=True))
