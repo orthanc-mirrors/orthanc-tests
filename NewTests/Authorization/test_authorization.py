@@ -471,8 +471,8 @@ class TestAuthorization(OrthancTestCase):
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-deleter-a"})
 
-        # bulk-delete has been fixed in 0.10.3
-        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 3):
+        # bulk-delete has been fixed in 0.10.4
+        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
             return
 
         ## test at study level
@@ -530,8 +530,8 @@ class TestAuthorization(OrthancTestCase):
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-modifier-a"})
 
-        # bulk-modify has been implemented in 0.10.3
-        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 3):
+        # bulk-modify has been implemented in 0.10.4
+        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
             return
 
         # user a is allowed to modify study_a but not study_b
