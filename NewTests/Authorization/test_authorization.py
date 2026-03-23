@@ -348,6 +348,59 @@ class TestAuthorization(OrthancTestCase):
             # this one is empty because no studies are specified
             self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
 
+        if o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
+            # make sure user_a can list instances with tools/find of study_a (with ParentSeries)
+            instances = o.post(endpoint="tools/find",
+                               json={"Query": {},
+                                     "Level": "Instances",
+                                     "ParentSeries": self.label_a_series_id}).json()
+            self.assertEqual(1, len(instances))
+            self.assertEqual(self.label_a_instance_id, instances[0])
+
+            # make sure user_a can list series with tools/find of study_a (with ParentStudy)
+            series = o.post(endpoint="tools/find",
+                               json={"Query": {},
+                                     "Level": "Series",
+                                     "ParentStudy": self.label_a_study_id}).json()
+            self.assertEqual(1, len(series))
+            self.assertEqual(self.label_a_series_id, series[0])
+
+            # make sure user_a can list instances with tools/find of study_a (with ParentStudy)
+            instances = o.post(endpoint="tools/find",
+                               json={"Query": {},
+                                     "Level": "Instances",
+                                     "ParentStudy": self.label_a_study_id}).json()
+            self.assertEqual(1, len(instances))
+            self.assertEqual(self.label_a_instance_id, instances[0])
+
+            # make sure user_a cannot list instances with tools/find of study_b (with ParentSeries)
+            self.assert_is_forbidden(lambda: o.post(endpoint="tools/find",
+                                                    json={"Query": {},
+                                                          "Level": "Instances",
+                                                          "ParentSeries": self.label_b_series_id}).json())
+
+            # make sure user_a cannot list series with tools/find of study_b (with ParentStudy)
+            self.assert_is_forbidden(lambda: o.post(endpoint="tools/find",
+                                                    json={"Query": {},
+                                                          "Level": "Series",
+                                                          "ParentStudy": self.label_b_study_id}).json())
+
+            # make sure admin (all labels) can list instances with tools/find of study_a (with ParentSeries)
+            instances = o_admin.post(endpoint="tools/find",
+                               json={"Query": {},
+                                     "Level": "Instances",
+                                     "ParentSeries": self.label_a_series_id}).json()
+            self.assertEqual(1, len(instances))
+            self.assertEqual(self.label_a_instance_id, instances[0])
+
+            # make sure admin (all labels) can list series with tools/find of study_a (with ParentStudy)
+            series = o_admin.post(endpoint="tools/find",
+                               json={"Query": {},
+                                     "Level": "Series",
+                                     "ParentStudy": self.label_a_study_id}).json()
+            self.assertEqual(1, len(series))
+            self.assertEqual(self.label_a_series_id, series[0])
+
 
     def test_uploader_a(self):
         self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
