@@ -5348,7 +5348,7 @@ class Orthanc(unittest.TestCase):
         job = MonitorJob2(_REMOTE, lambda: DoPost
                           (_REMOTE, '/series/%s/archive' % kneeT1, {
                               'Synchronous' : False,
-                              'Filename': 'toto.zip'
+                              'Filename': 'tot"o.zip'
                           }))
 
         z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
@@ -7158,18 +7158,27 @@ class Orthanc(unittest.TestCase):
 
 
     def test_content_disposition(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
-
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
             info = UploadInstance(_REMOTE, 'TransferSyntaxes/1.2.840.10008.1.2.1.dcm')
 
             resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename="toto".dcm' % info['ID'])
-            self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+                self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+            else:
+                self.assertEqual('filename="\"toto\".dcm"', resp['content-disposition'])
 
             resp, content = DoGetRaw(_REMOTE, '/instances/%s/file?filename=toto.dcm"\r\nSet-Cookie:evil=1' % info['ID'])
 
             if resp['status'] == 200:  # with some old python 2.7 versions like the one in the orthanc-tests images (2.7.6), this generates a 400 but this works with 2.7.18 on a dev system
                 self.assertNotIn('set-cookie', resp)
                 self.assertEqual('filename="toto.dcmSet-Cookie:evil=1"', resp['content-disposition'])
+
+            study = DoGet(_REMOTE, '/instances/%s/study' % info['ID']) ['ID']
+            resp, content = DoGetRaw(_REMOTE, '/studies/%s/archive?filename="toto".dcm' % study)
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+                self.assertEqual('filename="toto.dcm"', resp['content-disposition'])
+            else:
+                self.assertEqual('filename="\"toto\".dcm"', resp['content-disposition'])
 
 
     def test_modify_keep_source(self):
