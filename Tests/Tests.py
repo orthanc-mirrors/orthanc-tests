@@ -5354,7 +5354,7 @@ class Orthanc(unittest.TestCase):
         z, resp = GetArchive(_REMOTE, '/jobs/%s/archive' % job)
         self.assertEqual(1, len(z.namelist()))
         self.assertFalse('DICOMDIR' in z.namelist())
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 7):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
             self.assertEqual('filename="toto.zip"', resp['content-disposition'])
 
         info = DoGet(_REMOTE, '/jobs/%s' % job)

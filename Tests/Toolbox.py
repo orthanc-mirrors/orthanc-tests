@@ -255,7 +255,7 @@ def WaitEmpty(orthanc):
     while True:
         if len(DoGet(orthanc, '/instances')) == 0:
             return
-        time.sleep(0.01)
+        time.sleep(0.1)
 
 def WaitJobDone(orthanc, job):
     while True:
@@ -266,7 +266,7 @@ def WaitJobDone(orthanc, job):
         elif s == 'Failure':
             return False
         
-        time.sleep(0.01)
+        time.sleep(0.1)
 
 def MonitorJob(orthanc, func):  # "func" is a lambda
     a = set(DoGet(orthanc, '/jobs'))
@@ -321,6 +321,7 @@ def WaitAllNewJobsDone(orthanc, func):  # "func" is a lambda
                 a.add(diff[0])
             else:
                 raise Exception('Error while executing the job')
+        time.sleep(0.1)
 
 
 def GetDockerHostAddress():
