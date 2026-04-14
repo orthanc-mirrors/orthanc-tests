@@ -10437,7 +10437,9 @@ class Orthanc(unittest.TestCase):
             # The instance has label "a"
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11): # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
+            # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
+            # But this is currently only implemented in SQLite and PostgreSQL
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and not HasMySQLIndexPlugin(_REMOTE) and not HasODBCIndexPlugin(_REMOTE): 
                 self.assertEqual(0, len(Execute([], 'None')))
             else:
                 self.assertEqual(1, len(Execute([], 'None')))

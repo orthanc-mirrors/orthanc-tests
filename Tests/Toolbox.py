@@ -484,6 +484,13 @@ def HasPostgresIndexPlugin(orthanc):
     plugins = DoGet(orthanc, '/plugins')
     return ('postgresql-index' in plugins)
 
+def HasMySQLIndexPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('mysql-index' in plugins)
+
+def HasODBCIndexPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('odbc-index' in plugins)
 
 def _GetMaxImageDifference(im1, im2):
     h = ImageChops.difference(im1, im2).histogram()
