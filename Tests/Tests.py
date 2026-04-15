@@ -10438,8 +10438,8 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
             # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
-            # But this is currently only implemented in SQLite and PostgreSQL
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and not HasMySQLIndexPlugin(_REMOTE) and not HasODBCIndexPlugin(_REMOTE): 
+            # But this is currently only implemented in SQLite and PostgreSQL (and in the mainline MySQL)
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and (not HasMySQLIndexPlugin(_REMOTE) or IsPluginVersionAtLeast(_REMOTE, 'orthanc-mysql', 6, 0, 0)) and not HasODBCIndexPlugin(_REMOTE): 
                 self.assertEqual(0, len(Execute([], 'None')))
             else:
                 self.assertEqual(1, len(Execute([], 'None')))
@@ -10499,8 +10499,8 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
             # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
-            # But this is currently only implemented in SQLite and PostgreSQL
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and not HasMySQLIndexPlugin(_REMOTE) and not HasODBCIndexPlugin(_REMOTE): 
+            # But this is currently only implemented in SQLite and PostgreSQL (and in the mainline MySQL)
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and (not HasMySQLIndexPlugin(_REMOTE) or IsPluginVersionAtLeast(_REMOTE, 'orthanc-mysql', 6, 0, 0)) and not HasODBCIndexPlugin(_REMOTE): 
                 self.assertEqual(0, len(Execute([], 'None')))
             else:
                 self.assertEqual(1, len(Execute([], 'None')))
@@ -10525,8 +10525,8 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(1, len(Execute([], 'All')))
             self.assertEqual(1, len(Execute([], 'Any')))
             # From 1.12.11, 'None' with an empty labels list means "list all resources without any labels"
-            # But this is currently only implemented in SQLite and PostgreSQL
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and not HasMySQLIndexPlugin(_REMOTE) and not HasODBCIndexPlugin(_REMOTE): 
+            # But this is currently only implemented in SQLite and PostgreSQL (and in the mainline MySQL)
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 11) and (not HasMySQLIndexPlugin(_REMOTE) or IsPluginVersionAtLeast(_REMOTE, 'orthanc-mysql', 6, 0, 0)) and not HasODBCIndexPlugin(_REMOTE): 
                 self.assertEqual(0, len(Execute([], 'None')))
             else:
                 self.assertEqual(1, len(Execute([], 'None')))
