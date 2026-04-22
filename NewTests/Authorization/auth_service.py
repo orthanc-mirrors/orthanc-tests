@@ -33,10 +33,17 @@ def get_user_profile(user_profile_request: UserProfileRequest):
                 authorized_labels=["*"],
                 validity=60
             )
+        elif user_profile_request.token_value == "token-user-all":
+            p = UserProfileResponse(
+                name="user-all",
+                permissions=["all"],
+                authorized_labels=["*"],
+                validity=60
+            )
         elif user_profile_request.token_value == "token-admin":
             p = UserProfileResponse(
                 name="admin",
-                permissions=["all"],
+                permissions=["all", "admin-permissions"],
                 authorized_labels=["*"],
                 validity=60
             )

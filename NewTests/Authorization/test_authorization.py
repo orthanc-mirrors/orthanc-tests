@@ -162,10 +162,10 @@ class TestAuthorization(OrthancTestCase):
         self.assertEqual(403, ctx.exception.http_status_code)
 
 
-    def test_admin_user(self):
+    def test_user_all(self):
         self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
         
-        o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-all"})
 
         # make sure we can access all these urls (they would throw if not)
         system = o.get_system()
@@ -200,7 +200,7 @@ class TestAuthorization(OrthancTestCase):
     def test_user_a(self):
         self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
 
-        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        o_all = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-all"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-a"})
 
         # # make sure we can access all these urls (they would throw if not)
@@ -229,7 +229,7 @@ class TestAuthorization(OrthancTestCase):
         # make sure we can not access series and instances of the label_b studies
         self.assert_is_forbidden(lambda: o.studies.get_series_ids(self.label_b_study_id))
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 0):
+        if o_all.is_plugin_version_at_least("authorization", 0, 9, 0):
             # make sure tools/find only returns the label_a studies
             studies = o.studies.find(query={},
                                     labels=[],
@@ -294,7 +294,7 @@ class TestAuthorization(OrthancTestCase):
         m = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/metadata")
         self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/metadata"))
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 7, 1):
+        if o_all.is_plugin_version_at_least("authorization", 0, 7, 1):
             i = o.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
             self.assert_is_forbidden(lambda: o.get_json(f"dicom-web/studies/{self.label_b_study_dicom_id}/instances"))
 
@@ -308,13 +308,13 @@ class TestAuthorization(OrthancTestCase):
             o.get_json(f"/plugins")
             o.get_json(f"/plugins/dicom-web")
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 7, 2):
+        if o_all.is_plugin_version_at_least("authorization", 0, 7, 2):
             # also check that this works with the admin user !
-            i = o_admin.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
-            i = o_admin.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
-            i = o_admin.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series?includefield=00080021%2C00080031%2C0008103E%2C00200011")
+            i = o_all.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/instances")
+            i = o_all.get_binary(f"dicom-web/studies/{self.label_a_study_dicom_id}/series/{self.label_a_series_dicom_id}/instances/{self.label_a_instance_dicom_id}")
+            i = o_all.get_json(f"dicom-web/studies/{self.label_a_study_dicom_id}/series?includefield=00080021%2C00080031%2C0008103E%2C00200011")
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 0):
+        if o_all.is_plugin_version_at_least("authorization", 0, 9, 0):
             # the user_a shall only see the label_a in the returned labels
             studies = o.post(endpoint="/tools/find", json={"Level": "Study", "Query": {}, "Labels": [], "LabelsConstraint": "Any", "Expand": True}).json()
             self.assertEqual(2, len(studies))
@@ -339,7 +339,7 @@ class TestAuthorization(OrthancTestCase):
             self.assertEqual(1, len(r["Labels"]))
             self.assertEqual("label_a", r["Labels"][0])
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 2):
+        if o_all.is_plugin_version_at_least("authorization", 0, 9, 2):
             i = o.get_json(f"dicom-web/studies?StudyInstanceUID={self.label_a_study_dicom_id}")
             
             # this one is forbidden because we specify the study (and the study is forbidden)
@@ -348,7 +348,7 @@ class TestAuthorization(OrthancTestCase):
             # this one is empty because no studies are specified
             self.assertEqual(0, len(o.get_json(f"dicom-web/studies?PatientID={self.label_b_patient_dicom_id}")))
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
+        if o_all.is_plugin_version_at_least("authorization", 0, 10, 4):
             # make sure user_a can list instances with tools/find of study_a (with ParentSeries)
             instances = o.post(endpoint="tools/find",
                                json={"Query": {},
@@ -386,7 +386,7 @@ class TestAuthorization(OrthancTestCase):
                                                           "ParentStudy": self.label_b_study_id}).json())
 
             # make sure admin (all labels) can list instances with tools/find of study_a (with ParentSeries)
-            instances = o_admin.post(endpoint="tools/find",
+            instances = o_all.post(endpoint="tools/find",
                                json={"Query": {},
                                      "Level": "Instances",
                                      "ParentSeries": self.label_a_series_id}).json()
@@ -394,7 +394,7 @@ class TestAuthorization(OrthancTestCase):
             self.assertEqual(self.label_a_instance_id, instances[0])
 
             # make sure admin (all labels) can list series with tools/find of study_a (with ParentStudy)
-            series = o_admin.post(endpoint="tools/find",
+            series = o_all.post(endpoint="tools/find",
                                json={"Query": {},
                                      "Level": "Series",
                                      "ParentStudy": self.label_a_study_id}).json()
@@ -405,10 +405,10 @@ class TestAuthorization(OrthancTestCase):
     def test_uploader_a(self):
         self.upload_and_label_all_studies()  # force re-init the setup since studies might have been deleted in other tests
 
-        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        o_all = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-all"})
         o = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-uploader-a"})
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 7, 3):
+        if o_all.is_plugin_version_at_least("authorization", 0, 7, 3):
 
             # # make sure we can access all these urls (they would throw if not)
             system = o.get_system()
@@ -423,13 +423,13 @@ class TestAuthorization(OrthancTestCase):
 
             # uploader-a shall be able to upload a study
             instances_ids = o.upload_file(here / "../../Database/Beaufix/IM-0001-0001.dcm")
-            o_admin.instances.delete(orthanc_ids=instances_ids)
+            o_all.instances.delete(orthanc_ids=instances_ids)
 
             # uploader-a shall be able to upload a study through DICOMweb too
             o.upload_files_dicom_web(paths = [here / "../../Database/Beaufix/IM-0001-0001.dcm"])
-            o_admin.instances.delete(orthanc_ids=instances_ids)
+            o_all.instances.delete(orthanc_ids=instances_ids)
 
-        if o_admin.is_plugin_version_at_least("authorization", 0, 9, 1):
+        if o_all.is_plugin_version_at_least("authorization", 0, 9, 1):
 
             # uploader-a shall not be able to upload a study through DICOMweb using /dicom-web/studies/<StudyInstanceUID of label_b>
             self.assert_is_forbidden(lambda: o.upload_files_dicom_web(paths = [here / "../../Database/Knix/Loc/IM-0001-0002.dcm"], endpoint=f"/dicom-web/studies/{self.label_b_study_dicom_id}"))
@@ -521,32 +521,32 @@ class TestAuthorization(OrthancTestCase):
 
 
     def test_delete(self):
-        o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
+        o_all = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-all"})
         oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-deleter-a"})
 
         # bulk-delete has been fixed in 0.10.4
-        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
+        if not o_all.is_plugin_version_at_least("authorization", 0, 10, 4):
             return
 
         ## test at study level
         # user a is allowed to delete study_a but not study_b
         self.upload_and_label_study_a_and_b()
         oa.studies.delete(self.label_a_study_id)
-        self.assertFalse(o_admin.studies.exists(self.label_a_study_id))
+        self.assertFalse(o_all.studies.exists(self.label_a_study_id))
 
         self.upload_and_label_study_a_and_b()
         self.assert_is_forbidden(lambda: oa.studies.delete(self.label_b_study_id))
-        self.assertTrue(o_admin.studies.exists(self.label_b_study_id))
+        self.assertTrue(o_all.studies.exists(self.label_b_study_id))
 
 
         # # user a is allowed to delete study_a but not study_b (with bulk-delete)
         self.upload_and_label_study_a_and_b()
         oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_a_study_id]})
-        self.assertFalse(o_admin.studies.exists(self.label_a_study_id))
+        self.assertFalse(o_all.studies.exists(self.label_a_study_id))
 
         self.upload_and_label_study_a_and_b()
         self.assert_is_forbidden(lambda: oa.post(endpoint='/tools/bulk-delete', json={"Resources": [self.label_b_study_id]}))
-        self.assertTrue(o_admin.studies.exists(self.label_b_study_id))
+        self.assertTrue(o_all.studies.exists(self.label_b_study_id))
 
         ## test at series level
         # user a is allowed to delete study_a but not study_b
@@ -580,11 +580,12 @@ class TestAuthorization(OrthancTestCase):
 
 
     def test_modify(self):
+        o_all = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-user-all"})
         o_admin = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-admin"})
         oa = OrthancApiClient(self.o._root_url, headers={"user-token-key": "token-modifier-a"})
 
         # bulk-modify has been implemented in 0.10.4
-        if not o_admin.is_plugin_version_at_least("authorization", 0, 10, 4):
+        if not o_all.is_plugin_version_at_least("authorization", 0, 10, 4):
             return
 
         # user a is allowed to modify study_a but not study_b
@@ -594,7 +595,7 @@ class TestAuthorization(OrthancTestCase):
                                               keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
                                               delete_original=False,
                                               force=True)
-        modified_study = o_admin.studies.get(modified_study_id)
+        modified_study = o_all.studies.get(modified_study_id)
         self.assertTrue('modified', modified_study.main_dicom_tags.get('StudyDescription'))
 
         self.upload_and_label_study_a_and_b()
@@ -611,7 +612,7 @@ class TestAuthorization(OrthancTestCase):
                                                                  keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
                                                                  delete_original=False,
                                                                  force=True)
-        modified_study = o_admin.studies.get(modified_studies_id[0])
+        modified_study = o_all.studies.get(modified_studies_id[0])
         self.assertTrue('modified', modified_study.main_dicom_tags.get('StudyDescription'))
 
         self.upload_and_label_study_a_and_b()
@@ -620,3 +621,20 @@ class TestAuthorization(OrthancTestCase):
                                                                 keep_tags=['StudyInstanceUID', 'SeriesInstanceUID', 'SOPInstanceUID'],
                                                                 delete_original=False,
                                                                 force=True))
+
+        # jobs have been implemented in 0.11.3
+        if not o_all.is_plugin_version_at_least("authorization", 0, 11, 3):
+            return
+
+        # now that jobs have been created, test them
+        # only the admin shall be able to list all jobs
+        all_jobs = o_admin.get_json(endpoint='/jobs')
+        all_jobs_expanded = o_admin.get_json(endpoint='/jobs?expand')
+
+        # a user is able to view a single job as soon as he knows the id
+        a_single_job = oa.jobs.get(orthanc_id=all_jobs[0])
+
+        # only the admin is able to delete it
+        self.assert_is_forbidden(lambda: oa.jobs.delete(all_jobs[0]))
+        o_admin.jobs.delete(all_jobs[0])
+                                 
