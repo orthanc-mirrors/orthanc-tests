@@ -3262,23 +3262,51 @@ class Orthanc(unittest.TestCase):
         b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0002.dcm')
         c = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0003.dcm')
 
-        j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
-            'LocalAet' : 'YOP',
-            'Resources' : [ a['ID'], b['ID'] ]
-        })
-
-        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
-        self.assertEqual('YOP', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
-
+        # use the DicomAet from the config file
         DropOrthanc(_LOCAL)
         self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
 
         j = DoPost(_REMOTE, '/modalities/orthanctest/store', {
-            'Resources' : [ c['ID'] ]
+            'Resources' : [ c['ID'] ],
+            'Synchronous': False
         })
 
+        WaitJobDone(_REMOTE, j['ID'])
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual('ORTHANC', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % c['ID']))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            self.assertEqual('ORTHANC', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
+
+        # use the LocalAet from the "DicomModalities" config
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            DropOrthanc(_LOCAL)
+            self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
+
+            j = DoPost(_REMOTE, '/modalities/orthanctest-with-local-aet/store', {
+                'Resources' : [ c['ID'] ],
+                'Synchronous': False
+            })
+
+            WaitJobDone(_REMOTE, j['ID'])
+            self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
+            self.assertEqual('OT-FROM-CONFIG', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % c['ID']))
+            self.assertEqual('OT-FROM-CONFIG', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
+
+
+        # use the LocalAet from the payload
+        DropOrthanc(_LOCAL)
+        j = DoPost(_REMOTE, '/modalities/orthanctest-with-local-aet/store', {
+            'LocalAet' : 'FROM-PAYLOAD',
+            'Resources' : [ a['ID'], b['ID'] ],
+            'Synchronous': False
+        })
+
+        WaitJobDone(_REMOTE, j['ID'])
+        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            self.assertEqual('FROM-PAYLOAD', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
+            self.assertEqual('FROM-PAYLOAD', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
+
 
         DropOrthanc(_REMOTE)        
         DropOrthanc(_LOCAL)        
@@ -4232,6 +4260,43 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(3, len(DoGet(_REMOTE, '/series')))
             self.assertEqual(4, len(DoGet(_REMOTE, '/instances')))
 
+
+    def test_move_scu_local_aet(self):
+        # test localAet wrt Move
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            DropOrthanc(_LOCAL)
+            DropOrthanc(_REMOTE)
+            DropOrthancJobs(_REMOTE)
+            UploadInstance(_REMOTE, 'Knee/T2/IM-0001-0001.dcm')
+
+            with open(os.devnull, 'w') as FNULL:
+                try:
+                    subprocess.check_call([ 
+                            FindExecutable('movescu'), 
+                            '--move', 'ORTHANCTEST2',         # Target AET (use this one to force usage of LocalAet)
+                            '--call', _REMOTE['DicomAet'],     # Called AET (i.e. Orthanc)
+                            '--aetitle', _LOCAL['DicomAet'],   # Calling AET (i.e. storescp)
+                            _REMOTE['Server'], 
+                            str(_REMOTE['DicomPort']),
+                            '--study', '-k', 'QueryRetrieveLevel=Study',
+                            '-k', 'StudyInstanceUID=2.16.840.1.113669.632.20.121711.10000160881'
+                        ],
+                        stderr = FNULL)
+
+                except subprocess.CalledProcessError as e:
+                    print('movescu failed with error code: %s' % str(e.returncode))
+                    raise e
+
+            jobCompleted = False
+            while not jobCompleted:
+                allJobs = DoGet(_REMOTE, '/jobs?expand')
+                jobCompleted = len(allJobs) == 1 and allJobs[0]['State'] == 'Success'
+                time.sleep(0.1)
+
+            allInstances = DoGet(_LOCAL, '/instances')
+            self.assertEqual(1, len(allInstances))
+            self.assertEqual('OT-FROM-CONFIG', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % allInstances[0]))
+            self.assertEqual('OT-FROM-CONFIG', DoGet(_REMOTE, '/jobs/%s' % allJobs[0]['ID'])['Content']['LocalAet'])
 
 
     def test_reconstruct_json(self):

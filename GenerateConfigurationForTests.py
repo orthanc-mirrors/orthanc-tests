@@ -102,10 +102,10 @@ with open(args.target, 'wb') as f:
 
 with open(args.target, 'r') as f:
     # Remove the C++-style comments
-    nocomment = re.sub('//.*$', '', f.read(), 0, re.MULTILINE)
+    nocomment = re.sub(r'//.*$', '', f.read(), 0, re.MULTILINE)
 
     # Remove the C-style comments
-    nocomment = re.sub('/\*.*?\*/', '', nocomment, 0, re.DOTALL | re.MULTILINE)
+    nocomment = re.sub(r'/\*.*?\*/', '', nocomment, 0, re.DOTALL | re.MULTILINE)
 
     config = json.loads(nocomment)
 
@@ -115,7 +115,19 @@ config['DicomAet'] = 'ORTHANC'
 config['DicomAssociationCloseDelay'] = 0
 config['DicomModalities'] = {
      'orthanctest' : [ 'ORTHANCTEST', ip, 5001 ],
-     'self' : [ 'ORTHANC', '127.0.0.1', 4242 ]
+     'self' : [ 'ORTHANC', '127.0.0.1', 4242 ],
+     'self-with-local-aet': {
+         'AET': 'ORTHANC',
+         'Host': '127.0.0.1',
+         'Port': 4242,
+         'LocalAet': 'SELF-FROM-CONFIG'
+     },
+     'orthanctest-with-local-aet': {
+         'AET': 'ORTHANCTEST',
+         'Host': ip,
+         'Port': 5001,
+         'LocalAet': 'OT-FROM-CONFIG'
+     }
 }
 config['DicomPort'] = args.dicom
 config['HttpCompressionEnabled'] = False

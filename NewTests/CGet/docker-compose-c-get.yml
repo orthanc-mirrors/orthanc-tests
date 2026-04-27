@@ -33,6 +33,12 @@ services:
               "Port": 4242,
               "Host": "orthanc-b",
               "RetrieveMethod": "C-GET"
+            },
+            "b-with-local-aet-not-declared": {
+              "AET": "ORTHANCB",
+              "Port": 4242,
+              "Host": "orthanc-b",
+              "LocalAet": "FROM-CONFIG"
             }
           }
         }

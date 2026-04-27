@@ -205,6 +205,10 @@ def DropOrthanc(orthanc):
     for s in DoGet(orthanc, '/patients'):
         DoDelete(orthanc, '/patients/%s' % s)
 
+def DropOrthancJobs(orthanc):
+    for s in DoGet(orthanc, '/jobs'):
+        DoDelete(orthanc, '/jobs/%s' % s)
+
 def InstallLuaScriptFromPath(orthanc, path):
     with open(GetDatabasePath(path), 'r') as f:
         InstallLuaScript(orthanc, f.read())
@@ -257,9 +261,9 @@ def WaitEmpty(orthanc):
             return
         time.sleep(0.1)
 
-def WaitJobDone(orthanc, job):
+def WaitJobDone(orthanc, jobId):
     while True:
-        s = DoGet(orthanc, '/jobs/%s' % job) ['State']
+        s = DoGet(orthanc, '/jobs/%s' % jobId) ['State']
 
         if s == 'Success':
             return True

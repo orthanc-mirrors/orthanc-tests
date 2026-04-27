@@ -1,4 +1,4 @@
-orthanc-api-client>=0.22.1
+orthanc-api-client>=0.23.0
 orthanc-tools>=0.16.5
 uvicorn
 fastapi

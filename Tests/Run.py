@@ -108,8 +108,8 @@ config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'"AuthenticationEnabled" : true
 config = re.sub(r'("ExecuteLuaEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
 config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
-config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", %s ]' % 
-                (args.aet, args.server, args.dicom), config)
+config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", %s ], "orthanc2" : [ "OT-FROM-CONFIG", "%s", %s]' % 
+                (args.aet, args.server, args.dicom, args.server, args.dicom), config)
 
 # New to test transcoding over DICOM (1.7.0)
 config = re.sub(r'("RleTransferSyntaxAccepted"\s*:)\s*true', r'\1 false', config)

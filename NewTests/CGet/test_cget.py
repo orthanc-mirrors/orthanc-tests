@@ -77,5 +77,19 @@ class TestCGet(OrthancTestCase):
         if oa.is_orthanc_version_at_least(1, 12, 10):
             with self.assertRaises(HttpError) as ex:
                 oa.modalities.get_study(from_modality='b', dicom_id='5.6.7')
-            self.assertEqual(0xc000, ex.exception.dimse_error_status)
+                self.assertEqual(0xc000, ex.exception.error_payload['Content'][0]['DimseErrorStatus'])
             self.assertEqual(0, len(oa.instances.get_all_ids()))       
+
+
+    def test_cget_local_aet(self):
+
+        oa, ob = self.clean_start()
+
+        instances_ids = ob.upload_folder( here / "../../Database/Brainix")
+
+        if oa.is_orthanc_version_at_least(1, 12, 12):
+            # this one fails because the AET is not declared on b
+            with self.assertRaises(HttpError) as ex:
+                oa.modalities.get_study(from_modality='b-with-local-aet-not-declared', dicom_id='2.16.840.1.113669.632.20.1211.10000357775')
+                self.assertEqual(0xc000, ex.exception.error_payload['Content'][0]['DimseErrorStatus'])
+            self.assertEqual(0, len(oa.instances.get_all_ids()))
