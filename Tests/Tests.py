@@ -3294,18 +3294,19 @@ class Orthanc(unittest.TestCase):
 
 
         # use the LocalAet from the payload
-        DropOrthanc(_LOCAL)
-        j = DoPost(_REMOTE, '/modalities/orthanctest-with-local-aet/store', {
-            'LocalAet' : 'FROM-PAYLOAD',
-            'Resources' : [ a['ID'], b['ID'] ],
-            'Synchronous': False
-        })
-
-        WaitJobDone(_REMOTE, j['ID'])
-        self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
-            self.assertEqual('FROM-PAYLOAD', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
-            self.assertEqual('FROM-PAYLOAD', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
+            DropOrthanc(_LOCAL)
+            j = DoPost(_REMOTE, '/modalities/orthanctest-with-local-aet/store', {
+                'LocalAet' : 'FROM-PAYLOAD',
+                'Resources' : [ a['ID'], b['ID'] ],
+                'Synchronous': False
+            })
+
+            WaitJobDone(_REMOTE, j['ID'])
+            self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
+            if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+                self.assertEqual('FROM-PAYLOAD', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
+                self.assertEqual('FROM-PAYLOAD', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
 
 
         DropOrthanc(_REMOTE)        
