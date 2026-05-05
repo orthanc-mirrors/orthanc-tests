@@ -1117,6 +1117,115 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(2, len(DoGet(_REMOTE, '/studies')))
 
 
+    def change_patient_id_when_patient_sex_is_missing(self):
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') # PatientID = 5Yp0E, PatientSex = 0000
+
+        # remove the PatientSex from 5Yp0E
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % a['ParentStudy'],
+                            json.dumps({
+                                "Remove": ["PatientSex"],
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')
+
+        patientWithMissingSex = DoGet(_REMOTE, '/patients/%s' % a['ParentPatient'])
+        self.assertEqual('5Yp0E', patientWithMissingSex['MainDicomTags']['PatientID'])
+        self.assertNotIn('PatientSex', patientWithMissingSex['MainDicomTags'])
+
+        # modify study b to attach it to the patient from a (copy all tags from target patient)
+        # simply make sure it does not throw
+        b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') # PatientID = 887, PatientSex = 0000
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % b['ParentStudy'],
+                            json.dumps({
+                                "Replace": patientWithMissingSex['MainDicomTags'],
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')
+        DoDelete(_REMOTE, '/studies/%s' % newStudy['ID'])
+
+        # modify study b to attach it to the patient from a (include different values for PatientSex -> it should fail)
+        # simply make sure it does not throw
+        for patientSex in ["", "M"]:
+            b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') # PatientID = 887, PatientSex = 0000
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/modify' % b['ParentStudy'],
+                                json.dumps({
+                                    "Replace": {
+                                        "PatientID": patientWithMissingSex['MainDicomTags']['PatientID'],
+                                        "PatientName": patientWithMissingSex['MainDicomTags']['PatientName'],
+                                        "PatientBirthDate": patientWithMissingSex['MainDicomTags']['PatientBirthDate'],
+                                        "PatientSex": patientSex
+                                    },
+                                    "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                    "Force": True, 
+                                    "KeepSource": True
+                                }), 'application/json'))
+
+
+    def change_patient_id_when_patient_sex_is_empty(self):
+        a = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') # PatientID = 5Yp0E, PatientSex = 0000
+
+        # change the PatientSex to "" for 5Yp0E
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % a['ParentStudy'],
+                            json.dumps({
+                                "Replace": {"PatientSex": ""},
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')
+
+        patientWithEmptySex = DoGet(_REMOTE, '/patients/%s' % a['ParentPatient'])
+        self.assertEqual('5Yp0E', patientWithEmptySex['MainDicomTags']['PatientID'])
+        self.assertEqual('', patientWithEmptySex['MainDicomTags']['PatientSex'])
+
+        # modify study b to attach it to the patient from a (copy all tags from target patient)
+        # simply make sure it does not throw
+        b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') # PatientID = 887, PatientSex = 0000
+        newStudy = DoPost(_REMOTE, '/studies/%s/modify' % b['ParentStudy'],
+                            json.dumps({
+                                "Replace": patientWithEmptySex['MainDicomTags'],  # empty sex
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json')
+        DoDelete(_REMOTE, '/studies/%s' % newStudy['ID'])
+
+        # modify study b to attach it to the patient from a (include different values for PatientSex -> it should fail)
+        # simply make sure it does not throw
+        for patientSex in ["", "M"]:
+            b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') # PatientID = 887, PatientSex = 0000
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/modify' % b['ParentStudy'],
+                                json.dumps({
+                                    "Replace": {
+                                        "PatientID": patientWithEmptySex['MainDicomTags']['PatientID'],
+                                        "PatientName": patientWithEmptySex['MainDicomTags']['PatientName'],
+                                        "PatientBirthDate": patientWithEmptySex['MainDicomTags']['PatientBirthDate'],
+                                        "PatientSex": patientSex
+                                    },
+                                    "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                    "Force": True, 
+                                    "KeepSource": True
+                                }), 'application/json'))
+
+        # modify study b to attach it to the patient from a (without a PatientSex)
+        # simply make sure it does not throw
+        b = UploadInstance(_REMOTE, 'Knee/T1/IM-0001-0001.dcm') # PatientID = 887, PatientSex = 0000
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/studies/%s/modify' % b['ParentStudy'],
+                            json.dumps({
+                                    "Replace": {
+                                        "PatientID": patientWithEmptySex['MainDicomTags']['PatientID'],
+                                        "PatientName": patientWithEmptySex['MainDicomTags']['PatientName'],
+                                        "PatientBirthDate": patientWithEmptySex['MainDicomTags']['PatientBirthDate']
+                                        # no patient sex
+                                    },
+                                "Keep": ["StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"],
+                                "Force": True, 
+                                "KeepSource": True
+                            }), 'application/json'))
+
+
+
     def test_anonymize_series(self):
         # Upload 4 images from the same series
         for i in range(4):
