@@ -12717,3 +12717,24 @@ class Orthanc(unittest.TestCase):
 
             # note: unable to test with storescu since it does not support deeply nested sequences and crashes
 
+    
+    # small functional test, mainly to detect memory leaks (https://github.com/orthanc-server/orthanc-builder/issues/36)
+    def test_cget_scu(self):
+        if IsOrthancVersionAbove(_LOCAL, 1, 7, 0):  # C-GET SCP has been introduced in 1.7.0
+            instance = UploadInstance(_LOCAL, 'Brainix/Flair/IM-0001-0001.dcm')
+            study = DoGet(_LOCAL, '/studies/%s' % instance['ParentStudy'])
+
+            r = DoPost(_REMOTE, '/modalities/orthanctest/get', { 'Resources':[ { 'StudyInstanceUID' : study['MainDicomTags']['StudyInstanceUID'] }],
+                                                                 'Level': 'Study' })
+            self.assertEqual(1, len(r['Details'][0]['ReceivedInstancesIds']))
+
+    # small functional test, mainly to detect memory leaks (https://github.com/orthanc-server/orthanc-builder/issues/36)
+    def test_cget_scp(self):
+        if IsOrthancVersionAbove(_LOCAL, 1, 12, 6):  # C-GET SCU has been introduced in 1.12.6
+            instance = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
+            study = DoGet(_REMOTE, '/studies/%s' % instance['ParentStudy'])
+
+            r = DoPost(_LOCAL, '/modalities/orthanc/get', { 'Resources':[ { 'StudyInstanceUID' : study['MainDicomTags']['StudyInstanceUID'] }],
+                                                            'Level': 'Study' })
+            pprint.pprint(r)
+            # self.assertEqual(1, len(r['Details'][0]['ReceivedInstancesIds']))

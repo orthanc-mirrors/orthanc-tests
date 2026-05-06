@@ -104,12 +104,19 @@ config = re.sub(r'("DicomPort"\s*:)\s*.*?,', r'\1 5001,', config)
 config = re.sub(r'("HttpPort"\s*:)\s*.*?,', r'\1 5000,', config)
 config = re.sub(r'("RemoteAccessAllowed"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("AuthenticationEnabled"\s*:)\s*false,', r'', config)  # Set with "RegisteredUsers"
-config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'"AuthenticationEnabled" : true, \1 { "alice" : "orthanctest"', config)
 config = re.sub(r'("ExecuteLuaEnabled"\s*:)\s*false', r'\1 true', config)
 config = re.sub(r'("HttpCompressionEnabled"\s*:)\s*true', r'\1 false', config)
 config = re.sub(r'("DicomAssociationCloseDelay"\s*:)\s*[0-9]*', r'\1 0', config)
 config = re.sub(r'("DicomModalities"\s*:)\s*{', r'\1 { "orthanc" : [ "%s", "%s", %s ], "orthanc2" : [ "OT-FROM-CONFIG", "%s", %s]' % 
                 (args.aet, args.server, args.dicom, args.server, args.dicom), config)
+
+registeredUsersPatternPost1_12_9 = r'/\*\*\s*"RegisteredUsers"\s*:\s*\{\s*//\s*"alice"\s*:\s*"alicePassword"\s*\},\s*\*\*/'
+if re.search(registeredUsersPatternPost1_12_9, config, flags=re.DOTALL):
+    print("LOCAL orthanc is >= 1.12.9")
+    config = re.sub(registeredUsersPatternPost1_12_9, '"AuthenticationEnabled": true, "RegisteredUsers": {"alice" : "orthanctest"},', config, flags=re.DOTALL)
+else:
+    print("LOCAL orthanc is < 1.12.9")
+    config = re.sub(r'("RegisteredUsers"\s*:)\s*{', r'"AuthenticationEnabled" : true, \1 { "alice" : "orthanctest"', config)
 
 # New to test transcoding over DICOM (1.7.0)
 config = re.sub(r'("RleTransferSyntaxAccepted"\s*:)\s*true', r'\1 false', config)
