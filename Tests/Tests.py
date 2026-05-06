@@ -12710,3 +12710,10 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(20, v[0])
             self.assertEqual(30, v[1])
             self.assertEqual(42, v[2])
+
+    def test_deeply_nested_sequence(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            self.assertRaises(Exception, lambda: UploadInstance(_REMOTE, '2026-05-06-Deeply-Nested-Sequence.dcm'))
+
+            # note: unable to test with storescu since it does not support deeply nested sequences and crashes
+
