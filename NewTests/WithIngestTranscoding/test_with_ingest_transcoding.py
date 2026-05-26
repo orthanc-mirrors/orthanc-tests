@@ -4,6 +4,7 @@ import os
 from helpers import OrthancTestCase, Helpers
 
 from orthanc_api_client import OrthancApiClient, generate_test_dicom_file
+from orthanc_api_client.exceptions import BadFileFormat as OrthancExceptionBadFileFormat
 from orthanc_tools import OrthancTestDbPopulator
 
 import pathlib
@@ -132,3 +133,22 @@ class TestWithIngestTranscoding(OrthancTestCase):
             endpoint=f"instances/{instance_id}/metadata?expand"
         ).json()
         self.assertEqual("1.2.840.10008.1.2.4.80", r['TransferSyntax'])
+
+    def test_no_transcoding_if_no_pixel_data(self):
+        if self.o.is_orthanc_version_at_least(1, 12, 12):
+            self.o.delete_all_content()
+
+            # make sure that files without pixel data are not transcoded
+            instances_ids = self.o.upload_file(here / "../../Database/sample-pdf.dcm")
+            m = self.o.instances.get_metadata(instances_ids[0])
+            self.assertEqual("1.2.840.10008.1.2.1", m.get('TransferSyntax'))
+
+    def test_oob1(self):
+
+        if self.o.is_orthanc_version_at_least(1, 12, 12):
+            self.o.delete_all_content()
+
+            # upload a study (this was crashing in 1.12.11)
+            with self.assertRaises(OrthancExceptionBadFileFormat) as ctx:
+                self.o.upload_file(here / "../../Database/2026-05-26-oob-monochrome-46341.dcm")
+            self.assertTrue(self.o.is_alive())
