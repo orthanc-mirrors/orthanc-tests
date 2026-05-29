@@ -12734,7 +12734,35 @@ class Orthanc(unittest.TestCase):
             instance = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm')
             study = DoGet(_REMOTE, '/studies/%s' % instance['ParentStudy'])
 
-            r = DoPost(_LOCAL, '/modalities/orthanc/get', { 'Resources':[ { 'StudyInstanceUID' : study['MainDicomTags']['StudyInstanceUID'] }],
-                                                            'Level': 'Study' })
-            pprint.pprint(r)
-            # self.assertEqual(1, len(r['Details'][0]['ReceivedInstancesIds']))
+            DoPost(_LOCAL, '/modalities/orthanc/get', { 'Resources':[ { 'StudyInstanceUID' : study['MainDicomTags']['StudyInstanceUID'] }],
+                                                        'Level': 'Study' })
+
+    def test_oob_monochrome_2(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            r = UploadInstance(_REMOTE, '2026-05-26-oob-monochrome-65535.dcm')
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/preview' % r['ID']))
+
+            r = UploadInstance(_REMOTE, '2026-05-26-oob-monochrome-46341.dcm')
+            self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/preview' % r['ID']))
+
+            payload = {
+                "Tags": {
+                    "PatientID": "JPEG-PITCH",
+                    "PatientName": "JpegReader^pitch_overflow",
+                    "SOPClassUID": "1.2.840.10008.5.1.4.1.1.7"
+                },
+                "Content": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCFVm/9wDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDyyiiivzo/ss//2Q=="
+                }
+
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/create-dicom', json.dumps(payload)))
+
+            payload = {
+                "Tags": {
+                    "PatientID": "PNG-PITCH",
+                    "PatientName": "EVIL",
+                    "SOPClassUID": "1.2.840.10008.5.1.4.1.1.7"
+                },
+                "Content": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA//8AACABEAYAAACUhg7WAAACE0lEQVR42u3BgQAAAADDoPlTn+AGVQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAwBxAAEgsXI6AAAAAElFTkSuQmCC"
+                }
+
+            self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/create-dicom', json.dumps(payload)))
