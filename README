@@ -125,8 +125,8 @@ computer as is, or (b) use Docker to have the best reproducibility.
 
 # python ./Tests/Run.py
 
-To run a single test with by fixing the Orthanc 1.12.5 executable path:
-# python2.7 ./Tests/Run.py --force --orthanc /home/alain/Releases/Orthanc-1.12.5 Orthanc.test_peer_store_straight
+To run a single test with by fixing the Orthanc 1.12.11 executable path:
+# python2.7 ./Tests/Run.py --force --orthanc /home/alain/Releases/Orthanc-1.12.11 Orthanc.test_peer_store_straight
 
 To run a plugin test (no need for another Orthanc)
 # python ./Plugins/DicomWeb/Run.py --force
