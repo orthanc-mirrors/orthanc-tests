@@ -7137,7 +7137,12 @@ class Orthanc(unittest.TestCase):
 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
 
         # POST on "/media"
@@ -7171,7 +7176,12 @@ class Orthanc(unittest.TestCase):
 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
         
         # GET on "/archive"
@@ -7196,7 +7206,12 @@ class Orthanc(unittest.TestCase):
 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
 
         # POST on "/archive"
@@ -7230,7 +7245,12 @@ class Orthanc(unittest.TestCase):
 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
 
         # "/tools/create-*"
@@ -7284,7 +7304,12 @@ class Orthanc(unittest.TestCase):
                 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
             z40 = PostArchive(_REMOTE, '/tools/create-media', {
                 'Resources' : [ info['ParentStudy'] ],
@@ -7299,7 +7324,13 @@ class Orthanc(unittest.TestCase):
                 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
+
 
             z40 = PostArchive(_REMOTE, '/tools/create-media-extended', {
                 'Resources' : [ info['ParentStudy'] ],
@@ -7314,13 +7345,23 @@ class Orthanc(unittest.TestCase):
                 
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
             z40, resp = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ParentStudy'])
             z80, resp = GetArchive(_REMOTE, '/tools/create-archive?resources=%s&transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ParentStudy'])
             size40 = sum([zinfo.file_size for zinfo in z40.filelist])
             size80 = sum([zinfo.file_size for zinfo in z80.filelist])
-            self.assertLess(size40, size80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+            else:
+                self.assertLess(size40, size80)
 
 
     def test_download_file_transcode(self):
@@ -7345,7 +7386,12 @@ class Orthanc(unittest.TestCase):
 
                 resp, content40 = DoGetRaw(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50&lossy-quality=40' % info['ID'])
                 resp, content80 = DoGetRaw(_REMOTE, '/instances/%s/file?transcode=1.2.840.10008.1.2.4.50&lossy-quality=80' % info['ID'])
-                self.assertLess(len(content40), len(content80))
+
+                if HasGdcmPlugin(_REMOTE):
+                    # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                    self.assertEqual(len(content40), len(content80))
+                else:
+                    self.assertLess(len(content40), len(content80))
 
 
     def test_content_disposition(self):
