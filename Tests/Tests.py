@@ -7081,19 +7081,35 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertEqual(a, b)
 
+
+    def test_transcode_lossy_compression_ratio(self):
+        i = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
+
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 7) and HasExtendedFind(_REMOTE):
             transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
                 'Transcode' : '1.2.840.10008.1.2.4.50',
                 'LossyQuality': 40
                 })
+            size40 = len(transcoded)
             ratio40 = ExtractDicomTags(transcoded, [ 'LossyImageCompressionRatio' ]) [0]
 
             transcoded = DoPost(_REMOTE, '/instances/%s/modify' % i, {
                 'Transcode' : '1.2.840.10008.1.2.4.50',
                 'LossyQuality': 80
                 })
+            size80 = len(transcoded)
             ratio80 = ExtractDicomTags(transcoded, [ 'LossyImageCompressionRatio' ]) [0]
-            self.assertGreater(ratio40, ratio80)
+
+            if HasGdcmPlugin(_REMOTE):
+                # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
+                self.assertEqual(size40, size80)
+
+                # Contrary to DCMTK, GDCM doesn't automatically set "LossyImageCompressionRatio" (0028,2112)
+                self.assertEqual(ratio40, '')
+                self.assertEqual(ratio80, '')
+            else:
+                self.assertLess(size40, size80)
+                self.assertGreater(float(ratio40), float(ratio80))
 
 
     def test_archive_transcode(self):
