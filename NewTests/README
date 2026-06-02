@@ -283,3 +283,14 @@ with Docker:
 python3 NewTests/main.py --pattern=InterruptedDownloads.test_interrupted_downloads.TestInterruptedDownloads.* \
                          --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:master-unstable \
                          --orthanc_under_tests_http_port=8043
+
+
+NonRegressionPerfs:
+------------------
+
+with Docker:
+
+python3 NewTests/main.py --pattern=NonRegressionPerfs.test_non_regression_perfs.TestNonRegressionPerfs.* \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:master-unstable \
+                         --orthanc_under_tests_http_port=8043
+

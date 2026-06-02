@@ -10,6 +10,7 @@ PerfsDb/Results/
 *~
 NewTests/storages/**
 NewTests/configurations/*.json
+NewTests/NonRegressionPerfs/DownloadedTestFiles/*.dcm
 .env/
 Tests/*.crt
 Tests/*.key

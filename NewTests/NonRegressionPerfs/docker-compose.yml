@@ -1,0 +1,56 @@
+services:
+
+  orthanc-ref:
+    image: orthancteam/orthanc:26.1.0
+    depends_on: [orthanc-ref-db]
+    restart: unless-stopped
+    ports: ["8142:8042"]
+    volumes: ["storage-orthanc-ref:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__POSTGRESQL__HOST: "orthanc-ref-db"
+      ORTHANC_JSON: |
+        {
+          "Name": "Orthanc-ref",
+          "AuthenticationEnabled": false,
+          "OverwriteInstances": true
+        }
+
+  orthanc-new:
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
+    depends_on: [orthanc-new-db]
+    restart: unless-stopped
+    ports: ["8143:8042"]
+    volumes: ["storage-orthanc-new:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__POSTGRESQL__HOST: "orthanc-new-db"
+      ORTHANC_JSON: |
+        {
+          "Name": "Orthanc-under-tests",
+          "AuthenticationEnabled": false,
+          "OverwriteInstances": true
+        }
+
+
+  orthanc-ref-db:
+    image: postgres:18
+    restart: unless-stopped
+    volumes: 
+      - "storage-db-ref:/var/lib/postgresql/18/docker"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+
+  orthanc-new-db:
+    image: postgres:18
+    restart: unless-stopped
+    volumes: 
+      - "storage-db-new:/var/lib/postgresql/18/docker"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+
+volumes:
+  storage-orthanc-ref:
+  storage-orthanc-new:
+  storage-db-ref:
+  storage-db-new:
