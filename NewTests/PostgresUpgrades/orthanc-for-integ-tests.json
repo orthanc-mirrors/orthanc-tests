@@ -99,6 +99,9 @@
       ]
      }, 
      "ExecuteLuaEnabled": true, 
+     "Gdcm": {
+       "RestrictTransferSyntaxes": []
+     },
      "HttpCompressionEnabled": false, 
      "HttpDescribeErrors": true, 
      "HttpPort": 8042, 

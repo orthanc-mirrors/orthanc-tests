@@ -244,6 +244,9 @@ config['WholeSlideImaging'] = {
     'ServeOpenSeadragon' : True,
 }
 
+config['Gdcm'] = {
+    "RestrictTransferSyntaxes": [] # when we use GDCM, let's use it for all TransferSyntaxes (by default, in the orthancteam/orthanc images, this config is set to JP2K only)
+}
 
 
 # Enable case-insensitive PN (the default on versions <= 0.8.6)
