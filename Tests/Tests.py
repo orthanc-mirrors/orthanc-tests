@@ -7081,6 +7081,11 @@ class Orthanc(unittest.TestCase):
             else:
                 self.assertEqual(a, b)
 
+    # Helper method to use when comparing zip because the zip size may depend on timestamp and other stuffs.
+    # We have seen differences of 4 bytes but let's take a 0.1% margin
+    def assertZipSizesAlmostEqual(self, sizeA, sizeB):
+        tolerance = max(4, sizeA/1000)
+        self.assertLess(abs(sizeA - sizeB), tolerance)
 
     def test_transcode_lossy_compression_ratio(self):
         i = UploadInstance(_REMOTE, 'ColorTestImageJ.dcm')['ID']
@@ -7102,7 +7107,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
 
                 # Contrary to DCMTK, GDCM doesn't automatically set "LossyImageCompressionRatio" (0028,2112)
                 self.assertEqual(ratio40, '')
@@ -7140,7 +7145,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7179,7 +7184,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7209,7 +7214,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7248,7 +7253,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7307,7 +7312,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7327,7 +7332,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7348,7 +7353,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
@@ -7359,7 +7364,7 @@ class Orthanc(unittest.TestCase):
 
             if HasGdcmPlugin(_REMOTE):
                 # The plugin SDK doesn't currently allow to pass lossyQuality to plugins
-                self.assertEqual(size40, size80)
+                self.assertZipSizesAlmostEqual(size40, size80)
             else:
                 self.assertLess(size40, size80)
 
