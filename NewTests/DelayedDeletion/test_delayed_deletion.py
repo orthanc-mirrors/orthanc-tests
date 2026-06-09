@@ -42,7 +42,7 @@ class TestDelayedDeletion(OrthancTestCase):
             print('-------------- launching DelayedDeletion preparation')
 
             cls.launch_orthanc_to_prepare_db(
-                config_name="delayed_deletion",
+                config_name="delayed_deletion_before",
                 config_path=config_path,
                 storage_name="DelayedDeletion",
                 config=config,
@@ -88,7 +88,7 @@ class TestDelayedDeletion(OrthancTestCase):
             print('-------------- launching DelayedDeletion tests')
             cls.launch_orthanc_under_tests(
                 config_path=config_path,
-                config_name="delayed_deletion",
+                config_name="delayed_deletion_after",
                 storage_name="DelayedDeletion",
                 plugins=Helpers.plugins
             )
