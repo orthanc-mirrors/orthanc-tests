@@ -101,18 +101,12 @@ class TestExtraMainDicomTags(OrthancTestCase):
         self.assertIn("PerformedProtocolCodeSequence", instance["MainDicomTags"])
 
     def get_storage_access_count(self):
-        mm = self.o.get_binary("/tools/metrics-prometheus").decode("utf-8")
+        m = self.o.get_metrics()
         
-        mm = [x.split(" ") for x in mm.split("\n")]
+        count = int(m.get('orthanc_storage_cache_hit_count')) + int(m.get('orthanc_storage_cache_miss_count'))
 
-        count = 0
-        for m in mm:
-            if m[0] == 'orthanc_storage_cache_hit_count':
-                # print(f"orthanc_storage_cache_hit_count = {m[1]}")
-                count += int(m[1])
-            if m[0] == 'orthanc_storage_cache_miss_count':
-                # print(f"orthanc_storage_cache_miss_count = {m[1]}")
-                count += int(m[1])
+        if self.o.get_system()["ApiVersion"] >= 32:  # 1.12.11+ and 32 = streaming branch
+            count += int(m.get('orthanc_dicom_cache_hit_count'))
 
         print(f"storage access count = {count}")
         return count
