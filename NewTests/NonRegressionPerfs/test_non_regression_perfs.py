@@ -15,16 +15,22 @@ import requests
 here = pathlib.Path(__file__).parent.resolve()
 
 
-test_configs = {
-    "ref": {
-        "orthanc-url": "http://localhost:8142"
-    },
-    "new": {
-        "orthanc-url": "http://localhost:8143"
-    }
-}
+# test_configs = {
+#     "ref": {
+#         "orthanc-url": "http://localhost:8142"
+#     },
+#     "new": {
+#         "orthanc-url": "http://localhost:8143"
+#     },
+#     "ref-s3": {
+#         "orthanc-url": "http://localhost:8242"
+#     },
+#     "new-s3": {
+#         "orthanc-url": "http://localhost:8243"
+#     }
+# }
 
-test_results = {}
+# test_results = {}
 
 # Download a file localy (only the first time) and return its local_path and content
 def download_test_file(url: str) -> Tuple[str, bytes]:
@@ -49,23 +55,23 @@ class TestNonRegressionPerfs(unittest.TestCase):
         subprocess.run(["docker", "compose", "down", "-v", "--remove-orphans"], check=True)
 
 
-    @classmethod
-    def setUpClass(cls):
-        os.chdir(here)
-        subprocesss_env = os.environ.copy()
-        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
+    # @classmethod
+    # def setUpClass(cls):
+    #     os.chdir(here)
+    #     subprocesss_env = os.environ.copy()
+    #     subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
 
-        # print("Pullling containers")
-        # subprocess.run(["docker", "compose", "pull"], env=subprocesss_env, check=True)
+    #     # print("Pullling containers")
+    #     # subprocess.run(["docker", "compose", "pull"], env=subprocesss_env, check=True)
 
-        print("Launching containers")
-        subprocess.run(["docker", "compose", "up", "-d"], env=subprocesss_env, check=True)
+    #     print("Launching containers")
+    #     subprocess.run(["docker", "compose", "up", "-d"], env=subprocesss_env, check=True)
         
-        o_ref = OrthancApiClient(test_configs["ref"]["orthanc-url"])
-        o_new = OrthancApiClient(test_configs["new"]["orthanc-url"])
+    #     o_ref = OrthancApiClient(test_configs["ref"]["orthanc-url"])
+    #     o_new = OrthancApiClient(test_configs["new"]["orthanc-url"])
 
-        o_ref.wait_started()
-        o_new.wait_started()
+    #     o_ref.wait_started()
+    #     o_new.wait_started()
 
 
     @classmethod
@@ -73,9 +79,7 @@ class TestNonRegressionPerfs(unittest.TestCase):
         cls.cleanup()
 
 
-    def measure(self, test_name: str, perform_test: Callable[[OrthancApiClient], None], reapeat_count: int = 1, tolerance_pct = 0.25) -> None:
-        global test_configs
-        global test_results
+    def measure(self, test_name: str, perform_test: Callable[[OrthancApiClient], None], test_configs, test_results, reapeat_count: int = 1, tolerance_pct = 0.25) -> None:
 
         test_results[test_name] = {}
 
@@ -108,39 +112,100 @@ class TestNonRegressionPerfs(unittest.TestCase):
         test_results[test_name]["success"] = not failed
 
 
-    def test_non_regression(self):
-        print("Launching tests")
+    def test_non_regression_s3(self):
+        print("Launching tests (s3)")
 
-        print("")
+        test_configs = {
+            "ref": {
+                "orthanc-url": "http://localhost:8242"
+            },
+            "new": {
+                "orthanc-url": "http://localhost:8243"
+            }
+        }
+        test_results = {}
+        self.compare(config_name='s3'
+                     test_configs=test_configs,
+                     test_results=test_results)
+
+
+    def test_non_regression_classic(self):
+        print("Launching tests (classic)")
+
+        test_configs = {
+            "ref": {
+                "orthanc-url": "http://localhost:8142"
+            },
+            "new": {
+                "orthanc-url": "http://localhost:8143"
+            }
+        }
+        test_results = {}
+        self.compare(config_name='file-system'
+                     test_configs=test_configs,
+                     test_results=test_results)
+
+
+    def compare(self, config_name, test_configs, test_results):
+
+        os.chdir(here)
+        subprocesss_env = os.environ.copy()
+        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
+
+        # print("Pullling containers")
+        # subprocess.run(["docker", "compose", "pull"], env=subprocesss_env, check=True)
+
+        print("Launching containers")
+        subprocess.run(["docker", "compose", "up", "-d"], env=subprocesss_env, check=True)
+        
+        o_ref = OrthancApiClient(test_configs["ref"]["orthanc-url"])
+        o_new = OrthancApiClient(test_configs["new"]["orthanc-url"])
+
+        o_ref.wait_started()
+        o_new.wait_started()
+
+        print(f"---------- {config_name} -----------")
         print(f"{'TEST NAME':<50} | {'REF ORTHANC [ms]':>20} | {'NEW ORTHANC [ms]':>20} | {'DELTA [PCT]':>20}")
         print(f"{'-'*119}")
 
-        self.measure(test_name="populate with 5 workers",
+        self.measure(test_name="populate 3000 instances with 5 workers",
                      perform_test=lambda o: OrthancTestDbPopulator(o, studies_count=5, series_count=3, instances_count=120, random_seed=65, worker_threads_count=5).execute(),
-                     reapeat_count=1)
+                     reapeat_count=1,
+                     test_configs=test_configs,
+                     test_results=test_results)
 
-        self.measure(test_name="studies statistics",
+        self.measure(test_name="studies statistics 5x5",
                      perform_test=lambda o: [o.studies.get_json_statistics(i) for i in o.studies.get_all_ids()],
-                     reapeat_count=5)
-
+                     reapeat_count=5,
+                     test_configs=test_configs,
+                     test_results=test_results)
+        
         reg_of_path, reg_of_content = download_test_file("https://public-files.orthanc.team/test-files/429_MB_REG_OF.dcm")
         reg_ow_path, reg_ow_content = download_test_file("https://public-files.orthanc.team/test-files/429_MB_REG_OW.dcm")
 
         self.measure(test_name="upload large Reg file with OW VectorGridData",
                      perform_test=lambda o: o.upload(reg_ow_content),
-                     reapeat_count=1)
-
+                     reapeat_count=1,
+                     test_configs=test_configs,
+                     test_results=test_results)
+        
         self.measure(test_name="upload large Reg file with OF VectorGridData",
                      perform_test=lambda o: o.upload(reg_of_content),
-                     reapeat_count=1)
+                     reapeat_count=1,
+                     test_configs=test_configs,
+                     test_results=test_results)
 
-        self.measure(test_name="upload same file",
+        self.measure(test_name="upload same file 50x",
                      perform_test=lambda o: o.upload_file(here / "../../Database/Knee/T1/IM-0001-0001.dcm"),
-                     reapeat_count=50)
+                     reapeat_count=50,
+                     test_configs=test_configs,
+                     test_results=test_results)
 
-        self.measure(test_name="upload same file SEG",
+        self.measure(test_name="upload same file SEG 50x",
                      perform_test=lambda o: o.upload_file(here / "../../Database/DicomSeg.dcm"),
-                     reapeat_count=50)
+                     reapeat_count=50,
+                     test_configs=test_configs,
+                     test_results=test_results)
 
         print("Stopping containers")
         subprocess.run(["docker", "compose", "down"], check=True)

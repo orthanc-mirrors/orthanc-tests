@@ -49,8 +49,130 @@ services:
     environment:
       POSTGRES_HOST_AUTH_METHOD: "trust"
 
+
+  orthanc-ref-s3:
+    image: orthancteam/orthanc:26.1.0
+    depends_on: [orthanc-ref-db-s3]
+    restart: unless-stopped
+    ports: ["8242:8042"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__POSTGRESQL__HOST: "orthanc-ref-db-s3"
+      ORTHANC_JSON: |
+        {
+          "Name": "Orthanc-ref-s3",
+          "AuthenticationEnabled": false,
+          "OverwriteInstances": true,
+          "AwsS3Storage": {
+            "BucketName": "default-bucket",
+            "Region": "eu-west-1",
+            "AccessKey": "minio",
+            "SecretKey": "miniopwd",
+            "Endpoint": "http://toxiproxy-ref-s3:9000",
+            "VirtualAddressing": false
+          }
+        }
+
+  orthanc-new-s3:
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
+    depends_on: [orthanc-new-db-s3]
+    restart: unless-stopped
+    ports: ["8243:8042"]
+    environment:
+      VERBOSE_ENABLED: "true"
+      ORTHANC__POSTGRESQL__HOST: "orthanc-new-db-s3"
+      ORTHANC_JSON: |
+        {
+          "Name": "Orthanc-under-tests-s3",
+          "AuthenticationEnabled": false,
+          "OverwriteInstances": true,
+          "AwsS3Storage": {
+            "BucketName": "default-bucket",
+            "Region": "eu-west-1",
+            "AccessKey": "minio",
+            "SecretKey": "miniopwd",
+            "Endpoint": "http://toxiproxy-new-s3:9000",
+            "VirtualAddressing": false
+          }
+        }
+
+
+  orthanc-ref-db-s3:
+    image: postgres:18
+    restart: unless-stopped
+    volumes: 
+      - "storage-db-ref-s3:/var/lib/postgresql/18/docker"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+
+  orthanc-new-db-s3:
+    image: postgres:18
+    restart: unless-stopped
+    volumes: 
+      - "storage-db-new-s3:/var/lib/postgresql/18/docker"
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+
+
+  minio-ref:
+      image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+      # don't expose these ports in a real world setup
+      # ports: [9000:9000, 9001:9001]
+      environment:
+          - MINIO_REGION=eu-west-1
+          - MINIO_ROOT_USER=minio
+          - MINIO_ROOT_PASSWORD=miniopwd
+      volumes:
+          - storage-minio-ref-s3:/data
+      entrypoint: sh
+      command: -c 'mkdir -p /data/default-bucket && /usr/bin/docker-entrypoint.sh server /data --console-address ":9001"'
+
+  minio-new:
+      image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+      # don't expose these ports in a real world setup
+      # ports: [9000:9000, 9001:9001]
+      environment:
+          - MINIO_REGION=eu-west-1
+          - MINIO_ROOT_USER=minio
+          - MINIO_ROOT_PASSWORD=miniopwd
+      volumes:
+          - storage-minio-new-s3:/data
+      entrypoint: sh
+      command: -c 'mkdir -p /data/default-bucket && /usr/bin/docker-entrypoint.sh server /data --console-address ":9001"'
+
+  toxiproxy-ref-s3:
+      depends_on: 
+          - minio-ref
+      # ports: ["19200:9000"]
+      image: ghcr.io/shopify/toxiproxy
+
+  toxiproxy-new-s3:
+      depends_on: 
+          - minio-new
+      # ports: ["19201:9000"]
+      image: ghcr.io/shopify/toxiproxy
+
+
+  toxiproxy-config:
+      image: curlimages/curl
+      depends_on: 
+          - toxiproxy-ref-s3
+          - toxiproxy-new-s3
+      restart: on-failure
+      entrypoint: >
+          sh -c "sleep 3;
+          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"minio\",\"listen\":\"0.0.0.0:9000\",\"upstream\":\"minio-ref:9000\"}';
+          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies/minio/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
+          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"minio\",\"listen\":\"0.0.0.0:9000\",\"upstream\":\"minio-new:9000\"}';
+          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies/minio/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
+          "
+
 volumes:
   storage-orthanc-ref:
   storage-orthanc-new:
   storage-db-ref:
   storage-db-new:
+  storage-minio-ref-s3:
+  storage-minio-new-s3:
+  storage-db-ref-s3:
+  storage-db-new-s3:  
