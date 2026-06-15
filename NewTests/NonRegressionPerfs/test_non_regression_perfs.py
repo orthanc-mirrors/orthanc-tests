@@ -124,7 +124,7 @@ class TestNonRegressionPerfs(unittest.TestCase):
             }
         }
         test_results = {}
-        self.compare(config_name='s3'
+        self.compare(config_name='s3',
                      test_configs=test_configs,
                      test_results=test_results)
 
@@ -141,7 +141,7 @@ class TestNonRegressionPerfs(unittest.TestCase):
             }
         }
         test_results = {}
-        self.compare(config_name='file-system'
+        self.compare(config_name='file-system',
                      test_configs=test_configs,
                      test_results=test_results)
 
