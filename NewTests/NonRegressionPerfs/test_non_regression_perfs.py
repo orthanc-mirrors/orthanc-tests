@@ -32,22 +32,6 @@ def download_test_file(url: str) -> Tuple[str, bytes]:
 
 class TestNonRegressionPerfs(unittest.TestCase):
 
-    @classmethod
-    def cleanup(cls):
-        os.chdir(here)
-        print("Cleaning old compose")
-        subprocess.run(["docker", "compose", "down", "-v", "--remove-orphans"], check=True)
-
-    @classmethod
-    def setUpClass(cls):
-        os.chdir(here)
-        subprocesss_env = os.environ.copy()
-        subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
-
-        print("Pullling containers")
-        subprocess.run(["docker", "compose", "pull"], env=subprocesss_env, check=True)
-
-
 
     def measure(self, 
                 test_name: str, 
