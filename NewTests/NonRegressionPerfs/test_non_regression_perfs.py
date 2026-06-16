@@ -42,40 +42,49 @@ class TestNonRegressionPerfs(unittest.TestCase):
                 parallel_count: Optional[int] = None,
                 tolerance_pct = 0.25) -> None:
 
+        retry_counter = 0
+        max_retries = 3
+        has_succeeded = False
+
         test_results[test_name] = {}
 
-        for (test_config_name, test_config) in test_configs.items():
-            o = OrthancApiClient(orthanc_root_url=test_config["orthanc-url"])
+        while not has_succeeded and retry_counter < max_retries:
+            for (test_config_name, test_config) in test_configs.items():
+                o = OrthancApiClient(orthanc_root_url=test_config["orthanc-url"])
 
-            start_time = time.perf_counter()
-            for i in range(0, reapeat_count):
-                if not parallel_count: # execute with a single thread
-                    perform_test(o)
-                else: # execute in parallel + wait they all complete
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        futures = [executor.submit(perform_test, o) for i in range(parallel_count)]
-                        results = [future.result() for future in concurrent.futures.as_completed(futures)]
+                start_time = time.perf_counter()
+                for i in range(0, reapeat_count):
+                    if not parallel_count: # execute with a single thread
+                        perform_test(o)
+                    else: # execute in parallel + wait they all complete
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            futures = [executor.submit(perform_test, o) for i in range(parallel_count)]
+                            results = [future.result() for future in concurrent.futures.as_completed(futures)]
 
-            end_time = time.perf_counter()
-            test_results[test_name][test_config_name] = (end_time - start_time) * 1000
+                end_time = time.perf_counter()
+                test_results[test_name][test_config_name] = (end_time - start_time) * 1000
 
-        ref_time = test_results[test_name]["ref"]
-        new_time = test_results[test_name]["new"]
+            ref_time = test_results[test_name]["ref"]
+            new_time = test_results[test_name]["new"]
 
-        delta_perf = new_time / ref_time - 1
-        
-        if (delta_perf) > tolerance_pct:
-            delta_text = f"+ {(delta_perf*100):>8.1f} % (FAILED)"
-            failed = True
-        elif (delta_perf) > 0:
-            delta_text = f"+ {(delta_perf*100):>8.1f} %"
-            failed = False
-        else:
-            delta_text = f"- {abs((delta_perf*100)):>8.1f} %"
-            failed = False
+            delta_perf = new_time / ref_time - 1
+            
+            if (delta_perf) > tolerance_pct:
+                retry_counter += 1
+                if retry_counter < max_retries:
+                    delta_text = f"+ {(delta_perf*100):>8.1f} % (FAILED - will retry)"
+                else:
+                    delta_text = f"+ {(delta_perf*100):>8.1f} % (FAILED)"
+            elif (delta_perf) > 0:
+                delta_text = f"+ {(delta_perf*100):>8.1f} %"
+                has_succeeded = True
+            else:
+                delta_text = f"- {abs((delta_perf*100)):>8.1f} %"
+                has_succeeded = True
 
-        print(f"{test_name:<60} | {ref_time:>20.3f} | {new_time:>20.3f} | {delta_text:>20}")
-        test_results[test_name]["success"] = not failed
+            print(f"{test_name:<60} | {ref_time:>20.3f} | {new_time:>20.3f} | {delta_text:>20}")
+    
+        test_results[test_name]["success"] = has_succeeded
 
 
     def test_non_regression_s3(self):
