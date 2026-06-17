@@ -1989,6 +1989,25 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(15, od['Value'][2])
 
 
+    def test_multiframe_rgb48_raw(self):
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 12) and IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 24, 0):
+            UploadInstance(ORTHANC, 'US-multiframe-RGB48-RAW.dcm')
+            im = GetImage(ORTHANC, '/dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.130388.1781691894.571459/series/1.2.276.0.7230010.3.1.3.8323329.130388.1781691894.571460/instances/1.2.276.0.7230010.3.1.4.8323329.130388.1781691897.571498/frames/3/rendered')
+
+            self.assertEqual('JPEG', im.format)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+    def test_multiframe_rgb48_rle(self):
+        if IsOrthancVersionAbove(ORTHANC, 1, 12, 12) and IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 24, 0):
+            UploadInstance(ORTHANC, 'US-multiframe-RGB48-RLE.dcm')
+            im = GetImage(ORTHANC, '/dicom-web/studies/1.2.276.0.7230010.3.1.2.8323329.130388.1781691894.571459/series/1.2.276.0.7230010.3.1.3.8323329.130388.1781691894.571460/instances/1.2.276.0.7230010.3.1.4.8323329.130388.1781691897.571498/frames/3/rendered')
+
+            self.assertEqual('JPEG', im.format)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+
 try:
     print('\nStarting the tests...')
     unittest.main(argv = [ sys.argv[0] ] + args.options)
