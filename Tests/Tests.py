@@ -12836,3 +12836,60 @@ class Orthanc(unittest.TestCase):
                 }
 
             self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/tools/create-dicom', json.dumps(payload)))
+
+
+    def test_multiframe_rgb48_raw(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            i = UploadInstance(_REMOTE, 'US-multiframe-RGB48-RAW.dcm')['ID']
+
+            # note: the execution paths are different when we are using GDCM or not (at least in 1.12.11), even if the TS is RAW !!!
+            #       so it is important to test with AND without GDCM (this is done in the orthanc-builder nightly tests)
+
+            im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/image-uint16' % i)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/image-uint8' % i)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/rendered' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+
+    def test_multiframe_rgb48_rle(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            i = UploadInstance(_REMOTE, 'US-multiframe-RGB48-RLE.dcm')['ID']
+
+            # note: the execution paths are different when we are using GDCM or not (at least in 1.12.11), even if the TS is RAW !!!
+            #       so it is important to test with AND without GDCM (this is done in the orthanc-builder nightly tests)
+
+            im = GetImage(_REMOTE, '/instances/%s/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/preview' % i)
+            self.assertEqual("RGB", im.mode)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/image-uint16' % i)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
+
+            im = GetImage(_REMOTE, '/instances/%s/frames/2/image-uint8' % i)
+            self.assertEqual(800, im.size[0])
+            self.assertEqual(600, im.size[1])
