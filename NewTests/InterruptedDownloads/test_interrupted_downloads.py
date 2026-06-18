@@ -97,18 +97,20 @@ class TestInterruptedDownloads(OrthancTestCase):
 
     def test_interrupting_a_download_should_release_the_http_thread(self):
         
-        self.o.delete_all_content()
-        populator = OrthancTestDbPopulator(self.o, studies_count=1, series_count=2, instances_count=200, random_seed=65)
-        populator.execute()
+        # note: there was a regression between 1.12.10 and 1.12.11
+        if self.o.is_orthanc_version_at_least(1, 12, 12) and self.o.get_system()["ApiVersion"] >= 32:  # 1.12.11+ and 32 = streaming branch
+            self.o.delete_all_content()
+            populator = OrthancTestDbPopulator(self.o, studies_count=1, series_count=2, instances_count=200, random_seed=65)
+            populator.execute()
 
-        study_id = self.o.studies.get_all_ids()[0]
-        # cancel 4 downloads
-        self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
-        self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
-        self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
-        self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
+            study_id = self.o.studies.get_all_ids()[0]
+            # cancel 4 downloads
+            self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
+            self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
+            self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
+            self.download_with_cancel(f"{self.o._root_url}/studies/{study_id}/archive")
 
-        time.sleep(1)
-        metrics = self.o.get_metrics().metrics
-        # pprint.pprint(metrics)
-        self.assertGreaterEqual(2, int(metrics.get('orthanc_available_http_threads_count')))  # anyway, we won't be able to get the metrics if this is not true !
+            time.sleep(1)
+            metrics = self.o.get_metrics().metrics
+            # pprint.pprint(metrics)
+            self.assertGreaterEqual(2, int(metrics.get('orthanc_available_http_threads_count')))  # anyway, we won't be able to get the metrics if this is not true !
