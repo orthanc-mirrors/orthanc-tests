@@ -185,12 +185,13 @@ class TestNonRegressionPerfs(unittest.TestCase):
                      reapeat_count=1,
                      test_configs=test_configs,
                      test_results=test_results)
-        
-        self.measure(test_name="upload large Reg file with OF VectorGridData",
-                     perform_test=lambda o: o.upload(reg_of_content),
-                     reapeat_count=1,
-                     test_configs=test_configs,
-                     test_results=test_results)
+
+        if o_new.is_orthanc_version_at_least(1, 12, 12):        
+            self.measure(test_name="upload large Reg file with OF VectorGridData",
+                        perform_test=lambda o: o.upload(reg_of_content),
+                        reapeat_count=1,
+                        test_configs=test_configs,
+                        test_results=test_results)
 
         self.measure(test_name="upload same file 50x",
                      perform_test=lambda o: o.upload_file(here / "../../Database/Knee/T1/IM-0001-0001.dcm"),
