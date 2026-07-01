@@ -1922,7 +1922,20 @@ class Orthanc(unittest.TestCase):
         # Test returning sequence values (only since Orthanc 0.9.5)
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
         sequences = re.findall(r'\(0008,2112\)', i)
-        self.assertEqual(1, len(sequences))
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # the content of sequences was not returned prior to this version
+            # From this version, Orthanc returns an empty sequence for the instance that does not contain the sequence
+            # and a sequence with a content for the instance that contains the sequence
+            self.assertEqual(2, len(sequences))
+        else:
+            # prior to this version, Orthanc was returning an empty sequence for the instance that did not contained the sequence
+            # and no sequence at all for the instance that contained the sequence
+            self.assertEqual(1, len(sequences))
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # the content of sequences was not returned prior to this version
+            sequences = re.findall(r'\(0008,0016\)', i)
+            self.assertEqual(1, len(sequences))
+            sequences = re.findall(r'\(0008,0018\)', i)
+            self.assertEqual(1, len(sequences))
 
         # Test returning a non-main DICOM tag,
         # "SecondaryCaptureDeviceID" (0018,1010), whose value is
