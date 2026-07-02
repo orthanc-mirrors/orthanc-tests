@@ -1,0 +1,116 @@
+# The ZeissOCT-cfind-query.dcm was generated with this code
+
+
+from pydicom.dataset import Dataset
+from pydicom.datadict import add_private_dict_entries
+
+from pynetdicom import AE
+from pynetdicom.sop_class import StudyRootQueryRetrieveInformationModelFind
+
+# ---------------------------------------------------------------------------
+# Custom private dictionary (same as Orthanc's ORTHANC__DICTIONARY / the
+# dummy SCP), so the logged request/response shows resolved private tag
+# names instead of "Private tag data" / "??"
+# ---------------------------------------------------------------------------
+add_private_dict_entries(
+    "99CZM_CapeCod_OctSettings",
+    {
+        0x04051001: ("CS", "1", "PatternType"),
+        0x0405101A: ("FL", "1", "SignalStrength"),
+    },
+)
+
+add_private_dict_entries(
+    "99CZM_CapeCod_OctGeneral",
+    {
+        0x04071001: ("US", "1", "UndefinedPrivateTag1001"),
+        0x04071002: ("US", "1", "UndefinedPrivateTag1002"),
+        0x04071003: ("US", "1", "UndefinedPrivateTag1003"),
+        0x04071005: ("SQ", "1", "OCTCubeSequence2"),
+        0x040710A1: ("SQ", "1", "OCTCubeSequence"),
+    },
+)
+
+add_private_dict_entries(
+    "99CZM_FORUM",
+    {
+        0x23011002: ("CS", "1", "Favorite"),
+    },
+)
+
+def build_query_dataset():
+    """
+    Builds the identifier dataset exactly as captured from the real
+    CIRRUS C-FIND request.
+    """
+    ds = Dataset()
+
+    ds.SpecificCharacterSet = "ISO_IR 192"
+    ds.QueryRetrieveLevel = "IMAGE"
+
+    # Return keys (empty)
+    ds.ImageType = ""
+    ds.InstanceCreationDate = ""
+    ds.InstanceCreationTime = ""
+    ds.SOPClassUID = ""
+    ds.SOPInstanceUID = ""
+    ds.StudyDate = ""
+    ds.SeriesDate = ""
+    ds.AcquisitionDateTime = ""
+    ds.StudyTime = ""
+    ds.SeriesTime = ""
+    ds.AccessionNumber = ""
+    ds.Modality = ""
+    ds.ModalitiesInStudy = ""
+    ds.ReferringPhysicianName = ""
+    ds.StudyDescription = ""
+    ds.SeriesDescription = ""
+    ds.PerformingPhysicianName = ""
+    ds.AdmittingDiagnosesDescription = ""
+    ds.ManufacturerModelName = ""
+
+    # ReferencedInstanceSequence — sequence containing one empty item
+    ds.ReferencedInstanceSequence = [Dataset()]
+
+    # Matching keys (actual values from the captured request)
+    ds.PatientName = ""
+    ds.PatientID = "Zeiss*"
+    ds.IssuerOfPatientID = ""
+    ds.PatientBirthDate = "19790101-20300101"
+    ds.PatientSex = ""
+
+    ds.add_new(0x00101000, "LO", "")  # OtherPatientIDs
+    ds.add_new(0x00102160, "SH", "")  # EthnicGroup
+    ds.PatientComments = ""
+
+    ds.StudyInstanceUID = ""
+    ds.SeriesInstanceUID = ""
+    ds.StudyID = ""
+    ds.SeriesNumber = ""
+    ds.InstanceNumber = ""
+    ds.Laterality = ""
+    ds.ImageLaterality = ""
+
+    ds.PerformedProcedureStepStartDate = ""
+    ds.PerformedProcedureStepStartTime = ""
+
+    # RequestAttributesSequence — sequence containing one empty item
+    ds.RequestAttributesSequence = [Dataset()]
+
+    ds.add_new(0x00420010, "ST", "")  # DocumentTitle
+
+    # --- Private tags: 99CZM_CapeCod_OctSettings block (group 0x0405) ---
+    block_0405 = ds.private_block(0x0405, "99CZM_CapeCod_OctSettings", create=True)
+    block_0405.add_new(0x01, "CS", "")     # (0405,1001) PatternType
+    block_0405.add_new(0x1a, "FL", None)   # (0405,101a) SignalStrength
+
+    # --- Private tags: 99CZM_CapeCod_OctGeneral block (group 0x0407) ---
+    block_0407 = ds.private_block(0x0407, "99CZM_CapeCod_OctGeneral", create=True)
+    seq_tag = block_0407.get_tag(0xa1)
+    ds.add_new(seq_tag, "SQ", [Dataset()])  # (0407,10a1) OCTCubeSequence, 1 empty item
+
+    # --- Private tags: 99CZM_FORUM block (group 0x2301) ---
+    block_2301 = ds.private_block(0x2301, "99CZM_FORUM", create=True)
+    block_2301.add_new(0x02, "CS", "")     # (2301,1002) Favorite
+    ds.save_as('ZeissOCT-cfind-query.dcm', implicit_vr=False)
+    return ds

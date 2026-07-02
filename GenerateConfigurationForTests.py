@@ -180,6 +180,14 @@ config['Dictionary'] = {
     '4321,1012' : [ 'LO', 'RadioButton3', 1, 1, 'RadioLogic' ],     # For issue 140
     '0009,1001' : [ 'DS', 'Abnormality score', 1, 1, 'Lunit' ],     # For issue 168
     '0009,0010' : [ 'LO', 'Private data element', 1, 1, 'Lunit' ],  # For issue 168
+    "0405,1001" : ["CS", "PatternType", 1, 1, "99CZM_CapeCod_OctSettings" ],    # For ZeissOCT related tests
+    "0405,101a" : ["FL", "SignalStrength", 1, 1, "99CZM_CapeCod_OctSettings" ],
+    "0407,1001" : ["US", "UndefinedPrivateTag1001", 1, 1, "99CZM_CapeCod_OctGeneral" ],
+    "0407,1002" : ["US", "UndefinedPrivateTag1002", 1, 1, "99CZM_CapeCod_OctGeneral" ],
+    "0407,1003" : ["US", "UndefinedPrivateTag1003", 1, 1, "99CZM_CapeCod_OctGeneral" ],
+    "0407,1005" : ["SQ", "OCTCubeSequence2", 1, 1, "99CZM_CapeCod_OctGeneral" ], 
+    "0407,10a1" : ["SQ", "OCTCubeSequence", 1, 1, "99CZM_CapeCod_OctGeneral" ], 
+    "2301,1002" : ["CS", "Favorite", 1, 1, "99CZM_FORUM" ]
 }
 
 config['UserMetadata'] = {

@@ -1956,6 +1956,16 @@ class Orthanc(unittest.TestCase):
         sequences = re.findall(r'\(0018,1010\)', i)
         self.assertEqual(1, len(sequences))
 
+
+    def test_incoming_findscu_private_tags_and_sequences(self):
+        UploadInstance(_REMOTE, 'ZeissOCT.dcm')
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # this query requests a private sequence and a private tag that is not present in the data
+            i = CallFindScu([ GetDatabasePath('ZeissOCT-cfind-query.dcm') ])
+            self.assertIn('Find Response: 1', i)
+            sequences = re.findall(r'\(0407,1013\)', i)
+            self.assertEqual(128, len(sequences))
+
         
     def test_incoming_movescu(self):
         UploadInstance(_REMOTE, 'Multiframe.dcm')
