@@ -1961,6 +1961,9 @@ class Orthanc(unittest.TestCase):
             seriesInstanceUid = instances[0]['0020000E']['Value'][0]
             sopInstanceUid = instances[0]['00080018']['Value'][0]
 
+            BASE_URI = '/dicom-web/studies/%s/series/%s/instances/%s/bulk' % (studyInstanceUid, seriesInstanceUid, sopInstanceUid)
+            BASE_URL = 'http://%s:%s%s' % (args.server, args.rest, BASE_URI)
+
             metadata = DoGet(ORTHANC, '/dicom-web/studies/%s/series/%s/instances/%s/metadata' % (
                 studyInstanceUid, seriesInstanceUid, sopInstanceUid), headers = {
                 'Accept': 'application/dicom+json',
@@ -1969,24 +1972,37 @@ class Orthanc(unittest.TestCase):
 
             of = metadata[0]['00660016']
             self.assertEqual('OF', of['vr'])
-            self.assertEqual(3, len(of['Value']))
-            self.assertAlmostEqual(10.1, of['Value'][0], places = 5)
-            self.assertAlmostEqual(20.2, of['Value'][1], places = 5)
-            self.assertAlmostEqual(30.3, of['Value'][2], places = 5)
+            if 'Value' in of:
+                # This was the case in Orthanc <= 1.12.11 and DICOMweb <= 1.23
+                self.assertEqual(3, len(of['Value']))
+                self.assertAlmostEqual(10.1, of['Value'][0], places = 5)
+                self.assertAlmostEqual(20.2, of['Value'][1], places = 5)
+                self.assertAlmostEqual(30.3, of['Value'][2], places = 5)
+            else:
+                self.assertTrue('BulkDataURI' in of)
+                self.assertEqual('%s/00660016' % BASE_URL, of["BulkDataURI"])
 
             od = metadata[0]['0070150D']
             self.assertEqual('OD', od['vr'])
-            self.assertEqual(3, len(od['Value']))
-            self.assertAlmostEqual(1.1, od['Value'][0])
-            self.assertAlmostEqual(2.2, od['Value'][1])
-            self.assertAlmostEqual(3.3, od['Value'][2])
+            if 'Value' in od:
+                self.assertEqual(3, len(od['Value']))
+                self.assertAlmostEqual(1.1, od['Value'][0])
+                self.assertAlmostEqual(2.2, od['Value'][1])
+                self.assertAlmostEqual(3.3, od['Value'][2])
+            else:
+                self.assertTrue('BulkDataURI' in od)
+                self.assertEqual('%s/0070150d' % BASE_URL, od["BulkDataURI"])
 
-            od = metadata[0]['00660041']
-            self.assertEqual('OL', od['vr'])
-            self.assertEqual(3, len(od['Value']))
-            self.assertEqual(42, od['Value'][0])
-            self.assertEqual(0, od['Value'][1])
-            self.assertEqual(15, od['Value'][2])
+            ol = metadata[0]['00660041']
+            self.assertEqual('OL', ol['vr'])
+            if 'Value' in ol:
+                self.assertEqual(3, len(ol['Value']))
+                self.assertEqual(42, ol['Value'][0])
+                self.assertEqual(0, ol['Value'][1])
+                self.assertEqual(15, ol['Value'][2])
+            else:
+                self.assertTrue('BulkDataURI' in ol)
+                self.assertEqual('%s/00660041' % BASE_URL, ol["BulkDataURI"])
 
 
     def test_multiframe_rgb48_raw(self):
