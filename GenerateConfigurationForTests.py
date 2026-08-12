@@ -162,7 +162,6 @@ config['SynchronousCMove'] = False
 config['MediaArchiveSize'] = 1
 config['SaveJobs'] = False
 config['ExecuteLuaEnabled'] = True
-config['HttpTimeout'] = 2
 config['SyncStorageArea'] = False  # For tests to run more quickly
 config['WebDavEnabled'] = True
 config['WebDavDeleteAllowed'] = True
@@ -171,8 +170,16 @@ config['StorageCompression'] = args.compression
 config['CheckRevisions'] = True
 config['HttpsCACertificates'] = "/etc/ssl/certs/ca-certificates.crt"   # for HTTPS lua tests (note: this path is valid only on linux !)
 
+# Release network resources as soon as possible
+config['HttpTimeout'] = 2
+config['HttpRequestTimeout'] = 5
+config['DicomScpTimeout'] = 5
+config['DicomScuTimeout'] = 5
+
 del config['DeidentifyLogsDicomVersion']
-del config['KeepAlive']
+
+if 'KeepAlive' in config:  # It could be absent, as this option has been moved to "AdvancedConfiguration.json"
+    del config['KeepAlive']
 
 config['Dictionary'] = {
     '00e1,10c2' : [ 'UI', 'PET-CT Multi Modality Name', 1, 1, 'ELSCINT1' ],
