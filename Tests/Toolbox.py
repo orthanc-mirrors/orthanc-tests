@@ -347,20 +347,6 @@ def FindExecutable(name):
 
     return name
 
-def IsOrthancVersionAbove(orthanc, major, minor, revision):
-    v = DoGet(orthanc, '/system')['Version']
-
-    if v.startswith('mainline'):
-        return True
-    else:
-        tmp = v.split('.')
-        a = int(tmp[0])
-        b = int(tmp[1])
-        c = int(tmp[2])
-        return (a > major or
-                (a == major and b > minor) or
-                (a == major and b == minor and c >= revision))
-
 
 def HasExtendedFind(orthanc):
     v = DoGet(orthanc, '/system')
@@ -588,3 +574,47 @@ def DoPropFind(orthanc, uri, depth):
                 raise Exception()
         
         return result
+
+
+def IsVersionAbove(version, major, minor, revision = None):
+    tmp = version.split('.')
+
+    if revision == None:
+        assert(len(tmp) == 2)
+        a = int(tmp[0])
+        b = int(tmp[1])
+        return (a > major or
+                (a == major and b > minor))
+    else:
+        assert(len(tmp) == 3)
+        a = int(tmp[0])
+        b = int(tmp[1])
+        c = int(tmp[2])
+        return (a > major or
+                (a == major and b > minor) or
+                (a == major and b == minor and c >= revision))
+
+
+def IsOrthancVersionAbove(orthanc, major, minor, revision):
+    v = DoGet(orthanc, '/system')['Version']
+
+    if v.startswith('mainline'):
+        return True
+    else:
+        return IsVersionAbove(v, major, minor, revision)
+
+
+def IsThirdPartyLibraryVersionAbove(orthanc, library, major, minor, revision):
+    try:
+        v = DoGet(orthanc, '/system') ['ThirdPartyVersions'][library]
+        return IsVersionAbove(v, major, minor, revision)
+    except:
+        return False
+
+
+def IsPatchApplied(orthanc, patch):
+    try:
+        patches = DoGet(orthanc, '/system') ['ThirdPartyPatches']
+        return patch in patches
+    except:
+        return False

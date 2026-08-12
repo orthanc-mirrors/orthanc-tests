@@ -12797,10 +12797,12 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(42, v[2])
 
     def test_deeply_nested_sequence(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
-            self.assertRaises(Exception, lambda: UploadInstance(_REMOTE, '2026-05-06-Deeply-Nested-Sequence.dcm'))
-
+        if (IsThirdPartyLibraryVersionAbove(_REMOTE, 'dcmtk', 3, 7, 1) or
+            IsPatchApplied(_REMOTE, 'dcmtk-3.7.0-max-nested-sequence.patch')):
             # note: unable to test with storescu since it does not support deeply nested sequences and crashes
+            self.assertRaises(Exception, lambda: UploadInstance(_REMOTE, '2026-05-06-Deeply-Nested-Sequence.dcm'))
+        else:
+            self.skipTest('Skipping because the required resource is unavailable')
 
     
     # small functional test, mainly to detect memory leaks (https://github.com/orthanc-server/orthanc-builder/issues/36)
