@@ -761,7 +761,7 @@ class Orthanc(unittest.TestCase):
 
         z, resp = GetArchive(_REMOTE, '/patients/%s/archive' % kneePatient)
         self.assertEqual(2, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/601 - MR - T2W_TSE/MR000003.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
@@ -770,7 +770,7 @@ class Orthanc(unittest.TestCase):
 
         z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % kneeStudy)
         self.assertEqual(2, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/601 - MR - T2W_TSE/MR000003.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
@@ -779,7 +779,7 @@ class Orthanc(unittest.TestCase):
 
         z, resp = GetArchive(_REMOTE, '/series/%s/archive' % kneeSeries)
         self.assertEqual(1, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 6):
             self.assertIn('887 KNEE/A10003245599 IRM DU GENOU/MR T1W_aTSE/MR000001.dcm', z.namelist())
@@ -797,7 +797,7 @@ class Orthanc(unittest.TestCase):
             'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
@@ -815,7 +815,7 @@ class Orthanc(unittest.TestCase):
             'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
@@ -828,7 +828,7 @@ class Orthanc(unittest.TestCase):
             'Utf8' : False,  # Necessary since Orthanc 1.12.11
             })
         self.assertEqual(3, len(z.namelist()))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
             self.assertIn('887 - KNEE/A10003245599 - IRM DU GENOU/301 - MR - T1W_aTSE/MR000001.dcm', z.namelist())
         elif IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
@@ -857,14 +857,14 @@ class Orthanc(unittest.TestCase):
             # when downloading studies individually, we want to have the PatientName that appears in the study
             z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % helloStudy)
             self.assertEqual(1, len(z.namelist()))
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
                 self.assertIn('COMMON - HELLO/HELLO^SERIES/Unknown Series/00000000.dcm', z.namelist())
             elif IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
                 self.assertIn('COMMON HELLO/HELLO^SERIES/Unknown Series/00000000.dcm', z.namelist())
 
             z, resp = GetArchive(_REMOTE, '/studies/%s/archive' % worldStudy)
             self.assertEqual(1, len(z.namelist()))
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
                 self.assertIn('COMMON - WORLD/WORLD^SERIES/Unknown Series/00000000.dcm', z.namelist())
             elif IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
                 self.assertIn('COMMON WORLD/WORLD^SERIES/Unknown Series/00000000.dcm', z.namelist())
@@ -1922,7 +1922,7 @@ class Orthanc(unittest.TestCase):
         # Test returning sequence values (only since Orthanc 0.9.5)
         i = CallFindScu([ '-k', '0008,0052=SERIES', '-k', '0008,2112' ])  # "ColorTestImageJ" has this sequence tag
         sequences = re.findall(r'\(0008,2112\)', i)
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # the content of sequences was not returned prior to this version
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):  # the content of sequences was not returned prior to this version
             # From this version, Orthanc returns an empty sequence for the instance that does not contain the sequence
             # and a sequence with a content for the instance that contains the sequence
             self.assertEqual(2, len(sequences))
@@ -1931,7 +1931,7 @@ class Orthanc(unittest.TestCase):
             # and no sequence at all for the instance that contained the sequence
             self.assertEqual(1, len(sequences))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # the content of sequences was not returned prior to this version
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):  # the content of sequences was not returned prior to this version
             sequences = re.findall(r'\(0008,0016\)', i)
             self.assertEqual(1, len(sequences))
             sequences = re.findall(r'\(0008,0018\)', i)
@@ -1960,7 +1960,7 @@ class Orthanc(unittest.TestCase):
     def test_incoming_findscu_private_tags_and_sequences(self):
         UploadInstance(_REMOTE, 'ZeissOCT.dcm')
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):  # this query requests a private sequence and a private tag that is not present in the data
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):  # this query requests a private sequence and a private tag that is not present in the data
             i = CallFindScu([ GetDatabasePath('ZeissOCT-cfind-query.dcm') ])
             self.assertIn('Find Response: 1', i)
             sequences = re.findall(r'\(0407,1013\)', i)
@@ -3399,11 +3399,11 @@ class Orthanc(unittest.TestCase):
         WaitJobDone(_REMOTE, j['ID'])
         self.assertEqual(1, len(DoGet(_LOCAL, '/instances')))
         self.assertEqual('ORTHANC', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % c['ID']))
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertEqual('ORTHANC', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
 
         # use the LocalAet from the "DicomModalities" config
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             DropOrthanc(_LOCAL)
             self.assertEqual(0, len(DoGet(_LOCAL, '/instances')))
 
@@ -3419,7 +3419,7 @@ class Orthanc(unittest.TestCase):
 
 
         # use the LocalAet from the payload
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             DropOrthanc(_LOCAL)
             j = DoPost(_REMOTE, '/modalities/orthanctest-with-local-aet/store', {
                 'LocalAet' : 'FROM-PAYLOAD',
@@ -3429,7 +3429,7 @@ class Orthanc(unittest.TestCase):
 
             WaitJobDone(_REMOTE, j['ID'])
             self.assertEqual(2, len(DoGet(_LOCAL, '/instances')))
-            if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+            if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
                 self.assertEqual('FROM-PAYLOAD', DoGet(_LOCAL, '/instances/%s/metadata/RemoteAET' % a['ID']))
                 self.assertEqual('FROM-PAYLOAD', DoGet(_REMOTE, '/jobs/%s' % j['ID'])['Content']['LocalAet'])
 
@@ -4389,7 +4389,7 @@ class Orthanc(unittest.TestCase):
 
     def test_move_scu_local_aet(self):
         # test localAet wrt Move
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             DropOrthanc(_LOCAL)
             DropOrthanc(_REMOTE)
             DropOrthancJobs(_REMOTE)
@@ -12683,10 +12683,10 @@ class Orthanc(unittest.TestCase):
             })
         self.assertEqual(1, len(z.namelist()))
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             z = PostArchive(_REMOTE, '/tools/create-archive', {
                 'Resources' : [ brainix ],
                 'Utf8' : True,
@@ -12797,7 +12797,7 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(42, v[2])
 
     def test_deeply_nested_sequence(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             self.assertRaises(Exception, lambda: UploadInstance(_REMOTE, '2026-05-06-Deeply-Nested-Sequence.dcm'))
 
             # note: unable to test with storescu since it does not support deeply nested sequences and crashes
@@ -12823,7 +12823,7 @@ class Orthanc(unittest.TestCase):
                                                         'Level': 'Study' })
 
     def test_oob_monochrome_2(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             r = UploadInstance(_REMOTE, '2026-05-26-oob-monochrome-65535.dcm')
             self.assertRaises(Exception, lambda: DoGet(_REMOTE, '/instances/%s/preview' % r['ID']))
 
@@ -12854,7 +12854,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_multiframe_rgb48_raw(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             i = UploadInstance(_REMOTE, 'US-multiframe-RGB48-RAW.dcm')['ID']
 
             # note: the execution paths are different when we are using GDCM or not (at least in 1.12.11), even if the TS is RAW !!!
@@ -12885,7 +12885,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_multiframe_rgb48_rle(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 12, 12):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             i = UploadInstance(_REMOTE, 'US-multiframe-RGB48-RLE.dcm')['ID']
 
             # note: the execution paths are different when we are using GDCM or not (at least in 1.12.11), even if the TS is RAW !!!
