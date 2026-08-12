@@ -123,7 +123,7 @@ config['DicomModalities'] = {
          'LocalAet': 'SELF-FROM-CONFIG'
      },
      'orthanctest-with-local-aet': {
-         'AET': 'ORTHANCTEST',
+         'AET': 'ORTHANCTEST2',
          'Host': ip,
          'Port': 5001,
          'LocalAet': 'OT-FROM-CONFIG'
