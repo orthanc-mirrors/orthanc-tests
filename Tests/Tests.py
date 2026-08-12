@@ -12697,6 +12697,7 @@ class Orthanc(unittest.TestCase):
 
     def test_od_of_ol_array(self):
         if IsOrthancVersionAbove(_REMOTE, 1, 12, 11):
+            # Issue reported by Yusuf Sayıta (Philips)
             instance = UploadInstance(_REMOTE, '2026-03-16-OD-OF-OL.dcm') ['ID']
 
             tags = DoGet(_REMOTE, '/instances/%s/tags' % instance)
