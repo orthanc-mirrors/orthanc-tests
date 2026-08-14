@@ -59,22 +59,30 @@ def IsHttpServerSecure(config):
         #shell=True
         )
 
-    time.sleep(1)
+    success = False
 
-    while True:
+    while process.poll() is None:  # Orthanc is still running
         try:
             system = Toolbox.DoGet(ORTHANC, '/system')
+            success = True
             break
         except:
-            time.sleep(0.1)
+            pass
+
+        time.sleep(0.1)
 
     process.terminate()
     process.wait()
 
-    return system['IsHttpServerSecure']
+    if success:
+        return system['IsHttpServerSecure']
+    else:
+        return None  # Orthanc has not started
 
 
 def Assert(b):
+    if b == None:
+        raise Exception('Bad result')
     if not b:
         raise Exception('Bad result')
 
@@ -100,15 +108,15 @@ Assert(IsHttpServerSecure({
             }))
 
 print('==== TEST 4 ====')
-Assert(not IsHttpServerSecure({
+Assert(IsHttpServerSecure({
             'RemoteAccessAllowed': True
-            }))
+            }) == None)
 
 print('==== TEST 5 (server application scenario) ====')
-Assert(not IsHttpServerSecure({
+Assert(IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': False,
-            }))
+            }) == False)
 
 print('==== TEST 6 ====')
 Assert(IsHttpServerSecure({
@@ -118,9 +126,9 @@ Assert(IsHttpServerSecure({
             }))
 
 print('==== TEST 7 (Docker scenario) ====')
-Assert(not IsHttpServerSecure({
+Assert(IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True
-            }))
+            }) == None)
 
 print('Success!')
