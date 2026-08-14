@@ -43,11 +43,14 @@ if os.path.exists(TMP):
 os.mkdir(TMP)
 
 
-ORTHANC = Toolbox.DefineOrthanc(username = 'orthanc',
-                                password = 'orthanc')
 
 
-def IsHttpServerSecure(config):
+def IsHttpServerSecure(config,
+                       username = 'orthanc',
+                       password = 'orthanc'):
+    ORTHANC = Toolbox.DefineOrthanc(username = username,
+                                    password = password)
+
     with open(CONFIG, 'w') as f:
         f.write(json.dumps(config))
     
@@ -98,12 +101,26 @@ Assert(True, IsHttpServerSecure({
             'RegisteredUsers' : { }
             }))
 
-print('==== TEST 3 ====')
-Assert(True, IsHttpServerSecure({
+print('==== TEST 3a ====')
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
+
+print('==== TEST 3b ====')
+Assert(False, IsHttpServerSecure({
+            'RemoteAccessAllowed': False,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'alice' : 'orthanctest' }
+            }, 'alice', 'orthanctest'))
+
+print('==== TEST 3c ====')
+Assert(True, IsHttpServerSecure({
+            'RemoteAccessAllowed': False,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'orthanc' : 'SECURE' }
+            }, 'orthanc', 'SECURE'))
 
 print('==== TEST 4 ====')  # Orthanc refuses to start since Orthanc 1.13.0
 Assert(None, IsHttpServerSecure({
@@ -116,12 +133,19 @@ Assert(False, IsHttpServerSecure({
             'AuthenticationEnabled': False,
             }))
 
-print('==== TEST 6 ====')
-Assert(True, IsHttpServerSecure({
+print('==== TEST 6a ====')
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
+
+print('==== TEST 6b ====')
+Assert(True, IsHttpServerSecure({
+            'RemoteAccessAllowed': True,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'orthanc' : 'SECURE' }
+            }, 'orthanc', 'SECURE'))
 
 print('==== TEST 7 (Docker scenario) ====')  # Orthanc refuses to start since Orthanc 1.13.0
 Assert(None, IsHttpServerSecure({
