@@ -80,55 +80,53 @@ def IsHttpServerSecure(config):
         return None  # Orthanc has not started
 
 
-def Assert(b):
-    if b == None:
-        raise Exception('Bad result')
-    if not b:
+def Assert(expected, actual):
+    if expected != actual:
         raise Exception('Bad result')
 
 
 print('==== TEST 1 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'RegisteredUsers' : { }
             }))
 
 print('==== TEST 2 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'AuthenticationEnabled': False,
             'RegisteredUsers' : { }
             }))
 
 print('==== TEST 3 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
 
-print('==== TEST 4 ====')
-Assert(IsHttpServerSecure({
+print('==== TEST 4 ====')  # Orthanc refuses to start since Orthanc 1.13.0
+Assert(None, IsHttpServerSecure({
             'RemoteAccessAllowed': True
-            }) == None)
+            }))
 
 print('==== TEST 5 (server application scenario) ====')
-Assert(IsHttpServerSecure({
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': False,
-            }) == False)
+            }))
 
 print('==== TEST 6 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
 
-print('==== TEST 7 (Docker scenario) ====')
-Assert(IsHttpServerSecure({
+print('==== TEST 7 (Docker scenario) ====')  # Orthanc refuses to start since Orthanc 1.13.0
+Assert(None, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True
-            }) == None)
+            }))
 
 print('Success!')
