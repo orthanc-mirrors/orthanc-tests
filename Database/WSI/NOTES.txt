@@ -1,3 +1,12 @@
+
+Create a pyramid from the Orthanc logo
+--------------------------------------
+
+$ convert /tmp/Orthanc-LOGO.png -background grey -alpha remove -alpha off /tmp/FlatLogo.png
+$ gdal_translate /tmp/FlatLogo.png ./OrthancLogoRaw.tiff -co TILED=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512
+$ gdal_translate /tmp/FlatLogo.png ./OrthancLogoJpeg.tiff -co TILED=YES -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 -co COMPRESS=JPEG
+
+
 Create a small image pyramid
 ----------------------------
 

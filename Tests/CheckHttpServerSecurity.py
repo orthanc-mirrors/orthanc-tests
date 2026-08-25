@@ -43,11 +43,14 @@ if os.path.exists(TMP):
 os.mkdir(TMP)
 
 
-ORTHANC = Toolbox.DefineOrthanc(username = 'orthanc',
-                                password = 'orthanc')
 
 
-def IsHttpServerSecure(config):
+def IsHttpServerSecure(config,
+                       username = 'orthanc',
+                       password = 'orthanc'):
+    ORTHANC = Toolbox.DefineOrthanc(username = username,
+                                    password = password)
+
     with open(CONFIG, 'w') as f:
         f.write(json.dumps(config))
     
@@ -59,66 +62,93 @@ def IsHttpServerSecure(config):
         #shell=True
         )
 
-    time.sleep(1)
+    success = False
 
-    while True:
+    while process.poll() is None:  # Orthanc is still running
         try:
             system = Toolbox.DoGet(ORTHANC, '/system')
+            success = True
             break
         except:
-            time.sleep(0.1)
+            pass
+
+        time.sleep(0.1)
 
     process.terminate()
     process.wait()
 
-    return system['IsHttpServerSecure']
+    if success:
+        return system['IsHttpServerSecure']
+    else:
+        return None  # Orthanc has not started
 
 
-def Assert(b):
-    if not b:
+def Assert(expected, actual):
+    if expected != actual:
         raise Exception('Bad result')
 
 
 print('==== TEST 1 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'RegisteredUsers' : { }
             }))
 
 print('==== TEST 2 ====')
-Assert(IsHttpServerSecure({
+Assert(True, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'AuthenticationEnabled': False,
             'RegisteredUsers' : { }
             }))
 
-print('==== TEST 3 ====')
-Assert(IsHttpServerSecure({
+print('==== TEST 3a ====')
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': False,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
 
-print('==== TEST 4 ====')
-Assert(not IsHttpServerSecure({
+print('==== TEST 3b ====')
+Assert(False, IsHttpServerSecure({
+            'RemoteAccessAllowed': False,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'alice' : 'orthanctest' }
+            }, 'alice', 'orthanctest'))
+
+print('==== TEST 3c ====')
+Assert(True, IsHttpServerSecure({
+            'RemoteAccessAllowed': False,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'orthanc' : 'SECURE' }
+            }, 'orthanc', 'SECURE'))
+
+print('==== TEST 4 ====')  # Orthanc refuses to start since Orthanc 1.13.0
+Assert(None, IsHttpServerSecure({
             'RemoteAccessAllowed': True
             }))
 
 print('==== TEST 5 (server application scenario) ====')
-Assert(not IsHttpServerSecure({
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': False,
             }))
 
-print('==== TEST 6 ====')
-Assert(IsHttpServerSecure({
+print('==== TEST 6a ====')
+Assert(False, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True,
             'RegisteredUsers' : { 'orthanc' : 'orthanc' }
             }))
 
-print('==== TEST 7 (Docker scenario) ====')
-Assert(not IsHttpServerSecure({
+print('==== TEST 6b ====')
+Assert(True, IsHttpServerSecure({
+            'RemoteAccessAllowed': True,
+            'AuthenticationEnabled': True,
+            'RegisteredUsers' : { 'orthanc' : 'SECURE' }
+            }, 'orthanc', 'SECURE'))
+
+print('==== TEST 7 (Docker scenario) ====')  # Orthanc refuses to start since Orthanc 1.13.0
+Assert(None, IsHttpServerSecure({
             'RemoteAccessAllowed': True,
             'AuthenticationEnabled': True
             }))

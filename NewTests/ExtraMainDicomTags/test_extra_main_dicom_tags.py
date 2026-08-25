@@ -105,7 +105,7 @@ class TestExtraMainDicomTags(OrthancTestCase):
         
         count = int(m.get('orthanc_storage_cache_hit_count') or '0') + int(m.get('orthanc_storage_cache_miss_count') or '0')
 
-        if self.o.get_system()["ApiVersion"] >= 34:  # 1.13.0 and 34 = streaming branch
+        if self.o.is_orthanc_version_at_least(1, 13, 0):
             count += int(m.get('orthanc_dicom_parser_cache_hit_count') or '0')
 
         print(f"storage access count = {count}")
