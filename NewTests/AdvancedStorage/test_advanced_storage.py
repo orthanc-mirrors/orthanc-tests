@@ -310,6 +310,21 @@ class TestAdvancedStorage(OrthancTestCase):
         # self.assertFalse(os.path.exists(info_after_move['Path']))
         self.assertFalse(self.check_file_exists(info_after_move['Path']))
 
+        if self.o.is_plugin_version_at_least("advanced-storage", 0, 3, 2):
+            # move it again to storage B where it is already (https://github.com/orthanc-server/orthanc-advanced-storage/issues/4)
+            self.o.post(endpoint="/plugins/advanced-storage/move-storage",
+                        json={
+                            'Resources': [uploaded_instances_ids[0]],
+                            'TargetStorageId' : 'b'
+                        })
+            
+            # check its path after the move
+            info_after_move2 = self.o.get_json(endpoint=f"/instances/{uploaded_instances_ids[0]}/attachments/dicom/info")
+            self.assertIn('storage-b', info_after_move2['Path'])
+            self.assertEqual("b", info_after_move2['StorageId'])
+            self.assertTrue(self.check_file_exists(info_after_move2['Path']))
+
+
     def test_adopt_abandon(self):
 
         shutil.copy(here / "../../Database/Beaufix/IM-0001-0001.dcm", self.base_test_storage_path + "adopt-files/")
