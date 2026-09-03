@@ -1,7 +1,7 @@
-FROM python:3.11
+FROM python:3.14
 
-RUN pip install uvicorn
-RUN pip install fastapi==0.103.0
+RUN pip install uvicorn==0.52.4
+RUN pip install fastapi==0.141.1
 
 RUN mkdir /auth-service
 COPY *.py /auth-service
