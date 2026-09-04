@@ -24,14 +24,11 @@
 
 
 import argparse
+import copy
 import os
 import pprint
-import re
-import subprocess
 import sys
-import tempfile
 import unittest
-from shutil import copyfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Tests'))
 from Toolbox import *
@@ -258,6 +255,45 @@ class Orthanc(unittest.TestCase):
         self.assertEqual(0, GetNumberOfLayers(''))
         self.assertEqual(0, GetNumberOfLayers('hello'))
 
+
+    def test_update_layer(self):
+        user = Execute('/wsi/api/create-standard-user', { 'name' : 'world' })
+        self.assertEqual(2, len(user))
+        self.assertEqual('world', user['name'])
+        self.assertEqual(1, user['type'])  # This corresponds to int(OrthancWSI::UserId::Type_Standard) in C++ code
+
+        a = Execute('/wsi/api/create-user-layer')
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(json.dumps(a), json.dumps(layers['user-layers'][0]))
+
+        Execute('/wsi/api/save-user-layer', { 'layer' : a })
+        self.assertEqual(json.dumps(a), json.dumps(layers['user-layers'][0]))  # No change
+
+        b = copy.copy(a)
+        b['id'] = 'nope'
+        self.assertRaises(Exception, lambda: Execute('/wsi/api/save-user-layer', { 'layer' : b }))
+
+        self.assertEqual(json.dumps(a), json.dumps(layers['user-layers'][0]))  # No change
+
+        b = {
+            'id' : a['id'],
+            'color' : '#112233',
+            'name' : 'Hello',
+            'public' : True,
+            'shared_with' : [ user ],
+            'visible' : False,
+        }
+
+        Execute('/wsi/api/save-user-layer', { 'layer' : b })
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(json.dumps(b, sort_keys=True),
+                         json.dumps(layers['user-layers'][0], sort_keys=True))
+
+
+        b['color'] = 'invalid'
+        self.assertRaises(Exception, lambda: Execute('/wsi/api/save-user-layer', { 'layer' : b }))
 
 try:
     print('\nStarting the tests...')
