@@ -86,6 +86,19 @@ ORTHANC = DefineOrthanc(server = args.server,
                         password = args.password,
                         restPort = args.rest)
 
+
+def Execute(uri, args = {}, user = 'admin@uclouvain.be'):
+    body = {
+        'level' : 'Series',
+        'resource' : 'test'
+    }
+
+    for (key, value) in args.items():
+        body[key] = value
+
+    return DoPost(ORTHANC, uri, body, headers = { 'Mail' : user })
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -95,9 +108,155 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(ORTHANC)
 
+        for user in [ 'admin@uclouvain.be' ]:
+            for project in [ '', 'hello' ]:
+                layers = Execute('/wsi/api/list-user-layers', { 'project' : project }, user = user)
 
-    def test_single(self):
-        print('hello')
+                for l in layers['user-layers']:
+                    Execute('/wsi/api/delete-user-layer', {
+                        'layer-id' : l['id'],
+                        'project' : project,
+                    }, user = user)
+
+                for l in layers['imported-layers']:
+                    Execute('/wsi/api/remove-imported-layer', {
+                        'layer-id' : l['id'],
+                        'project' : project,
+                    }, user = user)
+
+
+
+    def test_permissions(self):
+        info = DoPostRaw(ORTHANC, '/wsi/api/workspace-info', {})
+        self.assertEqual(403, info[0].status)
+
+        info = DoPostRaw(ORTHANC, '/wsi/api/workspace-info', {}, headers = { 'Mail' : '' })
+        self.assertEqual(400, info[0].status)  # Bad request
+
+        info = DoPostRaw(ORTHANC, '/wsi/api/workspace-info', {
+            'level' : 'Series',
+            'resource' : 'test'
+        }, headers = { 'Mail' : '' })
+        self.assertEqual(403, info[0].status)  # Guest users cannot access annotations
+
+        info = DoPost(ORTHANC, '/wsi/api/workspace-info', {
+            'level' : 'Series',
+            'resource' : 'test'
+        }, headers = { 'Mail' : 'admin@uclouvain.be' })
+
+        self.assertEqual(8, len(info))
+        self.assertEqual('', info['description'])
+        self.assertEqual('', info['name'])
+        self.assertEqual('', info['project'])
+        self.assertEqual('admin@uclouvain.be', info['user'])
+        self.assertEqual('instructor', info['role'])
+        self.assertTrue(info['enabled'])
+        self.assertTrue(info['persistent'])
+        self.assertTrue(info['sharing'])
+
+        info = DoPost(ORTHANC, '/wsi/api/workspace-info', {
+            'level' : 'Series',
+            'resource' : 'test',
+            'project' : 'hello',
+        }, headers = { 'Mail' : 'learner@uclouvain.be' })
+
+        self.assertEqual(8, len(info))
+        self.assertEqual('', info['description'])
+        self.assertEqual('', info['name'])
+        self.assertEqual('hello', info['project'])
+        self.assertEqual('learner', info['role'])
+        self.assertEqual('learner@uclouvain.be', info['user'])
+        self.assertTrue(info['enabled'])
+        self.assertTrue(info['persistent'])
+        self.assertTrue(info['sharing'])
+
+
+    def test_create_delete_layers(self):
+        layers = Execute('/wsi/api/list-user-layers')
+
+        self.assertEqual(2, len(layers))
+        self.assertTrue('imported-layers' in layers)
+        self.assertTrue('user-layers' in layers)
+        self.assertEqual(0, len(layers['imported-layers']))
+        self.assertEqual(0, len(layers['user-layers']))
+
+        a = Execute('/wsi/api/create-user-layer')
+        self.assertEqual(6, len(a))
+        self.assertEqual('#e63946', a['color'])
+        self.assertEqual('Default', a['name'])
+        self.assertFalse(a['public'])
+        self.assertEqual(0, len(a['shared_with']))
+        self.assertTrue(a['visible'])
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(0, len(layers['imported-layers']))
+        self.assertEqual(1, len(layers['user-layers']))
+        self.assertEqual(a['id'], layers['user-layers'][0]['id'])
+        self.assertEqual(json.dumps(a), json.dumps(layers['user-layers'][0]))
+
+        b = Execute('/wsi/api/create-user-layer')
+        self.assertEqual(6, len(b))
+        self.assertEqual('#2a9d8f', b['color'])
+        self.assertEqual('Layer 2', b['name'])
+        self.assertFalse(b['public'])
+        self.assertEqual(0, len(b['shared_with']))
+        self.assertTrue(b['visible'])
+
+        c = Execute('/wsi/api/create-user-layer')
+        self.assertEqual(6, len(c))
+        self.assertEqual('#e9c46a', c['color'])
+        self.assertEqual('Layer 3', c['name'])
+        self.assertFalse(c['public'])
+        self.assertEqual(0, len(c['shared_with']))
+        self.assertTrue(c['visible'])
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(0, len(layers['imported-layers']))
+        self.assertEqual(3, len(layers['user-layers']))
+
+        self.assertEqual(json.dumps(layers), json.dumps(Execute('/wsi/api/list-user-layers', { 'project' : '' })))
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : a['id'] })
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(0, len(layers['imported-layers']))
+        self.assertEqual(2, len(layers['user-layers']))
+
+        self.assertRaises(Exception, lambda: Execute('/wsi/api/delete-user-layer', { 'layer-id' : 'nope' }))
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : c['id'] })
+
+        self.assertRaises(Exception, lambda: Execute('/wsi/api/delete-user-layer', { 'layer-id' : c['id'] }))
+
+        layers = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(0, len(layers['imported-layers']))
+        self.assertEqual(1, len(layers['user-layers']))
+        self.assertEqual(b['id'], layers['user-layers'][0]['id'])
+        self.assertEqual(json.dumps(b), json.dumps(layers['user-layers'][0]))
+
+
+    def test_multiple_projects(self):
+        def GetNumberOfLayers(project):
+            return len(Execute('/wsi/api/list-user-layers', { 'project' : project }) ['user-layers'])
+
+        self.assertEqual(0, GetNumberOfLayers(''))
+        self.assertEqual(0, GetNumberOfLayers('hello'))
+
+        a = Execute('/wsi/api/create-user-layer')
+        self.assertEqual(1, GetNumberOfLayers(''))
+        self.assertEqual(0, GetNumberOfLayers('hello'))
+
+        b = Execute('/wsi/api/create-user-layer', { 'project' : 'hello' })
+        self.assertEqual(1, GetNumberOfLayers(''))
+        self.assertEqual(1, GetNumberOfLayers('hello'))
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : a['id'] })
+        self.assertEqual(0, GetNumberOfLayers(''))
+        self.assertEqual(1, GetNumberOfLayers('hello'))
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : b['id'], 'project' : 'hello' })
+        self.assertEqual(0, GetNumberOfLayers(''))
+        self.assertEqual(0, GetNumberOfLayers('hello'))
 
 
 try:

@@ -1,5 +1,5 @@
 {
-  "Plugins" : [ "." ],
+  "Plugins" : [ "${PWD}" ],
   "StorageDirectory" : "/tmp/orthanc-storage/",
   "RemoteAccessAllowed" : true,
   "AuthenticationEnabled" : true,
