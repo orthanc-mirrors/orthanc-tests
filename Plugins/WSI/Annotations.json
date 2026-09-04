@@ -1,0 +1,21 @@
+{
+  "Plugins" : [ "." ],
+  "StorageDirectory" : "/tmp/orthanc-storage/",
+  "RemoteAccessAllowed" : true,
+  "AuthenticationEnabled" : true,
+  "RegisteredUsers" : {
+    "alice" : "orthanctest"
+  },
+  "ExecuteLuaEnabled": true,
+
+  "WholeSlideImaging" : {
+    "AuthenticationSource" : "HttpHeader",
+    "AuthenticationHttpHeader" : "Mail",
+    "EnableAnnotations" : true,
+    "EnableAnnotationsSharing" : true,
+    "Instructors" : [
+      "admin@uclouvain.be",
+      "instructor@uclouvain.be"
+    ]
+  }
+}
