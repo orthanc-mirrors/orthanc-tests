@@ -142,7 +142,7 @@ class Orthanc(unittest.TestCase):
 
                 for l in layers['imported-layers']:
                     Execute('/wsi/api/remove-imported-layer', {
-                        'layer-id' : l['id'],
+                        'layer' : l['id'],
                         'project' : project,
                     }, user = user)
 
@@ -410,12 +410,23 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(expected_author, s[0]['name'])
 
             for i in ALL_USERS:
+                import_body = {
+                    'author' : CREATED_USERS[i],
+                    'layer' : expected_layer,
+                }
+
                 if i == expected_author:
                     s = Execute('/wsi/api/list-shared-layers', { 'author' : CREATED_USERS[i] }, user = viewer)
                     self.assertEqual(1, len(s))
+
+                    t = Execute('/wsi/api/import-layer', import_body, user = viewer)
+                    Execute('/wsi/api/remove-imported-layer', { 'layer' : expected_layer }, user = viewer)
                 else:
                     s = Execute('/wsi/api/list-shared-layers', { 'author' : CREATED_USERS[i] }, user = viewer)
                     self.assertEqual(0, len(s))
+
+                    self.assertRaises(Exception, lambda: Execute('/wsi/api/import-layer', import_body, user = viewer))
+
 
         instructor = CREATED_USERS['instructor@uclouvain.be']
         learner = CREATED_USERS['learner@uclouvain.be']
@@ -510,6 +521,110 @@ class Orthanc(unittest.TestCase):
         CheckNoSharing('learner2@uclouvain.be')
 
         Execute('/wsi/api/delete-user-layer', { 'layer-id' : a['id'] }, user = 'learner@uclouvain.be')
+
+
+    def test_import_layer(self):
+        a = Execute('/wsi/api/create-user-layer', user = 'learner@uclouvain.be')
+        a['public'] = True
+
+        self.assertRaises(Exception, lambda: Execute('/wsi/api/save-user-layer', { 'layer' : a }))
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'learner@uclouvain.be')
+
+        b = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(0, len(b['imported-layers']))
+
+        Execute('/wsi/api/import-layer', {
+            'author' : CREATED_USERS['learner@uclouvain.be'],
+            'layer' : a['id'],
+        })
+
+        b = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(1, len(b['imported-layers']))
+        imported = b['imported-layers'][0]
+
+        self.assertEqual(5, len(imported))
+        self.assertEqual('learner@uclouvain.be', imported['author']['name'])
+        self.assertEqual(1, imported['author']['type'])
+        self.assertEqual('#e63946', imported['color'])
+        self.assertEqual(a['id'], imported['id'])
+        self.assertEqual('Default', imported['name'])
+        self.assertTrue(imported['visible'])
+
+        Execute('/wsi/api/save-imported-layer', {
+            'layer' : {
+                'author' : imported['author'],
+                'id' : a['id'],
+                'color' : '#0000ff',
+                'visible' : False,
+                'name' : 'Hello',
+            }
+        })
+
+        b = Execute('/wsi/api/list-user-layers')
+        self.assertEqual(1, len(b['imported-layers']))
+        imported = b['imported-layers'][0]
+
+        self.assertEqual(5, len(imported))
+        self.assertEqual('learner@uclouvain.be', imported['author']['name'])
+        self.assertEqual(1, imported['author']['type'])
+        self.assertEqual('#0000ff', imported['color'])
+        self.assertEqual(a['id'], imported['id'])
+        self.assertEqual('Hello', imported['name'])
+        self.assertFalse(imported['visible'])
+
+        Execute('/wsi/api/remove-imported-layer', { 'layer' : a['id'] })
+
+
+    def test_import_features(self):
+        a = Execute('/wsi/api/create-user-layer')
+        a['public'] = True
+        Execute('/wsi/api/save-user-layer', { 'layer' : a })  # Make layer "a" public
+
+        b = Execute('/wsi/api/create-user-layer')  # Layer "b" is private
+
+        Execute('/wsi/api/import-layer', {
+            'author' : CREATED_USERS['admin@uclouvain.be'],
+            'layer' : a['id'],
+        }, user = 'learner@uclouvain.be')
+
+        c = Execute('/wsi/api/load-imported-features', user = 'learner@uclouvain.be')
+        self.assertEqual(0, len(c['features']))
+
+        Execute('/wsi/api/save-user-features', {
+            'features' : [
+                # Those are the minimal fields enforced by the plugin, the rest is managed by the JavaScript
+                { 'type' : 'a',
+                  'layer-id' : a['id'] },
+                { 'type' : 'b',
+                  'layer-id' : b['id'] },
+                { 'type' : 'c',
+                  'layer-id' : a['id'] }
+            ]
+        })
+
+        c = Execute('/wsi/api/load-imported-features', user = 'learner@uclouvain.be')
+        self.assertEqual(2, len(c['features']))
+        self.assertEqual('a', c['features'][0]['type'])
+        self.assertEqual(a['id'], c['features'][0]['layer-id'])
+        self.assertEqual('c', c['features'][1]['type'])
+        self.assertEqual(a['id'], c['features'][1]['layer-id'])
+
+        Execute('/wsi/api/save-user-features', {
+            'features' : [
+                { 'type' : 'b',
+                  'layer-id' : a['id'] },
+            ]
+        })
+
+        c = Execute('/wsi/api/load-imported-features', user = 'learner@uclouvain.be')
+        self.assertEqual(1, len(c['features']))
+        self.assertEqual('b', c['features'][0]['type'])
+        self.assertEqual(a['id'], c['features'][0]['layer-id'])
+
+        Execute('/wsi/api/remove-imported-layer', { 'layer' : a['id'] }, user = 'learner@uclouvain.be')
+
+        c = Execute('/wsi/api/load-imported-features', user = 'learner@uclouvain.be')
+        self.assertEqual(0, len(c['features']))
 
 
 try:
