@@ -13,7 +13,7 @@
     "AuthenticationHttpHeader" : "Mail",
     "EnableAnnotations" : true,
     "EnableAnnotationsSharing" : true,
-    "EnableLearnerToLearnerSharing" : false,
+    "EnableLearnerToLearnerSharing" : true,
     "Instructors" : [
       "admin@uclouvain.be",
       "instructor@uclouvain.be"

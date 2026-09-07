@@ -96,6 +96,16 @@ def Execute(uri, args = {}, user = 'admin@uclouvain.be'):
     return DoPost(ORTHANC, uri, body, headers = { 'Mail' : user })
 
 
+def UnpackSetOfStandardUsers(users):
+    s = []
+    for user in users:
+        assert(user['type'] == 1)
+        assert(not user['name'] in s)
+        s.append(user['name'])
+    return s
+
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -105,7 +115,12 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(ORTHANC)
 
-        for user in [ 'admin@uclouvain.be' ]:
+        for user in [
+                'admin@uclouvain.be',
+                'instructor@uclouvain.be',
+                'learner@uclouvain.be',
+                'learner2@uclouvain.be',
+        ]:
             for project in [ '', 'hello' ]:
                 layers = Execute('/wsi/api/list-user-layers', { 'project' : project }, user = user)
 
@@ -141,15 +156,17 @@ class Orthanc(unittest.TestCase):
             'resource' : 'test'
         }, headers = { 'Mail' : 'admin@uclouvain.be' })
 
-        self.assertEqual(8, len(info))
+        self.assertEqual(11, len(info))
         self.assertEqual('', info['description'])
         self.assertEqual('', info['name'])
         self.assertEqual('', info['project'])
         self.assertEqual('admin@uclouvain.be', info['user'])
-        self.assertEqual('instructor', info['role'])
+        self.assertFalse(info['is_learner'])
+        self.assertTrue(info['is_instructor'])
         self.assertTrue(info['enabled'])
         self.assertTrue(info['persistent'])
         self.assertTrue(info['sharing'])
+        self.assertTrue('learner_to_learner_sharing' in info)
 
         info = DoPost(ORTHANC, '/wsi/api/workspace-info', {
             'level' : 'Series',
@@ -157,15 +174,17 @@ class Orthanc(unittest.TestCase):
             'project' : 'hello',
         }, headers = { 'Mail' : 'learner@uclouvain.be' })
 
-        self.assertEqual(8, len(info))
+        self.assertEqual(11, len(info))
         self.assertEqual('', info['description'])
         self.assertEqual('', info['name'])
         self.assertEqual('hello', info['project'])
-        self.assertEqual('learner', info['role'])
         self.assertEqual('learner@uclouvain.be', info['user'])
+        self.assertTrue(info['is_learner'])
+        self.assertFalse(info['is_instructor'])
         self.assertTrue(info['enabled'])
         self.assertTrue(info['persistent'])
         self.assertTrue(info['sharing'])
+        self.assertTrue('learner_to_learner_sharing' in info)
 
 
     def test_create_delete_layers(self):
@@ -294,6 +313,55 @@ class Orthanc(unittest.TestCase):
 
         b['color'] = 'invalid'
         self.assertRaises(Exception, lambda: Execute('/wsi/api/save-user-layer', { 'layer' : b }))
+
+
+    def test_search_active_users(self):
+        a = Execute('/wsi/api/create-user-layer')  # admin@uclouvain.be
+        b = Execute('/wsi/api/create-user-layer', user = 'instructor@uclouvain.be')
+        c = Execute('/wsi/api/create-user-layer', user = 'learner@uclouvain.be')
+        d = Execute('/wsi/api/create-user-layer', user = 'learner2@uclouvain.be')
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : '' }))
+        self.assertEqual(3, len(v))
+        self.assertTrue('instructor@uclouvain.be' in v)
+        self.assertTrue('learner@uclouvain.be' in v)
+        self.assertTrue('learner2@uclouvain.be' in v)
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : 'l' }))
+        self.assertEqual(3, len(v))
+        self.assertTrue('instructor@uclouvain.be' in v)
+        self.assertTrue('learner@uclouvain.be' in v)
+        self.assertTrue('learner2@uclouvain.be' in v)
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : 'lear' }))
+        self.assertEqual(2, len(v))
+        self.assertTrue('learner@uclouvain.be' in v)
+        self.assertTrue('learner2@uclouvain.be' in v)
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : 'ins' }))
+        self.assertEqual(1, len(v))
+        self.assertTrue('instructor@uclouvain.be' in v)
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : '' }, user = 'instructor@uclouvain.be'))
+        self.assertEqual(3, len(v))
+        self.assertTrue('admin@uclouvain.be' in v)
+        self.assertTrue('learner@uclouvain.be' in v)
+        self.assertTrue('learner2@uclouvain.be' in v)
+
+        info = Execute('/wsi/api/workspace-info')
+        pprint.pprint(info)
+
+        v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : '' }, user = 'learner@uclouvain.be'))
+        if info['learner_to_learner_sharing']:
+            self.assertEqual(3, len(v))
+            self.assertTrue('admin@uclouvain.be' in v)
+            self.assertTrue('instructor@uclouvain.be' in v)
+            self.assertTrue('learner2@uclouvain.be' in v)
+        else:
+            self.assertEqual(2, len(v))
+            self.assertTrue('admin@uclouvain.be' in v)
+            self.assertTrue('instructor@uclouvain.be' in v)
+
 
 try:
     print('\nStarting the tests...')
