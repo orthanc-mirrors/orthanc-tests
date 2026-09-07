@@ -96,16 +96,6 @@ def Execute(uri, args = {}, user = 'admin@uclouvain.be'):
     return DoPost(ORTHANC, uri, body, headers = { 'Mail' : user })
 
 
-def UnpackSetOfStandardUsers(users):
-    s = []
-    for user in users:
-        assert(user['type'] == 1)
-        assert(not user['name'] in s)
-        s.append(user['name'])
-    return s
-
-
-
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -316,6 +306,14 @@ class Orthanc(unittest.TestCase):
 
 
     def test_search_active_users(self):
+        def UnpackSetOfStandardUsers(users):
+            s = []
+            for user in users:
+                self.assertEqual(1, user['type'])  # This corresponds to int(OrthancWSI::UserId::Type_Standard) in C++ code
+                self.assertFalse(user['name'] in s)
+                s.append(user['name'])
+            return s
+
         a = Execute('/wsi/api/create-user-layer')  # admin@uclouvain.be
         b = Execute('/wsi/api/create-user-layer', user = 'instructor@uclouvain.be')
         c = Execute('/wsi/api/create-user-layer', user = 'learner@uclouvain.be')
@@ -349,7 +347,6 @@ class Orthanc(unittest.TestCase):
         self.assertTrue('learner2@uclouvain.be' in v)
 
         info = Execute('/wsi/api/workspace-info')
-        pprint.pprint(info)
 
         v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : '' }, user = 'learner@uclouvain.be'))
         if info['learner_to_learner_sharing']:
