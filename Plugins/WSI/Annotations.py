@@ -84,6 +84,20 @@ ORTHANC = DefineOrthanc(server = args.server,
                         restPort = args.rest)
 
 
+ALL_USERS = [
+    'admin@uclouvain.be',
+    'instructor@uclouvain.be',
+    'learner2@uclouvain.be',
+    'learner@uclouvain.be',
+]
+
+
+ALL_PROJECTS = [
+    '',
+    'hello',
+]
+
+
 def Execute(uri, args = {}, user = 'admin@uclouvain.be'):
     body = {
         'level' : 'Series',
@@ -96,6 +110,17 @@ def Execute(uri, args = {}, user = 'admin@uclouvain.be'):
     return DoPost(ORTHANC, uri, body, headers = { 'Mail' : user })
 
 
+CREATED_USERS = {}
+
+for user in ALL_USERS:
+    CREATED_USERS[user] = Execute('/wsi/api/create-standard-user', { 'name' : user })
+
+    for project in ALL_PROJECTS:
+        # Enforce the existence as an active user
+        layer = Execute('/wsi/api/create-user-layer', { 'project' : project }, user = user)
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : layer['id'], 'project' : project }, user = user)
+
+
 class Orthanc(unittest.TestCase):
     def setUp(self):
         if (sys.version_info >= (3, 0)):
@@ -105,13 +130,8 @@ class Orthanc(unittest.TestCase):
 
         DropOrthanc(ORTHANC)
 
-        for user in [
-                'admin@uclouvain.be',
-                'instructor@uclouvain.be',
-                'learner@uclouvain.be',
-                'learner2@uclouvain.be',
-        ]:
-            for project in [ '', 'hello' ]:
+        for user in ALL_USERS:
+            for project in ALL_PROJECTS:
                 layers = Execute('/wsi/api/list-user-layers', { 'project' : project }, user = user)
 
                 for l in layers['user-layers']:
@@ -125,7 +145,6 @@ class Orthanc(unittest.TestCase):
                         'layer-id' : l['id'],
                         'project' : project,
                     }, user = user)
-
 
 
     def test_permissions(self):
@@ -314,11 +333,6 @@ class Orthanc(unittest.TestCase):
                 s.append(user['name'])
             return s
 
-        a = Execute('/wsi/api/create-user-layer')  # admin@uclouvain.be
-        b = Execute('/wsi/api/create-user-layer', user = 'instructor@uclouvain.be')
-        c = Execute('/wsi/api/create-user-layer', user = 'learner@uclouvain.be')
-        d = Execute('/wsi/api/create-user-layer', user = 'learner2@uclouvain.be')
-
         v = UnpackSetOfStandardUsers(Execute('/wsi/api/search-active-users', { 'query' : '' }))
         self.assertEqual(3, len(v))
         self.assertTrue('instructor@uclouvain.be' in v)
@@ -358,6 +372,144 @@ class Orthanc(unittest.TestCase):
             self.assertEqual(2, len(v))
             self.assertTrue('admin@uclouvain.be' in v)
             self.assertTrue('instructor@uclouvain.be' in v)
+
+
+    def test_user_features(self):
+        Execute('/wsi/api/save-user-features', {
+            'features' : [
+                # Those are the minimal fields enforced by the plugin, the rest is managed by the JavaScript
+                { 'type' : 'a',
+                  'layer-id' : 'b' },
+                { 'type' : 'c',
+                  'layer-id' : 'd' }
+            ]
+        })
+
+        a = Execute('/wsi/api/load-user-features') ['features']
+        self.assertEqual(2, len(a))
+        self.assertEqual('a', a[0]['type'])
+        self.assertEqual('b', a[0]['layer-id'])
+        self.assertEqual('c', a[1]['type'])
+        self.assertEqual('d', a[1]['layer-id'])
+
+
+    def test_list_sharing_users(self):
+        def CheckNoSharing(viewer):
+            s = Execute('/wsi/api/list-sharing-users', user = viewer)
+            self.assertEqual(0, len(s))
+
+            for i in ALL_USERS:
+                s = Execute('/wsi/api/list-shared-layers', { 'author' : CREATED_USERS[i] }, user = viewer)
+                self.assertEqual(0, len(s))
+
+        def CheckSharingUser(expected_author, expected_layer, viewer):
+            s = Execute('/wsi/api/list-sharing-users', user = viewer)
+            self.assertEqual(1, len(s))
+            self.assertEqual(2, len(s[0]))
+            self.assertEqual(1, s[0]['type'])
+            self.assertEqual(expected_author, s[0]['name'])
+
+            for i in ALL_USERS:
+                if i == expected_author:
+                    s = Execute('/wsi/api/list-shared-layers', { 'author' : CREATED_USERS[i] }, user = viewer)
+                    self.assertEqual(1, len(s))
+                else:
+                    s = Execute('/wsi/api/list-shared-layers', { 'author' : CREATED_USERS[i] }, user = viewer)
+                    self.assertEqual(0, len(s))
+
+        instructor = CREATED_USERS['instructor@uclouvain.be']
+        learner = CREATED_USERS['learner@uclouvain.be']
+        learner2 = CREATED_USERS['learner2@uclouvain.be']
+
+        # Test sharing from instructors
+        a = Execute('/wsi/api/create-user-layer', user = 'admin@uclouvain.be')
+
+        CheckNoSharing('admin@uclouvain.be')
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+        CheckNoSharing('learner@uclouvain.be')
+
+        a['shared_with'] = []
+        a['public'] = True
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'admin@uclouvain.be')
+
+        CheckSharingUser('admin@uclouvain.be', a['id'], 'instructor@uclouvain.be')
+        CheckSharingUser('admin@uclouvain.be', a['id'], 'learner@uclouvain.be')
+        CheckSharingUser('admin@uclouvain.be', a['id'], 'learner2@uclouvain.be')
+
+        a['shared_with'] = []
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'admin@uclouvain.be')
+
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('learner@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+
+        a['shared_with'] = [ learner ]
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'admin@uclouvain.be')
+
+        CheckSharingUser('admin@uclouvain.be', a['id'], 'learner@uclouvain.be')
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+
+        a['shared_with'] = [ instructor ]
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'admin@uclouvain.be')
+
+        CheckSharingUser('admin@uclouvain.be', a['id'], 'instructor@uclouvain.be')
+        CheckNoSharing('learner@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : a['id'] }, user = 'admin@uclouvain.be')
+
+
+        # Test sharing from learners
+        a = Execute('/wsi/api/create-user-layer', user = 'learner@uclouvain.be')
+
+        CheckNoSharing('admin@uclouvain.be')
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+        CheckNoSharing('learner@uclouvain.be')
+
+        a['shared_with'] = []
+        a['public'] = True
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'learner@uclouvain.be')
+
+        CheckSharingUser('learner@uclouvain.be', a['id'], 'instructor@uclouvain.be')
+        CheckSharingUser('learner@uclouvain.be', a['id'], 'admin@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')  # For learners, "public" means "shared with any instructor"
+
+        a['shared_with'] = []
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'learner@uclouvain.be')
+
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('admin@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+
+        a['shared_with'] = [ learner2 ]
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'learner@uclouvain.be')
+
+        info = Execute('/wsi/api/workspace-info')
+        if info['learner_to_learner_sharing']:
+            CheckSharingUser('learner@uclouvain.be', a['id'], 'learner2@uclouvain.be')
+        else:
+            CheckNoSharing('learner2@uclouvain.be')
+
+        CheckNoSharing('instructor@uclouvain.be')
+        CheckNoSharing('admin@uclouvain.be')
+
+        a['shared_with'] = [ instructor ]
+        a['public'] = False
+        Execute('/wsi/api/save-user-layer', { 'layer' : a }, user = 'learner@uclouvain.be')
+
+        CheckSharingUser('learner@uclouvain.be', a['id'], 'instructor@uclouvain.be')
+        CheckNoSharing('admin@uclouvain.be')
+        CheckNoSharing('learner2@uclouvain.be')
+
+        Execute('/wsi/api/delete-user-layer', { 'layer-id' : a['id'] }, user = 'learner@uclouvain.be')
 
 
 try:
