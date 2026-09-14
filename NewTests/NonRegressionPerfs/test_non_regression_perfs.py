@@ -1,6 +1,7 @@
 import subprocess
 import time
 import unittest
+import random
 from orthanc_api_client import OrthancApiClient
 from orthanc_tools import OrthancTestDbPopulator
 from helpers import Helpers, wait_container_healthy
@@ -142,6 +143,12 @@ class TestNonRegressionPerfs(unittest.TestCase):
 
         self.measure(test_name="populate 3000 instances with 5 workers",
                      perform_test=lambda o: OrthancTestDbPopulator(o, studies_count=5, series_count=3, instances_count=120, random_seed=65, worker_threads_count=5).execute(),
+                     reapeat_count=1,
+                     test_configs=test_configs,
+                     test_results=test_results)
+
+        self.measure(test_name="access individual instances metadata (1000)",
+                     perform_test=lambda o: [o.instances.get_metadata(i) for i in random.sample(o.instances.get_all_ids(), 1000)],
                      reapeat_count=1,
                      test_configs=test_configs,
                      test_results=test_results)

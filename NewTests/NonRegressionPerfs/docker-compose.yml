@@ -1,7 +1,7 @@
 services:
 
   orthanc-ref:
-    image: orthancteam/orthanc:26.1.0
+    image: orthancteam/orthanc:26.9.0
     depends_on: [orthanc-ref-db]
     restart: unless-stopped
     ports: ["8142:8042"]
@@ -51,7 +51,7 @@ services:
 
 
   orthanc-ref-s3:
-    image: orthancteam/orthanc:26.1.0
+    image: orthancteam/orthanc:26.9.0
     depends_on: [orthanc-ref-db-s3]
     restart: unless-stopped
     ports: ["8242:8042"]
