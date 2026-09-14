@@ -66,9 +66,9 @@ services:
           "AwsS3Storage": {
             "BucketName": "default-bucket",
             "Region": "eu-west-1",
-            "AccessKey": "minio",
-            "SecretKey": "miniopwd",
-            "Endpoint": "http://toxiproxy-ref-s3:9000",
+            "AccessKey": "s3-like-admin",
+            "SecretKey": "change-me",
+            "Endpoint": "http://toxiproxy-ref-s3:8333",
             "VirtualAddressing": false
           }
         }
@@ -89,9 +89,9 @@ services:
           "AwsS3Storage": {
             "BucketName": "default-bucket",
             "Region": "eu-west-1",
-            "AccessKey": "minio",
-            "SecretKey": "miniopwd",
-            "Endpoint": "http://toxiproxy-new-s3:9000",
+            "AccessKey": "s3-like-admin",
+            "SecretKey": "change-me",
+            "Endpoint": "http://toxiproxy-new-s3:8333",
             "VirtualAddressing": false
           }
         }
@@ -114,42 +114,38 @@ services:
       POSTGRES_HOST_AUTH_METHOD: "trust"
 
 
-  minio-ref:
-      image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-      # don't expose these ports in a real world setup
-      # ports: [9000:9000, 9001:9001]
-      environment:
-          - MINIO_REGION=eu-west-1
-          - MINIO_ROOT_USER=minio
-          - MINIO_ROOT_PASSWORD=miniopwd
-      volumes:
-          - storage-minio-ref-s3:/data
-      entrypoint: sh
-      command: -c 'mkdir -p /data/default-bucket && /usr/bin/docker-entrypoint.sh server /data --console-address ":9001"'
+  s3-like-ref:
+    image: chrislusf/seaweedfs
+    # ports: [8333:8333]
+    environment:
+      - AWS_ACCESS_KEY_ID=s3-like-admin
+      - AWS_SECRET_ACCESS_KEY=change-me
+      - S3_BUCKET=default-bucket
+    volumes:
+        - storage-ref-s3:/data
+    command: mini -dir=/data
 
-  minio-new:
-      image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-      # don't expose these ports in a real world setup
-      # ports: [9000:9000, 9001:9001]
-      environment:
-          - MINIO_REGION=eu-west-1
-          - MINIO_ROOT_USER=minio
-          - MINIO_ROOT_PASSWORD=miniopwd
-      volumes:
-          - storage-minio-new-s3:/data
-      entrypoint: sh
-      command: -c 'mkdir -p /data/default-bucket && /usr/bin/docker-entrypoint.sh server /data --console-address ":9001"'
+
+  s3-like-new:
+    image: chrislusf/seaweedfs
+    ports: [8333:8333]
+    environment:
+      - AWS_ACCESS_KEY_ID=s3-like-admin
+      - AWS_SECRET_ACCESS_KEY=change-me
+      - S3_BUCKET=default-bucket
+    volumes:
+        - storage-new-s3:/data
+    command: mini -dir=/data
+
 
   toxiproxy-ref-s3:
       depends_on: 
-          - minio-ref
-      # ports: ["19200:9000"]
+          - s3-like-ref
       image: ghcr.io/shopify/toxiproxy
 
   toxiproxy-new-s3:
       depends_on: 
-          - minio-new
-      # ports: ["19201:9000"]
+          - s3-like-new
       image: ghcr.io/shopify/toxiproxy
 
 
@@ -161,10 +157,10 @@ services:
       restart: on-failure
       entrypoint: >
           sh -c "sleep 3;
-          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"minio\",\"listen\":\"0.0.0.0:9000\",\"upstream\":\"minio-ref:9000\"}';
-          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies/minio/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
-          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"minio\",\"listen\":\"0.0.0.0:9000\",\"upstream\":\"minio-new:9000\"}';
-          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies/minio/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
+          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"s3-like\",\"listen\":\"0.0.0.0:8333\",\"upstream\":\"s3-like-ref:8333\"}';
+          curl -sf -X POST http://toxiproxy-ref-s3:8474/proxies/s3-like/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
+          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies -H 'Content-Type: application/json' -d '{\"name\":\"s3-like\",\"listen\":\"0.0.0.0:8333\",\"upstream\":\"s3-like-new:8333\"}';
+          curl -sf -X POST http://toxiproxy-new-s3:8474/proxies/s3-like/toxics -H 'Content-Type: application/json' -d '{\"type\":\"latency\",\"attributes\":{\"latency\":10,\"jitter\":0}}';
           "
 
 volumes:
@@ -172,7 +168,7 @@ volumes:
   storage-orthanc-new:
   storage-db-ref:
   storage-db-new:
-  storage-minio-ref-s3:
-  storage-minio-new-s3:
+  storage-ref-s3:
+  storage-new-s3:
   storage-db-ref-s3:
   storage-db-new-s3:  
