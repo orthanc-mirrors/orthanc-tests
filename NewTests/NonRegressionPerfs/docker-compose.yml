@@ -1,11 +1,13 @@
 services:
 
   orthanc-ref:
-    image: orthancteam/orthanc:26.1.0
+    image: orthancteam/orthanc:26.9.0
     depends_on: [orthanc-ref-db]
     restart: unless-stopped
     ports: ["8142:8042"]
-    volumes: ["storage-orthanc-ref:/var/lib/orthanc/db"]
+    volumes: 
+      - storage-orthanc-ref:/var/lib/orthanc/db
+      - ./plugin.py:/scripts/plugin.py
     environment:
       VERBOSE_ENABLED: "true"
       ORTHANC__POSTGRESQL__HOST: "orthanc-ref-db"
@@ -13,7 +15,8 @@ services:
         {
           "Name": "Orthanc-ref",
           "AuthenticationEnabled": false,
-          "OverwriteInstances": true
+          "OverwriteInstances": true,
+          "PythonScript": "/scripts/plugin.py"
         }
 
   orthanc-new:
@@ -21,7 +24,9 @@ services:
     depends_on: [orthanc-new-db]
     restart: unless-stopped
     ports: ["8143:8042"]
-    volumes: ["storage-orthanc-new:/var/lib/orthanc/db"]
+    volumes: 
+      - storage-orthanc-new:/var/lib/orthanc/db
+      - ./plugin.py:/scripts/plugin.py
     environment:
       VERBOSE_ENABLED: "true"
       ORTHANC__POSTGRESQL__HOST: "orthanc-new-db"
@@ -29,7 +34,8 @@ services:
         {
           "Name": "Orthanc-under-tests",
           "AuthenticationEnabled": false,
-          "OverwriteInstances": true
+          "OverwriteInstances": true,
+          "PythonScript": "/scripts/plugin.py"
         }
 
 
@@ -51,7 +57,7 @@ services:
 
 
   orthanc-ref-s3:
-    image: orthancteam/orthanc:26.1.0
+    image: orthancteam/orthanc:26.9.0
     depends_on: [orthanc-ref-db-s3]
     restart: unless-stopped
     ports: ["8242:8042"]
