@@ -10982,7 +10982,7 @@ class Orthanc(unittest.TestCase):
             studyLastUpdate1 = DoGet(_REMOTE, '/studies/%s/metadata/LastUpdate' % i['ParentStudy'])
             patientLastUpdate1 = DoGet(_REMOTE, '/patients/%s/metadata/LastUpdate' % i['ParentPatient'])
             
-            time.sleep(1.01)
+            time.sleep(1.1)
             DoDelete(_REMOTE, '/instances/%s' % j['ID'])
 
             #instanceLastUpdate2 = DoGet(_REMOTE, '/instances/%s/metadata/LastUpdate' % i['ID'])

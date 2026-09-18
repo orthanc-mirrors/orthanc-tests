@@ -142,7 +142,13 @@ class TestNonRegressionPerfs(unittest.TestCase):
         print(f"{'-'*129}")
 
         self.measure(test_name="populate 3000 instances with 5 workers",
-                     perform_test=lambda o: OrthancTestDbPopulator(o, studies_count=5, series_count=3, instances_count=120, random_seed=65, worker_threads_count=5).execute(),
+                     perform_test=lambda o: OrthancTestDbPopulator(o, studies_count=50, series_count=3, instances_count=120, random_seed=65, worker_threads_count=5).execute(),
+                     reapeat_count=1,
+                     test_configs=test_configs,
+                     test_results=test_results)
+
+        self.measure(test_name="update attachments custom data (1000)",
+                     perform_test=lambda o: [o.post(f"/instances/{i}/update-custom-data", json={}) for i in random.sample(o.instances.get_all_ids(), 2000)],
                      reapeat_count=1,
                      test_configs=test_configs,
                      test_results=test_results)
