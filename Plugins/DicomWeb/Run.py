@@ -1794,6 +1794,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_forwarded_headers(self):
+        # config reminder: 'AllowedHosts': ['my-allowed-domain.com', 'my2.allowed.*', 'my3.*.com', '*.white-listed.com']
         study = UploadInstance(ORTHANC, 'ColorTestImageJ.dcm')['ParentStudy']
         studyId = DoGet(ORTHANC, '/studies/%s' % study)['MainDicomTags']['StudyInstanceUID']
 
@@ -1801,21 +1802,40 @@ class Orthanc(unittest.TestCase):
         self.assertIn(ORTHANC['Url'], m[0][u'7FE00010']['BulkDataURI'])
 
         m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
-            'host': 'my-domain'
+            'host': 'my-allowed-domain.com'
         })
-        self.assertIn("http://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+        self.assertIn("http://my-allowed-domain.com/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
 
         m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
-            'forwarded': 'host=my-domain;proto=https'
+            'forwarded': 'host=my2.allowed.toto;proto=https'
         })
-        self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+        self.assertIn("https://my2.allowed.toto/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+        m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+            'forwarded': 'host=localhost.white-listed.com;proto=https'
+        })
+        self.assertIn("https://localhost.white-listed.com/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
 
         if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 13, 1):
             m = DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
-                'X-Forwarded-Host': 'my-domain',
+                'X-Forwarded-Host': 'my3.toto.com',
                 'X-Forwarded-Proto': 'https'
             })
-            self.assertIn("https://my-domain/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+            self.assertIn("https://my3.toto.com/dicom-web", m[0][u'7FE00010']['BulkDataURI'])
+
+        if IsPluginVersionAtLeast(ORTHANC, "dicom-web", 1, 25, 0):
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+                'host': 'my-forbidden-domain.com'
+                }))
+
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+                'host': 'localhost.my-allowed-domain.com'
+                }))
+
+            self.assertRaises(Exception, lambda: DoGet(ORTHANC, '/dicom-web/studies/%s/metadata' % studyId, headers= {
+                'host': '127.0.0.1.my-allowed-domain.com'
+                }))
+
 
 
     def test_full_mode_cache(self):

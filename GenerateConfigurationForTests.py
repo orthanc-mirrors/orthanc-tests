@@ -210,7 +210,8 @@ config['DicomWeb'] = {
             'alice', 
             'orthanctest' 
         ]
-    }
+    },
+    'AllowedHosts': ['my-allowed-domain.com', 'my2.allowed.*', 'my3.*.com', '*.white-listed.com']
 }
 
 config['Worklists'] = {

@@ -58,7 +58,8 @@
         "http://localhost:8042/dicom-web/", 
         "alice", 
         "orthanctest"
-       ]
+       ],
+       "AllowedHosts": ["my-allowed-domain.com", "my2.allowed.*", "my3.*.com", "*.white-listed.com"]
       }
      }, 
      "Dictionary": {
