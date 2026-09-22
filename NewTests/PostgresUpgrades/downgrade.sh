@@ -15,7 +15,7 @@ apt-get update && apt-get install -y wget
 
     # psql -U postgres -f /scripts/orthanc-databases/PostgreSQL/Plugins/SQL/Downgrades/Rev10ToRev6.sql
 
-wget https://orthanc.uclouvain.be/hg/orthanc-databases/raw-file/tip/PostgreSQL/Plugins/SQL/Downgrades/Rev1099ToRev10.sql --output-document /tmp/downgrade.sql
+wget https://orthanc.uclouvain.be/hg/orthanc-databases/raw-file/default/PostgreSQL/Plugins/SQL/Downgrades/Rev11ToRev10.sql --output-document /tmp/downgrade.sql
 
 psql -U postgres -f /tmp/downgrade.sql
 
