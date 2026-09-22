@@ -61,6 +61,8 @@ services:
     depends_on: [orthanc-ref-db-s3]
     restart: unless-stopped
     ports: ["8242:8042"]
+    volumes: 
+      - ./plugin.py:/scripts/plugin.py
     environment:
       VERBOSE_ENABLED: "true"
       ORTHANC__POSTGRESQL__HOST: "orthanc-ref-db-s3"
@@ -69,6 +71,7 @@ services:
           "Name": "Orthanc-ref-s3",
           "AuthenticationEnabled": false,
           "OverwriteInstances": true,
+          "PythonScript": "/scripts/plugin.py",
           "AwsS3Storage": {
             "BucketName": "default-bucket",
             "Region": "eu-west-1",
@@ -84,6 +87,8 @@ services:
     depends_on: [orthanc-new-db-s3]
     restart: unless-stopped
     ports: ["8243:8042"]
+    volumes: 
+      - ./plugin.py:/scripts/plugin.py
     environment:
       VERBOSE_ENABLED: "true"
       ORTHANC__POSTGRESQL__HOST: "orthanc-new-db-s3"
@@ -92,6 +97,7 @@ services:
           "Name": "Orthanc-under-tests-s3",
           "AuthenticationEnabled": false,
           "OverwriteInstances": true,
+          "PythonScript": "/scripts/plugin.py",
           "AwsS3Storage": {
             "BucketName": "default-bucket",
             "Region": "eu-west-1",
