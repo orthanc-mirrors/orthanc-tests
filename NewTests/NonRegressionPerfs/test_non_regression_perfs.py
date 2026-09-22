@@ -129,6 +129,7 @@ class TestNonRegressionPerfs(unittest.TestCase):
         subprocesss_env["ORTHANC_IMAGE_UNDER_TESTS"] = Helpers.orthanc_under_tests_docker_image
 
         print("Launching containers")
+        subprocess.run(["docker", "compose", "down", "-v"], env=subprocesss_env, check=True)
         subprocess.run(["docker", "compose", "up", "-d"], env=subprocesss_env, check=True)
         
         o_ref = OrthancApiClient(test_configs["ref"]["orthanc-url"])
@@ -169,14 +170,24 @@ class TestNonRegressionPerfs(unittest.TestCase):
                      perform_test=lambda o: [o.get_binary(endpoint=f"/studies/{i}/archive?transcode=1.2.840.10008.1.2.4.70") for i in o.studies.get_all_ids()],
                      reapeat_count=5,
                      test_configs=test_configs,
-                     test_results=test_results)
+                     test_results=test_results,
+                     tolerance_pct=0.40)
 
         self.measure(test_name="download archives with transcoding 5x5 (parallel)",
                      perform_test=lambda o: [o.get_binary(endpoint=f"/studies/{i}/archive?transcode=1.2.840.10008.1.2.4.70") for i in o.studies.get_all_ids()],
                      reapeat_count=1,
                      parallel_count=5,
                      test_configs=test_configs,
-                     test_results=test_results)
+                     test_results=test_results,
+                     tolerance_pct=0.40)
+
+        self.measure(test_name="download archives no transcoding 5x5 (parallel)",
+                     perform_test=lambda o: [o.get_binary(endpoint=f"/studies/{i}/archive") for i in o.studies.get_all_ids()],
+                     reapeat_count=1,
+                     parallel_count=5,
+                     test_configs=test_configs,
+                     test_results=test_results,
+                     tolerance_pct=0.40)
 
         self.measure(test_name="get simplified tags 1x1000 (sequential)",
                      perform_test=lambda o: [o.instances.get_tags(i) for i in o.instances.get_all_ids()[:1000]],
