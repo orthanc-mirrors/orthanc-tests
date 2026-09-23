@@ -20,10 +20,7 @@ apt-get update && apt-get install -y wget
 wget https://orthanc.uclouvain.be/hg/orthanc-databases/raw-file/default/PostgreSQL/Plugins/SQL/Downgrades/Rev11ToRev10.sql --output-document /tmp/downgrade.sql
 
 psql -v ON_ERROR_STOP=1 -U postgres -f /tmp/downgrade.sql
-if [ $? -ne 0 ]; then
-    echo "psql failed!"
-    exit 1
-fi
+
 # if you want to test a downgrade procedure, you may use this code ...
-# psql -U postgres -f downgrade.sql
+# psql -v ON_ERROR_STOP=1  -U postgres -f downgrade.sql
 popd
