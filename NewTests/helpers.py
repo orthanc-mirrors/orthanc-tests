@@ -117,7 +117,7 @@ class OrthancTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        if not Helpers.break_after_preparation:
+        if not Helpers.break_after_preparation and not Helpers.tests_run_in_docker:
             cls.kill_orthanc()
         cls.terminate()
 

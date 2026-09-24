@@ -1,0 +1,46 @@
+services:
+
+  orthanc-under-tests:
+    image: ${ORTHANC_IMAGE_UNDER_TESTS:-orthancteam/orthanc:latest}
+    container_name: orthanc-under-tests
+    restart: unless-stopped
+    ports: ["8052:8052"]
+    volumes: ["storage-orthanc:/var/lib/orthanc/db"]
+    environment:
+      VERBOSE_STARTUP: "true"
+      VERBOSE_ENABLED: "true"
+      ORTHANC_JSON: |
+        {
+          "AuthenticationEnabled": false,
+          "DicomAet": "ORTHANC",
+          "Name": "Orthanc for storage commitment",
+          "HttpPort": 8052,
+          "DicomPort": 4252,
+          
+          "DicomModalities": {
+            "fake-mod": {
+                "AET": "FAKE_MOD",
+                "Port": 4999,
+                "Host": "tests"
+            },
+            "alternate-mod": {
+                "AET": "ALTERNATE",
+                "Port": 4999,
+                "Host": "tests"
+            }
+          }
+        }
+
+
+  tests:
+    build:
+      dockerfile: StorageCommitment/Dockerfile
+      context: ..
+    container_name: tests
+    depends_on:
+      - orthanc-under-tests
+    ports: ["4999:4999"]
+    entrypoint: python /NewTests/main.py --pattern=StorageCommitment.test_storage_commitment.TestStorageCommitment.* --orthanc_under_tests_hostname=orthanc-under-tests --tests_run_in_docker
+
+volumes:
+  storage-orthanc:

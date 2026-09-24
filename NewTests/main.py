@@ -19,6 +19,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Executes Orthanc integration tests.')
     parser.add_argument('-k', '--pattern', dest='test_name_patterns', action='append', type=str, help='a test pattern (ex: Housekeeper.toto')
+    parser.add_argument('--tests_run_in_docker', action='store_true', help="set to true if the tests are running in a Docker container inside the docker compose")
     parser.add_argument('--orthanc_under_tests_hostname', type=str, default="localhost", help="orthanc under tests hostname")
     parser.add_argument('--orthanc_under_tests_http_port', type=int, default=8052, help="orthanc under tests HTTP port")
     parser.add_argument('--orthanc_under_tests_dicom_port', type=int, default=4252, help="orthanc under tests DICOM port")
@@ -32,6 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--db', type=str, default='unspecified', help="the DB engine to use")
     parser.add_argument('-p', '--plugin', dest='plugins', action='append', type=str, help='path to a plugin to add to configuration')
 
+
     args = parser.parse_args()
 
     loader = unittest.TestLoader()
@@ -40,6 +42,7 @@ if __name__ == '__main__':
     Helpers.orthanc_under_tests_hostname = args.orthanc_under_tests_hostname
     Helpers.orthanc_under_tests_http_port = args.orthanc_under_tests_http_port
     Helpers.orthanc_under_tests_dicom_port = args.orthanc_under_tests_dicom_port
+    Helpers.tests_run_in_docker = args.tests_run_in_docker
     Helpers.plugins = args.plugins
     Helpers.db = args.db
 

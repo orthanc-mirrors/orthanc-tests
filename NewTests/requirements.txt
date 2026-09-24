@@ -2,3 +2,5 @@ orthanc-api-client>=0.24.1
 orthanc-tools>=0.18.2
 uvicorn
 fastapi
+pydicom
+pynetdicom

@@ -290,6 +290,20 @@ NonRegressionPerfs:
 with Docker:
 
 python3 NewTests/main.py --pattern=NonRegressionPerfs.test_non_regression_perfs.TestNonRegressionPerfs.* \
-                         --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:master-normal-stable-before-tests-amd64 \
+                         --orthanc_under_tests_docker_image=orthancteam/orthanc-pre-release:master-normal-unstable-before-tests-amd64 \
                          --orthanc_under_tests_http_port=8043
+
+
+StorageCommitment:
+-----------------
+
+Run the StorageCommitment tests with your locally build version and break before execution to allow you to start your debugger.
+
+python3 NewTests/main.py --pattern=StorageCommitment.test_storage_commitment.TestStorageCommitment.* \
+                         --orthanc_under_tests_exe=/home/alain/o/build/orthanc/Orthanc \
+                         --break_after_preparation
+
+with Docker:
+
+ORTHANC_IMAGE_UNDER_TESTS=orthancteam/orthanc-pre-release:master-normal-unstable-before-tests-amd64 docker compose -f docker-compose-storage-commitment.yml up --build --exit-code-from=tests
 
