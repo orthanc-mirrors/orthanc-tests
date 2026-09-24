@@ -12910,3 +12910,69 @@ class Orthanc(unittest.TestCase):
             im = GetImage(_REMOTE, '/instances/%s/frames/2/image-uint8' % i)
             self.assertEqual(800, im.size[0])
             self.assertEqual(600, im.size[1])
+
+
+    def test_find_worklist_local_aet(self):
+        # Purpose: "/modalities/{id}/find-worklist" (and the REST handlers that
+        # share its SCU connection setup: the deprecated "/find", "/find-patient",
+        # "/find-study", "/find-series", "/find-instance", and "/echo") must use
+        # the "LocalAet" configured on the target modality as the calling AE
+        # title for the outgoing DICOM association, instead of always falling
+        # back to the global "DicomAet".
+        #
+        # How this test works: Orthanc is made to query a worklist/find SCP that
+        # is itself (a "self-loop", as used e.g. for periodic health checks),
+        # through the "self-with-fake-local-aet" modality, whose "LocalAet"
+        # ("FAKE_SELF_AET") is deliberately distinct from the global AET
+        # ("ORTHANC") and from every other modality's AET in this test
+        # configuration. The calling AE title is exactly what the SCP-side
+        # authorization check ("OrthancApplicationEntityFilter::IsAllowedRequest"
+        # in main.cpp) looks up in its own "DicomModalities" to decide whether to
+        # accept the incoming association:
+        # - If "LocalAet" is honored, Orthanc presents "FAKE_SELF_AET" to itself,
+        #   which matches this very "DicomModalities" entry, so the association
+        #   is authorized and the C-FIND succeeds.
+        # - If "LocalAet" is ignored, Orthanc presents its own global AET
+        #   ("ORTHANC") instead, which isn't declared as any known modality's AET
+        #   here, so the association is rejected and the REST call fails with a
+        #   500 error ("Peer aborted Association").
+        #
+        # Note: this only works for request types whose "DicomAlwaysAllow*"
+        # option defaults to false, since otherwise an unrecognized calling AET
+        # is accepted anyway. This covers "FindWorklist" and the plain "Find"
+        # family (deprecated "/find*"), but not "Echo" or "Store" (both default
+        # to true, so they can't be checked this way, regardless of whether
+        # "LocalAet" is honored).
+
+        if not HasWorklistsPlugin(_REMOTE):
+            print("skipping worklists tests, plugin is not installed")
+            return
+
+        if not IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            return
+
+        answers = DoPost(_REMOTE, '/modalities/self-with-fake-local-aet/find-worklist', {
+            'Query' : { 'PatientID' : '' }
+        })
+        self.assertTrue(isinstance(answers, list))
+
+        # override AET from the payload (with an invalid one -> fail)
+        self.assertRaises(Exception, lambda: DoPost(_REMOTE, '/modalities/self-with-fake-local-aet/find-worklist', {
+            'Query' : { 'PatientID' : '' },
+            'LocalAet': 'AET_FROM_PAYLOAD'
+        }))
+
+        # override AET from the payload (with a valid one -> success)
+        answers = DoPost(_REMOTE, '/modalities/self-with-fake-local-aet/find-worklist', {
+            'Query' : { 'PatientID' : '' },
+            'LocalAet': 'ORTHANC'
+        })
+        self.assertTrue(isinstance(answers, list))
+
+        # Same underlying helper, different DICOM request type ("Find" instead
+        # of "FindWorklist"): catches a fix narrowly scoped to "find-worklist"
+        # alone that would still leave the deprecated "find" family broken.
+        answers = DoPost(_REMOTE, '/modalities/self-with-fake-local-aet/find-patient', {})
+        self.assertTrue(isinstance(answers, list))
+
+

@@ -127,6 +127,17 @@ config['DicomModalities'] = {
          'Host': ip,
          'Port': 5001,
          'LocalAet': 'OT-FROM-CONFIG'
+     },
+     #  This is a Modality used to test if queries such as `find-worklist` use
+     # the configured `LocalAet` of the modality configuration. This modality
+     # configuration will allow `find-worklist` queries to succeed if the calling
+     # (LocalAet) is `FAKE_SELF_AET`
+     'self-with-fake-local-aet': {
+         'AET': 'FAKE_SELF_AET',
+         'Host': '127.0.0.1',
+         'Port': 4242,
+         'LocalAet': 'FAKE_SELF_AET',
+         'AllowFindWorklist': True
      }
 }
 config['DicomPort'] = args.dicom
