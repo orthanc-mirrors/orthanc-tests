@@ -76,7 +76,7 @@ services:
             "a": [ "http://orthanc-pg-a:8042/dicom-web/"],
             "b": [ "http://orthanc-pg-b:8042/dicom-web/"]
           },
-          "AllowedHosts": ["orthanc-pg-b"],
+          "AllowedHosts": ["orthanc-pg-b"]
         }
       ORTHANC__POSTGRESQL: |
         {
