@@ -89,6 +89,10 @@ class Helpers:
 
     @classmethod
     def find_executable(cls, name):
+        p = os.path.join('/usr/bin', name)
+        if os.path.isfile(p):
+            return p
+
         p = os.path.join('/usr/local/bin', name)
         if os.path.isfile(p):
             return p
