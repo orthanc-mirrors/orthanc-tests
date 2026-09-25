@@ -6918,13 +6918,15 @@ class Orthanc(unittest.TestCase):
     def test_storage_commitment_store(self):
         # Storage commitment is available since Orthanc 1.6.0
 
-        def WaitTransaction(uid):
-            while True:
+        def WaitTransaction(uid, timeout=5):
+            retries = 0
+            while retries * 0.1 < timeout:
                 s = DoGet(_REMOTE, '/storage-commitment/%s' % uid)
                 if s['Status'] != 'Pending':
                     return s
                 else:
-                    time.sleep(0.01)
+                    time.sleep(0.1)
+                    retries += 1
 
         i = UploadInstance(_REMOTE, 'DummyCT.dcm')['ID']
         self.assertEqual(1, len(DoGet(_REMOTE, '/instances')))
