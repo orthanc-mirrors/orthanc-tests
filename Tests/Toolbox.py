@@ -415,12 +415,17 @@ def IsPluginVersionAtLeast(orthanc, plugin, major, minor, revision):
 class ExternalCommandThread:
     @staticmethod
     def ExternalCommandFunction(arg, stop_event, command, env):
-        with open(os.devnull, 'w') as devnull:
-            external = subprocess.Popen(command, env = env, stderr = devnull)
+        with tempfile.TemporaryFile() as output:
+            external = subprocess.Popen(command, env = env, stderr = subprocess.STDOUT, stdout = output)
 
             while (not stop_event.is_set()):
                 error = external.poll()
                 if error != None:
+                    print('Error while executing external command: %s', command)
+                    output.seek(0)
+                    print("--------------")
+                    print(output.read())
+                    print("--------------")
                     # http://stackoverflow.com/a/1489838/881731
                     os._exit(-1)
                 stop_event.wait(0.1)
