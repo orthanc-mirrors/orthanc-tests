@@ -4406,8 +4406,7 @@ class Orthanc(unittest.TestCase):
                             str(_REMOTE['DicomPort']),
                             '--study', '-k', 'QueryRetrieveLevel=Study',
                             '-k', 'StudyInstanceUID=2.16.840.1.113669.632.20.121711.10000160881'
-                        ],
-                        stderr = FNULL)
+                        ])
 
                 except subprocess.CalledProcessError as e:
                     print('movescu failed with error code: %s' % str(e.returncode))

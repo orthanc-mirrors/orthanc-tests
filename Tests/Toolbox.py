@@ -421,7 +421,7 @@ class ExternalCommandThread:
             while (not stop_event.is_set()):
                 error = external.poll()
                 if error != None:
-                    print('Error while executing external command: %s', command)
+                    print('Error while executing external command: %s' % command)
                     output.seek(0)
                     print("--------------")
                     print(output.read())

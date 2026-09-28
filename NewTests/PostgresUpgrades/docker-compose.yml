@@ -56,6 +56,8 @@ services:
       - ./wait-for-it.sh:/scripts/wait-for-it.sh
       - ./run-integ-tests-from-docker.sh:/scripts/run-integ-tests-from-docker.sh
     entrypoint: /scripts/run-integ-tests-from-docker.sh
+    environment:
+      PYTHONUNBUFFERED: "1"
 
   # Orthanc latest version
   orthanc-pg-15-under-tests:
