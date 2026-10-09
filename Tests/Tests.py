@@ -3302,6 +3302,14 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('42254d70efd2f4a1b8f3455909689f0e', ComputeMD5(DoGet(_REMOTE, '/instances/%s/matlab' % rf)))
 
 
+    def test_decode_jpegls_ybr_full(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            # https://discourse.orthanc-server.org/t/orthanc-preview-does-not-show-correctly/6488
+            i = UploadInstance(_REMOTE, 'Formats/jpegls80-YBR-FULL.dcm')['ID']
+
+            self.assertEqual('17fc6a52dbd57fbfccba95e4646db4c2', ComputeMD5(DoGet(_REMOTE, '/instances/%s/preview' % i)))
+
+
     def test_decode_multiframe(self):
         mf = UploadInstance(_REMOTE, 'Multiframe.dcm')['ID']
 
