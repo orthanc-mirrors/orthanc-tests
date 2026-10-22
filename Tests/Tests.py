@@ -12953,9 +12953,8 @@ class Orthanc(unittest.TestCase):
         # to true, so they can't be checked this way, regardless of whether
         # "LocalAet" is honored).
 
-        if not HasWorklistsPlugin(_REMOTE):
-            print("skipping worklists tests, plugin is not installed")
-            return
+        if not HasAnyWorklistsPlugin(_REMOTE):
+            self.skipTest("skipping worklists tests, plugin is not installed")
 
         if not IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
             return

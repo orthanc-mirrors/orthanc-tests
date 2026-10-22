@@ -228,6 +228,7 @@ config['DicomWeb'] = {
 config['Worklists'] = {
     'Enable': True,
     'Database': os.path.abspath(os.path.join(os.path.dirname(__file__), './Database/Worklists/Working')),
+    'HousekeepingInterval': 1,  # for the "orthanc-worklists" plugin (cf. "test_housekeeper")
 }
 
 config['PostgreSQL'] = {

@@ -16,3 +16,4 @@ Tests/*.crt
 Tests/*.key
 Tests/dicom-tls.json
 *.orig
+Database/Worklists/Working/*.dump.wl

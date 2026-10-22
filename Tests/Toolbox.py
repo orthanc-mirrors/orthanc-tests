@@ -483,9 +483,17 @@ def HasPostgresIndexPlugin(orthanc):
     plugins = DoGet(orthanc, '/plugins')
     return ('postgresql-index' in plugins)
 
-def HasWorklistsPlugin(orthanc):
+def HasLegacyWorklistsPlugin(orthanc):
     plugins = DoGet(orthanc, '/plugins')
     return ('worklists' in plugins)
+
+def HasNewWorklistsPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('orthanc-worklists' in plugins)
+
+def HasAnyWorklistsPlugin(orthanc):
+    plugins = DoGet(orthanc, '/plugins')
+    return ('orthanc-worklists' in plugins) or ('worklists' in plugins)
 
 def HasMySQLIndexPlugin(orthanc):
     plugins = DoGet(orthanc, '/plugins')

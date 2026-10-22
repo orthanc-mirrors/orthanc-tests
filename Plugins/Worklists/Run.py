@@ -142,7 +142,7 @@ def RunQuery(source, ignoreTags):
                 if not isQuery:
                     tag = as_ascii[4:13].lower()
                     if not tag in ignoreTags:
-                        line_without_comment = re.sub(b'\s*#.*', b'', line)
+                        line_without_comment = re.sub(rb'\s*#.*', b'', line)
                         line_without_comment = line_without_comment.replace(b'\0', b'')
                         current.append(line_without_comment[3:])
 
@@ -166,6 +166,15 @@ def CompareAnswers(expected, actual):
                 return True
 
     return False
+
+
+def GetUpTime():
+    metrics = DoGetRaw(ORTHANC, '/tools/metrics-prometheus')[1].decode()
+    for line in metrics.split('\n'):
+        m = line.split(' ')
+        if m[0] == 'orthanc_up_time_s':
+            return int(m[1])
+    raise Exception('Metric "orthanc_up_time_s" is not available')
 
 
 def ParseTopLevelTags(answer):
@@ -383,7 +392,75 @@ class Orthanc(unittest.TestCase):
         self.assertEqual('PatientID', a[0]['0010,0020']['Name'])
         self.assertEqual('ISO_IR 100', a[0]['0008,0005']['Value'])
         self.assertEqual('SpecificCharacterSet', a[0]['0008,0005']['Name'])
- 
+
+
+    def test_housekeeper(self):
+        # The "WL HOUSEKEEPER" thread of the "orthanc-worklists" plugin
+        # deletes a worklist once its study is stable ("DeleteWorklistsOnStableStudy",
+        # true by default).  A malformed ".wl" file (e.g. one being written by a
+        # RIS while it is read) used to terminate Orthanc from this thread.
+        # This requires the standalone plugin (not the "libModalityWorklists"
+        # sample), with a short "HousekeepingInterval" and "StableAge"
+        # (cf. "GenerateConfigurationForTests.py").
+        if not HasNewWorklistsPlugin(ORTHANC) or not IsPluginVersionAtLeast(ORTHANC, "orthanc-worklists", 0, 9, 3):
+            self.skipTest('Requires the new "orthanc-worklists" plugin')
+
+        start = time.time()
+        upTime = GetUpTime()
+
+        AddToDatabase('Dcmtk/Database/wklist1.dump')
+        valid = os.path.join(WORKING, 'wklist1.dump.wl')
+        empty = os.path.join(WORKING, 'empty.wl')
+        garbage = os.path.join(WORKING, 'garbage.wl')
+        open(empty, 'wb').close()
+        with open(garbage, 'wb') as f:
+            f.write(b'This is not a DICOM file')
+
+        # The malformed worklists are skipped, the valid one is still returned
+        a = DoPost(ORTHANC, '/modalities/self/find-worklist', {
+            'Query' : {
+                'PatientID' : ''
+                }
+            })
+        self.assertEqual(1, len(a))
+        self.assertEqual('AV35674', a[0]['PatientID'])
+
+        # Simulate the modality sending the images of the scheduled procedure:
+        # store a study with the same PatientID and StudyInstanceUID as the
+        # valid worklist (cf. "wklist1.dump").
+        #
+        # This relies on a short "StableAge" (1 second)
+        instance = DoPost(ORTHANC, '/tools/create-dicom', {
+            'Tags' : {
+                'PatientID' : 'AV35674',
+                'StudyInstanceUID' : '1.2.276.0.7230010.3.2.101',
+                },
+            'Force' : True
+            })['ID']
+
+        try:
+            # Once the study is stable ("StableAge") and the housekeeper has run
+            # ("HousekeepingInterval"), the worklist of the completed study is deleted
+            for i in range(30):
+                if not os.path.exists(valid):
+                    break
+                time.sleep(1)
+
+            self.assertFalse(os.path.exists(valid))
+
+            # The housekeeper has skipped the malformed worklists without crashing
+            self.assertTrue(os.path.exists(empty))
+            self.assertTrue(os.path.exists(garbage))
+
+            # Orthanc has not been restarted in the meantime
+            self.assertGreaterEqual(GetUpTime(), upTime + int(time.time() - start) - 1)
+
+            # The REST API skips the malformed worklists instead of failing
+            self.assertEqual(0, len(DoGet(ORTHANC, '/worklists')))
+
+        finally:
+            DoDelete(ORTHANC, '/instances/%s' % instance)
+
         
 try:
     print('\nStarting the tests...')
