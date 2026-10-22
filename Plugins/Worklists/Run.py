@@ -92,7 +92,7 @@ except Exception as e:
 
 def ClearDatabase():
     for f in os.listdir(WORKING):
-        if f != 'lockfile':
+        if f != 'lockfile' and f != '.keep':
             os.remove(os.path.join(WORKING, f))
 
 def AddToDatabase(worklist):
@@ -142,7 +142,7 @@ def RunQuery(source, ignoreTags):
                 if not isQuery:
                     tag = as_ascii[4:13].lower()
                     if not tag in ignoreTags:
-                        line_without_comment = re.sub(rb'\s*#.*', b'', line)
+                        line_without_comment = re.sub(b'#.*', b'', line).strip()
                         line_without_comment = line_without_comment.replace(b'\0', b'')
                         current.append(line_without_comment[3:])
 
