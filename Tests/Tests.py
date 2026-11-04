@@ -12984,3 +12984,59 @@ class Orthanc(unittest.TestCase):
         self.assertTrue(isinstance(answers, list))
 
 
+    def test_modify_specific_characterset_should_keep_other_characters_untouched(self):
+        # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
+        # the source is a Thaï encoded file (ISO_IR 166)
+        # the source PatientName is "Test-๛" 
+        # ๛ is 0e5b in UTF-8 and fb in ISO_IR 166
+
+        i = UploadInstance(_REMOTE, 'Encodings/Lena-tis-620.dcm')
+        original_study_id = i['ParentStudy']
+        original_study_info = DoGet(_REMOTE, '/studies/%s' % original_study_id)
+        original_instance_tags = DoGet(_REMOTE, '/instances/%s/simplified-tags' % i['ID'])
+
+        self.assertEqual(u"Test-\u0e5b", original_study_info['PatientMainDicomTags']['PatientName'])
+
+        modified_study = DoPost(_REMOTE, '/studies/%s/modify' % original_study_id,
+                          json.dumps({
+                            "Replace" : {
+                                "StudyDescription" : "Ça contient de l'UTF-8",
+                                "SpecificCharacterSet": "ISO_IR 192"
+                                }
+                            }),
+                          'application/json')
+
+        modified_study_info = DoGet(_REMOTE, '/studies/%s' % modified_study['ID'])
+        # pprint.pprint(modified_study_info)
+        self.assertEqual(u"\xc7a contient de l'UTF-8", modified_study_info["MainDicomTags"]["StudyDescription"])
+
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            self.assertEqual(u"Test-\u0e5b", modified_study_info['PatientMainDicomTags']['PatientName'])
+
+            # download the file and check the bytes are correct in the file too; not only in the DB
+            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study['ID'])
+            resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
+            self.assertIn(b'Test-\xe0\xb9\x9b', raw_file_content) # U+0E5B is 0000 1110 0101 1011 and this character is encoded as 3 bytes: 1110 (shows start of 3 bytes) 0000 (first 4 bits) 10 (continuation bits) 1111001 (6 bits) 10 (continuation bits) 011011 (last 6 bits)
+            self.assertIn(b'\xc3\x87a contient', raw_file_content) # U+00C7 is 0000 1100 0111 (11bits payload -> 2 bytes utf-8): 110 (shows start of 2 bytes) 00011 (5 top bits) 10 (continuation) 000111 (6 last bits)
+            self.assertIn(b'ISO_IR 192', raw_file_content)
+
+        # let's transform the study back to ISO-166.  This means that the characters like 'Ç' that can not be represented in ISO-166 will be removed (this is expected)
+        modified_study_2 = DoPost(_REMOTE, '/studies/%s/modify' % modified_study['ID'],
+                            json.dumps({
+                              "Replace" : {
+                                  "SpecificCharacterSet": "ISO_IR 166"
+                                  }
+                              }),
+                            'application/json')
+        modified_study_info_2 = DoGet(_REMOTE, '/studies/%s' % modified_study_2['ID'])
+        # pprint.pprint(modified_study_info_2)
+        self.assertEqual(u"a contient de l'UTF-8", modified_study_info_2["MainDicomTags"]["StudyDescription"])  # 'Ç' has been removed
+        
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            self.assertEqual(u"Test-\u0e5b", modified_study_info_2['PatientMainDicomTags']['PatientName']) # but the thaï character remains
+        
+            # download the file and check the bytes are correct in the file too; not only in the DB
+            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
+            resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
+            self.assertIn(b'Test-\xfb', raw_file_content)  # FB is the ๛ encoded in ISO-166
+            self.assertIn(b'ISO_IR 166', raw_file_content)
