@@ -13040,3 +13040,50 @@ class Orthanc(unittest.TestCase):
             resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
             self.assertIn(b'Test-\xfb', raw_file_content)  # FB is the ๛ encoded in ISO-166
             self.assertIn(b'ISO_IR 166', raw_file_content)
+
+    def test_make_sure_pn_can_hold_more_than_64_bytes(self):
+        # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
+        # ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์ is 74 bytes, 28 characters
+        # make sure Orthanc supports it
+
+        i = UploadInstance(_REMOTE, 'Encodings/Lena-tis-620.dcm')
+        original_study_id = i['ParentStudy']
+        original_study_info = DoGet(_REMOTE, '/studies/%s' % original_study_id)
+
+        modified_study = DoPost(_REMOTE, '/studies/%s/modify' % original_study_id,
+                          json.dumps({
+                            "Replace" : {
+                                "PatientName" : "ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์",
+                                "SpecificCharacterSet": "ISO_IR 192"
+                                }
+                            }),
+                          'application/json')
+
+        modified_study_info = DoGet(_REMOTE, '/studies/%s' % modified_study['ID'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            # pprint.pprint(modified_study_info)
+            self.assertEqual(u"\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c", modified_study_info["PatientMainDicomTags"]["PatientName"])
+
+        # the DICOM standard states that PN is made of 5 components and each components is 64 chars max
+        # ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์ is 74 bytes, 28 characters -> copy it in the first 2 compoments (make sure it does not exceed 256 bytes so it is not discarded from the JSON outputs)
+        # make sure Orthanc supports it
+
+        modified_study_2 = DoPost(_REMOTE, '/studies/%s/modify' % original_study_id,
+                            json.dumps({
+                              "Replace" : {
+                                  "PatientID": "Yet another ID",
+                                  "PatientName" : "Test^ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์^ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์^",
+                                  "SpecificCharacterSet": "ISO_IR 192"
+                                  },
+                                  "Force": True
+                              }),
+                            'application/json')
+
+        modified_study_info_2 = DoGet(_REMOTE, '/studies/%s' % modified_study_2['ID'])
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
+            resp, raw_patient_name = DoGetRaw(_REMOTE, '/instances/%s/content/0010-0010' % modified_instances_ids[0])
+            self.assertEqual(156, len(raw_patient_name))
+
+            # pprint.pprint(modified_study_info_2)
+            self.assertEqual(u"Test^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^", modified_study_info_2["PatientMainDicomTags"]["PatientName"])
