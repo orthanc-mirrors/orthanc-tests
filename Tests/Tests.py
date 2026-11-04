@@ -12985,6 +12985,9 @@ class Orthanc(unittest.TestCase):
 
 
     def test_modify_specific_characterset_should_keep_other_characters_untouched(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            self.skipTest("SpecificCharacterSet modification can only be tested with 1.13.1+")
+        
         # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
         # the source is a Thaï encoded file (ISO_IR 166)
         # the source PatientName is "Test-๛" 
@@ -13010,15 +13013,14 @@ class Orthanc(unittest.TestCase):
         # pprint.pprint(modified_study_info)
         self.assertEqual(u"\xc7a contient de l'UTF-8", modified_study_info["MainDicomTags"]["StudyDescription"])
 
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
-            self.assertEqual(u"Test-\u0e5b", modified_study_info['PatientMainDicomTags']['PatientName'])
+        self.assertEqual(u"Test-\u0e5b", modified_study_info['PatientMainDicomTags']['PatientName'])
 
-            # download the file and check the bytes are correct in the file too; not only in the DB
-            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study['ID'])
-            resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
-            self.assertIn(b'Test-\xe0\xb9\x9b', raw_file_content) # U+0E5B is 0000 1110 0101 1011 and this character is encoded as 3 bytes: 1110 (shows start of 3 bytes) 0000 (first 4 bits) 10 (continuation bits) 1111001 (6 bits) 10 (continuation bits) 011011 (last 6 bits)
-            self.assertIn(b'\xc3\x87a contient', raw_file_content) # U+00C7 is 0000 1100 0111 (11bits payload -> 2 bytes utf-8): 110 (shows start of 2 bytes) 00011 (5 top bits) 10 (continuation) 000111 (6 last bits)
-            self.assertIn(b'ISO_IR 192', raw_file_content)
+        # download the file and check the bytes are correct in the file too; not only in the DB
+        modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study['ID'])
+        resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
+        self.assertIn(b'Test-\xe0\xb9\x9b', raw_file_content) # U+0E5B is 0000 1110 0101 1011 and this character is encoded as 3 bytes: 1110 (shows start of 3 bytes) 0000 (first 4 bits) 10 (continuation bits) 1111001 (6 bits) 10 (continuation bits) 011011 (last 6 bits)
+        self.assertIn(b'\xc3\x87a contient', raw_file_content) # U+00C7 is 0000 1100 0111 (11bits payload -> 2 bytes utf-8): 110 (shows start of 2 bytes) 00011 (5 top bits) 10 (continuation) 000111 (6 last bits)
+        self.assertIn(b'ISO_IR 192', raw_file_content)
 
         # let's transform the study back to ISO-166.  This means that the characters like 'Ç' that can not be represented in ISO-166 will be removed (this is expected)
         modified_study_2 = DoPost(_REMOTE, '/studies/%s/modify' % modified_study['ID'],
@@ -13032,16 +13034,18 @@ class Orthanc(unittest.TestCase):
         # pprint.pprint(modified_study_info_2)
         self.assertEqual(u"a contient de l'UTF-8", modified_study_info_2["MainDicomTags"]["StudyDescription"])  # 'Ç' has been removed
         
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
-            self.assertEqual(u"Test-\u0e5b", modified_study_info_2['PatientMainDicomTags']['PatientName']) # but the thaï character remains
-        
-            # download the file and check the bytes are correct in the file too; not only in the DB
-            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
-            resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
-            self.assertIn(b'Test-\xfb', raw_file_content)  # FB is the ๛ encoded in ISO-166
-            self.assertIn(b'ISO_IR 166', raw_file_content)
+        self.assertEqual(u"Test-\u0e5b", modified_study_info_2['PatientMainDicomTags']['PatientName']) # but the thaï character remains
+    
+        # download the file and check the bytes are correct in the file too; not only in the DB
+        modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
+        resp, raw_file_content = DoGetRaw(_REMOTE, '/instances/%s/file' % modified_instances_ids[0])
+        self.assertIn(b'Test-\xfb', raw_file_content)  # FB is the ๛ encoded in ISO-166
+        self.assertIn(b'ISO_IR 166', raw_file_content)
 
     def test_make_sure_pn_can_hold_more_than_64_bytes(self):
+        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+            self.skipTest("PN max size can only be tested with 1.13.1+")
+
         # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
         # ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์ is 74 bytes, 28 characters
         # make sure Orthanc supports it
@@ -13060,9 +13064,8 @@ class Orthanc(unittest.TestCase):
                           'application/json')
 
         modified_study_info = DoGet(_REMOTE, '/studies/%s' % modified_study['ID'])
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
-            # pprint.pprint(modified_study_info)
-            self.assertEqual(u"\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c", modified_study_info["PatientMainDicomTags"]["PatientName"])
+        # pprint.pprint(modified_study_info)
+        self.assertEqual(u"\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c", modified_study_info["PatientMainDicomTags"]["PatientName"])
 
         # the DICOM standard states that PN is made of 5 components and each components is 64 chars max
         # ว่าที่ ร.ต. ปิยะ พงษ์ไพบูลย์ is 74 bytes, 28 characters -> copy it in the first 2 compoments (make sure it does not exceed 256 bytes so it is not discarded from the JSON outputs)
@@ -13080,10 +13083,9 @@ class Orthanc(unittest.TestCase):
                             'application/json')
 
         modified_study_info_2 = DoGet(_REMOTE, '/studies/%s' % modified_study_2['ID'])
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
-            modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
-            resp, raw_patient_name = DoGetRaw(_REMOTE, '/instances/%s/content/0010-0010' % modified_instances_ids[0])
-            self.assertEqual(156, len(raw_patient_name))
+        modified_instances_ids = DoGet(_REMOTE, '/studies/%s/instances?expand=false' % modified_study_2['ID'])
+        resp, raw_patient_name = DoGetRaw(_REMOTE, '/instances/%s/content/0010-0010' % modified_instances_ids[0])
+        self.assertEqual(156, len(raw_patient_name))
 
-            # pprint.pprint(modified_study_info_2)
-            self.assertEqual(u"Test^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^", modified_study_info_2["PatientMainDicomTags"]["PatientName"])
+        # pprint.pprint(modified_study_info_2)
+        self.assertEqual(u"Test^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^\u0e27\u0e48\u0e32\u0e17\u0e35\u0e48 \u0e23.\u0e15. \u0e1b\u0e34\u0e22\u0e30 \u0e1e\u0e07\u0e29\u0e4c\u0e44\u0e1e\u0e1a\u0e39\u0e25\u0e22\u0e4c^", modified_study_info_2["PatientMainDicomTags"]["PatientName"])
