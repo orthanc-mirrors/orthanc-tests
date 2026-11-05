@@ -12985,7 +12985,7 @@ class Orthanc(unittest.TestCase):
 
 
     def test_modify_specific_characterset_should_keep_other_characters_untouched(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+        if not IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
             self.skipTest("SpecificCharacterSet modification can only be tested with 1.13.1+")
         
         # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
@@ -13043,7 +13043,7 @@ class Orthanc(unittest.TestCase):
         self.assertIn(b'ISO_IR 166', raw_file_content)
 
     def test_make_sure_pn_can_hold_more_than_64_bytes(self):
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
+        if not IsOrthancVersionAbove(_REMOTE, 1, 13, 1):
             self.skipTest("PN max size can only be tested with 1.13.1+")
 
         # based on https://github.com/orthanc-server/orthanc-explorer-2/issues/123
