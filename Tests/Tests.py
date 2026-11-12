@@ -12684,24 +12684,25 @@ class Orthanc(unittest.TestCase):
 
 
     def test_archive_utf8(self):
-        brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
+        if IsThirdPartyLibraryVersionAbove(_REMOTE, 'minizip', 1, 3, 2):
+            brainix = UploadInstance(_REMOTE, 'Brainix/Flair/IM-0001-0001.dcm') ['ID']
 
-        z = PostArchive(_REMOTE, '/tools/create-archive', {
-            'Resources' : [ brainix ],
-            'Utf8' : False,
-            })
-        self.assertEqual(1, len(z.namelist()))
-
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
-            self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
-
-        if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
             z = PostArchive(_REMOTE, '/tools/create-archive', {
                 'Resources' : [ brainix ],
-                'Utf8' : True,
+                'Utf8' : False,
                 })
             self.assertEqual(1, len(z.namelist()))
-            self.assertIn(u'5Yp0E - BRAINIX/0 - IRM cérébrale, neuro-crâne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
+
+            if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
+                self.assertIn('5Yp0E - BRAINIX/0 - IRM crbrale, neuro-crne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
+
+            if IsOrthancVersionAbove(_REMOTE, 1, 13, 0):
+                z = PostArchive(_REMOTE, '/tools/create-archive', {
+                    'Resources' : [ brainix ],
+                    'Utf8' : True,
+                    })
+                self.assertEqual(1, len(z.namelist()))
+                self.assertIn(u'5Yp0E - BRAINIX/0 - IRM cérébrale, neuro-crâne/401 - MR - sT2W FLAIR/MR000001.dcm', z.namelist())
 
 
     def test_od_of_ol_array(self):
